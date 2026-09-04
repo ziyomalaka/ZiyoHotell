@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ziyohotel
+      POSTGRES_PASSWORD: ziyohotel
+      POSTGRES_DB: ziyohotel
+    ports:
+      - "5432:5432"
+    volumes:
+      - ziyohotel_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ziyohotel -d ziyohotel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://ziyohotel:ziyohotel@postgres:5432/ziyohotel?schema=public
+      TZ: Asia/Tashkent
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./storage/backups:/app/storage/backups
+
+volumes:
+  ziyohotel_pg:

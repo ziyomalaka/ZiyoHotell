@@ -1,0 +1,261 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Staff accounts. `login` is the unique username (API also exposes it as username).
+model User {
+  id                 String    @id @default(uuid())
+  login              String    @unique
+  passwordHash       String
+  fullName           String
+  phone              String?
+  role               String
+  workStatus         String    @default("ACTIVE")
+  isActive           Boolean   @default(true)
+  notes              String?
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  customers     Customer[]
+  stays         Stay[]
+  payments      Payment[]      @relation("PaymentCreatedBy")
+  cancelledPays Payment[]      @relation("PaymentCancelledBy")
+  checkLogs     CheckLog[]
+  auditLogs     AuditLog[]
+  backups       Backup[]
+  refreshTokens RefreshToken[]
+  checkouts     Stay[]         @relation("StayCheckedOutBy")
+
+  @@index([role])
+  @@index([workStatus])
+}
+
+model Role {
+  id          String @id @default(uuid())
+  code        String @unique
+  name        String
+  permissions String
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model Floor {
+  id          String   @id @default(uuid())
+  number      Int      @unique
+  name        String
+  status      String   @default("ACTIVE")
+  description String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rooms       Room[]
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  fullName    String
+  phone       String
+  gender      String    @default("MALE")
+  birthDate   DateTime?
+  passportId  String    @unique
+  address     String?
+  extraPhone  String?
+  notes       String?
+  blocked     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  stays     Stay[]
+  payments  Payment[]
+  checkLogs CheckLog[]
+  occupancy Occupancy?
+
+  @@index([phone])
+  @@index([fullName])
+}
+
+model Room {
+  id           String   @id @default(uuid())
+  number       String
+  floor        Int      @default(1)
+  floorId      String?
+  roomType     String   @default("ODDIY")
+  capacity     Int
+  /// Operational: ACTIVE | REPAIR | INACTIVE. Occupancy kind is computed from beds.
+  status       String   @default("ACTIVE")
+  /// UZS whole so'm (integer). Never float.
+  dailyPrice   Int
+  monthlyPrice Int
+  notes        String?
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  level        Floor?   @relation(fields: [floorId], references: [id])
+  beds         Bed[]
+  stays        Stay[]
+
+  @@unique([floorId, number])
+  @@index([floorId])
+}
+
+model Bed {
+  id        String     @id @default(uuid())
+  roomId    String
+  number    Int
+  /// Operational: ACTIVE | REPAIR | INACTIVE. OCCUPIED is Occupancy row.
+  status    String     @default("ACTIVE")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  room      Room       @relation(fields: [roomId], references: [id])
+  occupancy Occupancy?
+  stays     Stay[]
+
+  @@unique([roomId, number])
+  @@index([roomId])
+}
+
+/// One row = one occupied bed / one active customer. Unique constraints prevent double-booking.
+model Occupancy {
+  bedId      String   @id
+  stayId     String   @unique
+  customerId String   @unique
+  bed        Bed      @relation(fields: [bedId], references: [id])
+  stay       Stay     @relation(fields: [stayId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Stay {
+  id             String    @id @default(uuid())
+  customerId     String
+  roomId         String
+  bedId          String
+  type           String
+  startDate      DateTime
+  endDate        DateTime?
+  daysCount      Int?
+  paymentMonth   String?
+  dailyPrice     Int
+  monthlyPrice   Int
+  totalAmount    Int
+  paidAmount     Int       @default(0)
+  status         String    @default("ACTIVE")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdById    String
+  checkedOutById String?
+
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  room         Room        @relation(fields: [roomId], references: [id])
+  bed          Bed         @relation(fields: [bedId], references: [id])
+  createdBy    User        @relation(fields: [createdById], references: [id])
+  checkedOutBy User?       @relation("StayCheckedOutBy", fields: [checkedOutById], references: [id])
+  occupancy    Occupancy?
+  payments     Payment[]
+  checkLogs    CheckLog[]
+
+  @@index([status])
+  @@index([startDate])
+  @@index([customerId])
+  @@index([bedId])
+}
+
+model Payment {
+  id              String    @id @default(uuid())
+  customerId      String
+  stayId          String
+  type            String
+  period          String
+  amount          Int
+  method          String
+  status          String
+  paidAt          DateTime  @default(now())
+  createdById     String
+  cancelledAt     DateTime?
+  cancelReason    String?
+  cancelledById   String?
+  idempotencyKey  String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  stay        Stay     @relation(fields: [stayId], references: [id])
+  createdBy   User     @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+  cancelledBy User?    @relation("PaymentCancelledBy", fields: [cancelledById], references: [id])
+
+  @@index([paidAt])
+  @@index([status])
+  @@index([customerId])
+  @@index([stayId])
+}
+
+model CheckLog {
+  id          String   @id @default(uuid())
+  stayId      String
+  customerId  String
+  type        String
+  at          DateTime
+  note        String?
+  createdById String
+
+  stay      Stay     @relation(fields: [stayId], references: [id])
+  customer  Customer @relation(fields: [customerId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([at])
+  @@index([type])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  section   String?
+  ip        String?
+  userAgent String?
+  oldValue  String?
+  newValue  String?
+  meta      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model Backup {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  path        String
+  fileName    String   @default("")
+  size        Int
+  status      String
+  type        String
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
