@@ -3,23 +3,33 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { formatDate, formatMoney, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import {
+  customerGenderLabel,
+  floorLabel,
+  formatDate,
+  formatMoney,
+  payStatusLabel,
+  stayTypeLabel,
+} from "@/lib/format";
 
 type Profile = {
   fullName: string;
   phone: string;
+  gender: string;
   passportId: string;
   address?: string | null;
   paid: number;
   debt: number;
-  occupancy?: { stay: { startDate: string; type: string; room: { number: string }; bed: { number: number } } } | null;
+  occupancy?: {
+    stay: { startDate: string; type: string; room: { number: string; floor: number }; bed: { number: number } };
+  } | null;
   stays: {
     id: string;
     startDate: string;
     endDate?: string | null;
     status: string;
     type: string;
-    room: { number: string };
+    room: { number: string; floor: number };
     bed: { number: number };
     totalAmount: number;
     paidAmount: number;
@@ -41,8 +51,10 @@ export default function ManagerCustomerProfile() {
       <h1 className="sr-only">{c.fullName}</h1>
       <section className="grid gap-3 card p-5 text-sm sm:grid-cols-2">
         <p>Telefon: {c.phone}</p>
+        <p>Jins: {customerGenderLabel(c.gender)}</p>
         <p>Pasport / ID: {c.passportId}</p>
         <p>Manzil: {c.address || "—"}</p>
+        <p>Qavat: {stay ? floorLabel(stay.room.floor) : "—"}</p>
         <p>Xona / o‘rin: {stay ? `${stay.room.number}/${stay.bed.number}` : "—"}</p>
         <p>Kirish sanasi: {stay ? formatDate(stay.startDate) : "—"}</p>
         <p>Yashash turi: {stay ? stayTypeLabel(stay.type) : "—"}</p>
@@ -53,7 +65,7 @@ export default function ManagerCustomerProfile() {
         <h2 className="font-semibold">Kirish / chiqish tarixi</h2>
         {c.stays.map((s) => (
           <p key={s.id} className="mt-2 text-sm">
-            {s.room.number}/{s.bed.number} · {formatDate(s.startDate)}
+            {floorLabel(s.room.floor)} · {s.room.number}/{s.bed.number} · {formatDate(s.startDate)}
             {s.endDate ? ` — ${formatDate(s.endDate)}` : ""} · {s.status === "ACTIVE" ? "Yashamoqda" : "Chiqib ketgan"} · {stayTypeLabel(s.type)}
           </p>
         ))}

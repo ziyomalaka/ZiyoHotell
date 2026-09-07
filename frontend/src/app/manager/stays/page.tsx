@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, formatTime, roomBedLabel } from "@/lib/format";
+import { floorLabel, formatDate, formatTime, roomBedLabel } from "@/lib/format";
 
 type Row = {
   id: string;
   fullName: string;
   room: string;
+  floor: number | null;
   bed: number;
   inAt: string;
   outAt: string | null;
@@ -22,6 +24,7 @@ export default function ManagerStaysPage() {
   const [tab, setTab] = useState("living");
   const [range, setRange] = useState("");
   const [q, setQ] = useState("");
+  const [floor, setFloor] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
@@ -34,12 +37,13 @@ export default function ManagerStaysPage() {
 
   useEffect(() => {
     const p = new URLSearchParams({ tab, range, q, from, to, page: String(page), pageSize: String(pageSize) });
+    if (floor) p.set("floor", floor);
     api<{ total: number; stats: { inToday: number; outToday: number; living: number }; rows: Row[] }>(`/api/v1/manager/check-history?${p}`).then(setData);
-  }, [tab, range, q, from, to, page, pageSize]);
+  }, [tab, range, q, from, to, page, pageSize, floor]);
 
   useEffect(() => {
     setPage(1);
-  }, [tab, range, q, from, to, pageSize]);
+  }, [tab, range, q, from, to, pageSize, floor]);
 
   return (
     <div>
@@ -76,12 +80,18 @@ export default function ManagerStaysPage() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
+        <FloorFilter
+          scope="manager"
+          value={floor}
+          onChange={setFloor}
+          className="rounded-lg border border-line bg-white px-3 py-2"
+        />
       </div>
       <div className="mt-4 card overflow-x-auto">
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["F.I.Sh.", "Xona/o‘rin", "Kirish sanasi", "Kirish vaqti", "Chiqish sanasi", "Chiqish vaqti", "Holati", "Reception"].map((h) => (
+              {["F.I.Sh.", "Qavat", "Xona/o‘rin", "Kirish sanasi", "Kirish vaqti", "Chiqish sanasi", "Chiqish vaqti", "Holati", "Reception"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -92,6 +102,7 @@ export default function ManagerStaysPage() {
             {data.rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.fullName}</td>
+                <td className="px-3 py-3">{floorLabel(r.floor)}</td>
                 <td className="px-3 py-3">
                   {roomBedLabel(r.room, r.bed)}
                 </td>

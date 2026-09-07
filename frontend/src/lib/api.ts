@@ -48,7 +48,7 @@ export async function api<T>(path: string, init?: RequestInit, retry = true): Pr
       "Backend yoki PostgreSQL ishlamayapti. Avval Postgres (5432), keyin backend (4000) ni yoqing.",
     );
   }
-  if (!res.ok || !json.ok) {
+  if (!res.ok || json.ok === false) {
     if (res.status === 401 && path !== AUTH_LOGIN) goLogin();
     throw new Error(json.error || json.message || "Ma’lumotni saqlashda xatolik yuz berdi. Qayta urinib ko‘ring.");
   }

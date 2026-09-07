@@ -29,7 +29,7 @@ const settings: Record<string, string> = {
   currency: 'UZS',
   dateFormat: 'DD.MM.YYYY',
   dailyPrice: '50000',
-  monthlyPrice: '1200000',
+  monthlyPrice: '750000',
   paymentDueDays: '5',
   allowPartial: 'true',
   payCash: 'true',

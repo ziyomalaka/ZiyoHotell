@@ -274,4 +274,11 @@ export class PageQueryDto {
   @IsOptional()
   @IsString()
   room?: string;
+
+  @ApiPropertyOptional({ description: 'Qavat raqami bo‘yicha filtr' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  floor?: number;
 }

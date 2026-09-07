@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
+import { genderWord, roomGender } from '../common/gender';
+import { paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
 
 export type RegisterInput = {
   fullName: string;
@@ -37,6 +39,20 @@ export class ReceptionService {
 
   private contains(q: string): Prisma.StringFilter {
     return { contains: q, mode: 'insensitive' };
+  }
+
+  /** Qavat filtri: faqat 1 dan katta butun son qabul qilinadi, aks holda filtr qo‘llanmaydi. */
+  private floorFilter(floor?: number | string | null) {
+    const level = Number(floor);
+    return Number.isInteger(level) && level >= 1 ? level : null;
+  }
+
+  async floorOptions() {
+    const floors = await this.prisma.floor.findMany({
+      orderBy: { number: 'asc' },
+      include: { _count: { select: { rooms: true } } },
+    });
+    return floors.map((f) => ({ id: f.id, number: f.number, name: f.name, status: f.status, rooms: f._count.rooms }));
   }
 
   async findCustomerByPassportOrPhone(passportId?: string, phone?: string) {
@@ -85,7 +101,7 @@ export class ReceptionService {
     }
     const paymentStatus = input.paymentStatus === 'PAID' && amount > 0 ? 'PAID' : 'UNPAID';
     const paidAmount = paymentStatus === 'PAID' ? amount : 0;
-    const gender = input.gender === 'FEMALE' ? 'FEMALE' : 'MALE';
+    const gender = roomGender(input.gender);
     const passportId = input.passportId?.trim() || `AUTO-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     return this.prisma.$transaction(
@@ -97,6 +113,14 @@ export class ReceptionService {
         });
         if (!bed || bed.status !== 'ACTIVE' || bed.room.status !== 'ACTIVE' || bed.occupancy) {
           throw new AppError('Ushbu o‘rin band. Boshqa o‘rin tanlang.', 409, 'BED_ALREADY_OCCUPIED');
+        }
+        // Aralash xona bo‘lmasligi uchun: mijoz jinsi xona jinsiga mos kelishi shart.
+        if (bed.room.gender !== gender) {
+          throw new AppError(
+            `${bed.room.floor}-qavat ${bed.room.number}-xona ${genderWord(bed.room.gender)} uchun ajratilgan. ${genderWord(gender)} uchun boshqa xona tanlang.`,
+            409,
+            'ROOM_GENDER_MISMATCH',
+          );
         }
 
         let customer = input.passportId?.trim()
@@ -145,6 +169,19 @@ export class ReceptionService {
         const paymentMonth = input.stayType === 'MONTHLY' ? input.paymentMonth || input.startDate.slice(0, 7) : null;
         const method = input.paymentMethod === 'BANK_TRANSFER' ? 'BANK' : input.paymentMethod || 'CASH';
 
+        // Oylik yashovchi to'lagan summa qancha kun berganini o'zi hisoblaydi:
+        // 750 000 = 30 kun, ya'ni 2 250 000 = 3 oy. Hisob to'lov qilingan kundan boradi,
+        // yashash keyinroq boshlansa esa kirish sanasidan.
+        const paidAt = parseDate(todayISO());
+        const period =
+          input.stayType === 'MONTHLY' && paidAmount > 0
+            ? paymentPeriod({
+                amount: paidAmount,
+                monthlyPrice: bed.room.monthlyPrice,
+                paidAt,
+              })
+            : null;
+
         const stay = await tx.stay.create({
           data: {
             customerId: customer.id,
@@ -159,6 +196,8 @@ export class ReceptionService {
             monthlyPrice: bed.room.monthlyPrice,
             totalAmount: amount,
             paidAmount,
+            paidUntil: period?.to ?? null,
+            paidDays: period?.days ?? 0,
             status: 'ACTIVE',
             createdById: userId,
           },
@@ -184,8 +223,12 @@ export class ReceptionService {
               type: input.stayType,
               period: input.stayType === 'DAILY' ? input.startDate : paymentMonth || '',
               amount,
+              days: period?.days ?? 0,
+              coversFrom: period?.from ?? null,
+              coversTo: period?.to ?? null,
               method,
               status: paymentStatus,
+              paidAt,
               createdById: userId,
             },
           });
@@ -199,7 +242,8 @@ export class ReceptionService {
             meta: JSON.stringify({ customerId: customer.id, bedId: bed.id }),
           },
         });
-        return tx.stay.findUniqueOrThrow({ where: { id: stay.id }, include: stayInclude });
+        const row = await tx.stay.findUniqueOrThrow({ where: { id: stay.id }, include: stayInclude });
+        return { ...row, ...periodInfo(row) };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -287,22 +331,46 @@ export class ReceptionService {
       });
       if (!stay) throw new AppError('Mijoz topilmadi.');
       const paidAmount = stay.paidAmount + amount;
+      const paidAt = input.paymentDate ? parseDate(input.paymentDate) : new Date();
+
+      // Yangi to'lov muddatni uzaytiradi: summa qancha oy/kun berishini o'zi hisoblaydi.
+      // Muddat hali tugamagan bo'lsa qolgan kunlar ustiga qo'shiladi,
+      // o'tib ketgan bo'lsa hisob shu to'lov sanasidan boshlanadi.
+      const type = input.type || stay.type;
+      const period =
+        type === 'MONTHLY'
+          ? paymentPeriod({
+              amount,
+              monthlyPrice: stay.monthlyPrice,
+              paidAt,
+              currentPaidUntil: stay.paidUntil,
+            })
+          : null;
+
       const payment = await tx.payment.create({
         data: {
           customerId: stay.customerId,
           stayId: stay.id,
-          type: input.type || stay.type,
+          type,
           period: input.note?.trim() || input.period || stay.paymentMonth || input.paymentDate || '',
           amount,
+          days: period?.days ?? 0,
+          coversFrom: period?.from ?? null,
+          coversTo: period?.to ?? null,
           method,
           status: 'PAID',
-          paidAt: input.paymentDate ? parseDate(input.paymentDate) : new Date(),
+          paidAt,
           createdById: userId,
           idempotencyKey: input.idempotencyKey,
         },
         include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: { select: { fullName: true } } },
       });
-      await tx.stay.update({ where: { id: stay.id }, data: { paidAmount } });
+      await tx.stay.update({
+        where: { id: stay.id },
+        data: period
+          ? { paidAmount, paidUntil: period.to, paidDays: stay.paidDays + period.days }
+          : { paidAmount },
+      });
       await tx.auditLog.create({
         data: { userId, action: 'PAYMENT_CREATE', entity: 'Payment', entityId: payment.id, meta: JSON.stringify({ amount }) },
       });
@@ -320,8 +388,8 @@ export class ReceptionService {
         data: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: reason.trim(), cancelledById: userId },
       });
       const stay = await tx.stay.findUniqueOrThrow({ where: { id: payment.stayId } });
-      const paidAmount = Math.max(0, stay.paidAmount - payment.amount);
-      await tx.stay.update({ where: { id: stay.id }, data: { paidAmount } });
+      // Bekor qilingan to'lov bergan kunlar ham muddatdan qaytarib olinadi.
+      await tx.stay.update({ where: { id: stay.id }, data: revertPeriod(stay, payment) });
       await tx.auditLog.create({
         data: { userId, action: 'PAYMENT_CANCEL', entity: 'Payment', entityId: paymentId, meta: JSON.stringify({ reason }) },
       });
@@ -332,7 +400,7 @@ export class ReceptionService {
     });
   }
 
-  async listCustomers(opts: { q?: string; tab?: string; skip: number; page: number; pageSize: number }) {
+  async listCustomers(opts: { q?: string; tab?: string; floor?: number; skip: number; page: number; pageSize: number }) {
     const where: Prisma.CustomerWhereInput = {};
     const q = opts.q?.trim() || '';
     if (q) {
@@ -344,6 +412,18 @@ export class ReceptionService {
     }
     if (opts.tab === 'living') where.occupancy = { isNot: null };
     if (opts.tab === 'left') where.occupancy = null;
+    const floor = this.floorFilter(opts.floor);
+    if (floor) {
+      // Yashayotgan mijoz hozirgi xonasi bo‘yicha, chiqib ketgan mijoz oxirgi xonasi bo‘yicha topiladi.
+      where.AND = [
+        {
+          OR: [
+            { occupancy: { stay: { room: { floor } } } },
+            { AND: [{ occupancy: null }, { stays: { some: { room: { floor } } } }] },
+          ],
+        },
+      ];
+    }
     const [total, rows] = await Promise.all([
       this.prisma.customer.count({ where }),
       this.prisma.customer.findMany({
@@ -368,6 +448,7 @@ export class ReceptionService {
           id: c.id,
           fullName: c.fullName,
           phone: c.phone,
+          gender: c.gender,
           living: Boolean(live),
           payStatus: !stay ? 'UNPAID' : stay.paidAmount > 0 ? 'PAID' : 'UNPAID',
           occupancy: stay
@@ -424,15 +505,29 @@ export class ReceptionService {
     return room;
   }
 
-  async listStays(opts: { q?: string; tab?: string; from?: string; to?: string; skip: number; page: number; pageSize: number }) {
+  async listStays(opts: {
+    q?: string;
+    tab?: string;
+    floor?: number;
+    from?: string;
+    to?: string;
+    skip: number;
+    page: number;
+    pageSize: number;
+  }) {
     const today = todayISO();
     const where: Prisma.StayWhereInput = {};
     const q = opts.q?.trim() || '';
     if (q) {
-      where.customer = {
-        OR: [{ fullName: this.contains(q) }, { phone: this.contains(q) }, { passportId: this.contains(q) }],
-      };
+      where.OR = [
+        { customer: { fullName: this.contains(q) } },
+        { customer: { phone: this.contains(q) } },
+        { customer: { passportId: this.contains(q) } },
+        { room: { number: this.contains(q) } },
+      ];
     }
+    const floor = this.floorFilter(opts.floor);
+    if (floor) where.room = { floor };
     if (opts.tab === 'living') where.status = 'ACTIVE';
     if (opts.tab === 'left') where.status = 'COMPLETED';
     if (opts.tab === 'in-today') {
@@ -457,7 +552,13 @@ export class ReceptionService {
         take: opts.pageSize,
       }),
     ]);
-    return { total, page: opts.page, pageSize: opts.pageSize, rows, meta: { page: opts.page, limit: opts.pageSize, total, totalPages: Math.ceil(total / opts.pageSize) || 1 } };
+    return {
+      total,
+      page: opts.page,
+      pageSize: opts.pageSize,
+      rows: rows.map((s) => ({ ...s, ...periodInfo(s) })),
+      meta: { page: opts.page, limit: opts.pageSize, total, totalPages: Math.ceil(total / opts.pageSize) || 1 },
+    };
   }
 
   async listPayments(opts: {
@@ -465,6 +566,7 @@ export class ReceptionService {
     range?: string;
     type?: string;
     status?: string;
+    floor?: number;
     from?: string;
     to?: string;
     skip: number;
@@ -483,6 +585,8 @@ export class ReceptionService {
     }
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
+    const floor = this.floorFilter(opts.floor);
+    if (floor) where.stay = { room: { floor } };
     const paidAt: { gte?: Date; lte?: Date } = {};
     if (opts.range === 'today') {
       paidAt.gte = dayStart(today);
@@ -577,9 +681,10 @@ export class ReceptionService {
     return 'Xayrli kech';
   }
 
-  async roomsOverview() {
+  async roomsOverview(floorNumber?: number) {
+    const floor = this.floorFilter(floorNumber);
     const rooms = await this.prisma.room.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', ...(floor ? { floor } : {}) },
       include: {
         level: true,
         beds: {

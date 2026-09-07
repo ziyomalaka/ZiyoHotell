@@ -50,8 +50,8 @@ export class AdminController {
   }
 
   @Get('rooms')
-  rooms() {
-    return this.admin.listRooms();
+  rooms(@Query('floor') floor?: string) {
+    return this.admin.listRooms(floor ? Number(floor) : undefined);
   }
 
   @Post('rooms')
@@ -148,7 +148,14 @@ export class AdminController {
 
   @Get('customers')
   customers(@Query() query: PageQueryDto & { pay?: string }) {
-    return this.admin.listCustomers({ q: query.q, tab: query.tab, type: query.type, pay: query.pay, ...parsePage(query) });
+    return this.admin.listCustomers({
+      q: query.q,
+      tab: query.tab,
+      type: query.type,
+      pay: query.pay,
+      floor: query.floor,
+      ...parsePage(query),
+    });
   }
 
   @Get('customers/:id')
@@ -174,18 +181,33 @@ export class AdminController {
 
   @Get('stays')
   stays(@Query() query: PageQueryDto & { staffId?: string }) {
-    return this.admin.listStays({ q: query.q, tab: query.tab, staffId: query.staffId, ...parsePage(query) });
+    return this.admin.listStays({
+      q: query.q,
+      tab: query.tab,
+      staffId: query.staffId,
+      floor: query.floor,
+      ...parsePage(query),
+    });
   }
 
   @Get('reports')
   @Permissions('reports.view')
-  async reportsList(@Query('type') type = 'customers', @Query('from') from?: string, @Query('to') to?: string) {
-    if (type === 'payments') return this.reports.paymentsReport(from, to);
-    if (type === 'occupancy') return this.reports.occupancyReport();
-    if (type === 'check-history') return this.reports.checkHistoryReport(from, to);
+  async reportsList(
+    @Query('type') type = 'customers',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('floor') floorRaw?: string,
+    @Query('range') range?: string,
+  ) {
+    const floor = floorRaw ? Number(floorRaw) : undefined;
+    if (type === 'payments') return this.reports.paymentsReport(from, to, floor);
+    if (type === 'occupancy') return this.reports.occupancyReport(floor);
+    if (type === 'check-history') return this.reports.checkHistoryReport(from, to, floor);
     if (type === 'staff') return { rows: await this.admin.listStaffSimple() };
-    if (type === 'debt') return this.admin.debtReport();
-    return this.reports.customersReport(from, to);
+    if (type === 'debt') return this.admin.debtReport(floor);
+    if (type === 'payment-due') return this.reports.paymentDueReport(floor);
+    if (type === 'movement') return this.reports.movementReport(range, floor);
+    return this.reports.customersReport(from, to, undefined, undefined, floor);
   }
 
   @Get('reports/export/excel')
@@ -194,11 +216,18 @@ export class AdminController {
     @Query('type') type = 'payments',
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('floor') floor?: string,
+    @Query('range') range?: string,
     @CurrentUser() user?: { id: string },
   ): Promise<StreamableFile> {
-    const { file } = await this.excel.admin(type, from, to);
+    const { file } = await this.excel.admin(type, from, to, floor ? Number(floor) : undefined, range);
     await this.prisma.auditLog.create({
-      data: { userId: user!.id, action: 'EXCEL_EXPORT', entity: 'Report', meta: JSON.stringify({ type }) },
+      data: {
+        userId: user!.id,
+        action: 'EXCEL_EXPORT',
+        entity: 'Report',
+        meta: JSON.stringify({ type, floor: floor || null }),
+      },
     });
     return file;
   }

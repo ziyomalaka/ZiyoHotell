@@ -39,10 +39,16 @@ export class ReceptionController {
     return this.reception.home();
   }
 
+  @Get('floors')
+  @ApiOperation({ summary: 'Qavatlar ro‘yxati (filtrlar uchun)' })
+  floors() {
+    return this.reception.floorOptions();
+  }
+
   @Get('rooms')
   @ApiOperation({ summary: 'Xonalar va o‘rinlar holati' })
-  rooms() {
-    return this.reception.roomsOverview();
+  rooms(@Query('floor') floor?: string) {
+    return this.reception.roomsOverview(floor ? Number(floor) : undefined);
   }
 
   @Get('rooms/:id/beds')
@@ -55,7 +61,7 @@ export class ReceptionController {
   @ApiOperation({ summary: 'Mijozlar ro‘yxati' })
   customers(@Query() query: PageQueryDto) {
     const page = parsePage(query);
-    return this.reception.listCustomers({ q: query.q, tab: query.tab, ...page });
+    return this.reception.listCustomers({ q: query.q, tab: query.tab, floor: query.floor, ...page });
   }
 
   @Get('customers/search')
@@ -144,26 +150,40 @@ export class ReceptionController {
 
   @Get('reports/customers')
   @Permissions('reports.view')
-  customersReport(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.customersReport(from, to);
+  customersReport(@Query('from') from?: string, @Query('to') to?: string, @Query('floor') floor?: string) {
+    return this.reports.customersReport(from, to, undefined, undefined, floor ? Number(floor) : undefined);
   }
 
   @Get('reports/payments')
   @Permissions('reports.view')
-  paymentsReport(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.paymentsReport(from, to);
+  paymentsReport(@Query('from') from?: string, @Query('to') to?: string, @Query('floor') floor?: string) {
+    return this.reports.paymentsReport(from, to, floor ? Number(floor) : undefined);
   }
 
   @Get('reports/occupancy')
   @Permissions('reports.view')
-  occupancy() {
-    return this.reports.occupancyReport();
+  occupancy(@Query('floor') floor?: string) {
+    return this.reports.occupancyReport(floor ? Number(floor) : undefined);
   }
 
   @Get('reports/check-history')
   @Permissions('reports.view')
-  checkHistory(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.reports.checkHistoryReport(from, to);
+  checkHistory(@Query('from') from?: string, @Query('to') to?: string, @Query('floor') floor?: string) {
+    return this.reports.checkHistoryReport(from, to, floor ? Number(floor) : undefined);
+  }
+
+  @Get('reports/payment-due')
+  @Permissions('reports.view')
+  @ApiOperation({ summary: 'To‘lov muddati hisoboti' })
+  paymentDue(@Query('floor') floor?: string) {
+    return this.reports.paymentDueReport(floor ? Number(floor) : undefined);
+  }
+
+  @Get('reports/movement')
+  @Permissions('reports.view')
+  @ApiOperation({ summary: 'Kirim-chiqim hisoboti (kunlik/haftalik/oylik/yillik)' })
+  movement(@Query('range') range?: string, @Query('floor') floor?: string) {
+    return this.reports.movementReport(range, floor ? Number(floor) : undefined);
   }
 
   @Get('reports/export/excel')
@@ -173,11 +193,18 @@ export class ReceptionController {
     @Query('type') type = 'payments',
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('floor') floor?: string,
+    @Query('range') range?: string,
     @CurrentUser() user?: { id: string },
   ): Promise<StreamableFile> {
-    const { file } = await this.excel.reception(type, from, to);
+    const { file } = await this.excel.reception(type, from, to, floor ? Number(floor) : undefined, range);
     await this.prisma.auditLog.create({
-      data: { userId: user!.id, action: 'EXCEL_EXPORT', entity: 'Report', meta: JSON.stringify({ type, from, to }) },
+      data: {
+        userId: user!.id,
+        action: 'EXCEL_EXPORT',
+        entity: 'Report',
+        meta: JSON.stringify({ type, from, to, floor: floor || null }),
+      },
     });
     return file;
   }

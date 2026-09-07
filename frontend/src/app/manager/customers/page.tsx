@@ -2,15 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, payStatusLabel, roomLabel, bedLabel, stayTypeLabel } from "@/lib/format";
+import {
+  customerGenderLabel,
+  floorLabel,
+  formatDate,
+  payStatusLabel,
+  roomLabel,
+  bedLabel,
+  stayTypeLabel,
+} from "@/lib/format";
 
 type Row = {
   id: string;
   fullName: string;
   phone: string;
+  gender: string;
   room: string;
+  floor: number | null;
   bed: number | string;
   startDate: string | null;
   type: string;
@@ -20,6 +31,7 @@ type Row = {
 
 export default function ManagerCustomersPage() {
   const [q, setQ] = useState("");
+  const [floor, setFloor] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [data, setData] = useState<{ total: number; rows: Row[] }>({ total: 0, rows: [] });
@@ -27,8 +39,9 @@ export default function ManagerCustomersPage() {
 
   useEffect(() => {
     const p = new URLSearchParams({ tab: "living", q, page: String(page), pageSize: String(pageSize) });
+    if (floor) p.set("floor", floor);
     api<{ total: number; rows: Row[] }>(`/api/v1/manager/customers?${p}`).then(setData);
-  }, [q, page, pageSize]);
+  }, [q, page, pageSize, floor]);
 
   useEffect(() => {
     api<{ living: number; free: number; occupied: number }>("/api/v1/manager/dashboard").then((d) =>
@@ -38,7 +51,7 @@ export default function ManagerCustomersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [q, pageSize]);
+  }, [q, pageSize, floor]);
 
   return (
     <div>
@@ -56,18 +69,23 @@ export default function ManagerCustomersPage() {
           <strong>{stats.occupied}</strong>
         </div>
       </div>
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="F.I.Sh. / telefon / xona"
-        className="mt-4 w-full max-w-md"
-      />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="F.I.Sh. / telefon / xona"
+          className="w-full max-w-md"
+        />
+        <FloorFilter scope="manager" value={floor} onChange={setFloor} />
+      </div>
       <div className="mt-4 overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
               <th>F.I.Sh.</th>
               <th>Telefon</th>
+              <th>Jins</th>
+              <th>Qavat</th>
               <th>Xona</th>
               <th>O‘rin</th>
               <th>Kirish sanasi</th>
@@ -80,6 +98,8 @@ export default function ManagerCustomersPage() {
               <tr key={r.id}>
                 <td>{r.fullName}</td>
                 <td>{r.phone}</td>
+                <td>{customerGenderLabel(r.gender)}</td>
+                <td>{floorLabel(r.floor)}</td>
                 <td>{roomLabel(r.room)}</td>
                 <td>{bedLabel(r.bed)}</td>
                 <td>{formatDate(r.startDate)}</td>

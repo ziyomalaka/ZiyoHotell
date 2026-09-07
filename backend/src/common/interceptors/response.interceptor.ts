@@ -8,7 +8,8 @@ export class ResponseInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map((data) => {
         if (data instanceof StreamableFile || Buffer.isBuffer(data)) return data;
-        if (data && typeof data === 'object' && 'ok' in data) return data;
+        // Faqat boolean `ok` — allaqachon o‘ralgan javob. Hisobotdagi sonli `ok` o‘ralishi kerak.
+        if (data && typeof data === 'object' && typeof (data as { ok?: unknown }).ok === 'boolean') return data;
         return { ok: true, success: true, data };
       }),
     );

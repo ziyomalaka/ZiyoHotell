@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
+import { FloorFilter } from "@/components/FloorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, formatMoney, payStatusLabel, roomBedLabel } from "@/lib/format";
+import { floorLabel, formatDate, formatMoney, payStatusLabel, roomBedLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type StayRow = {
   customer: string;
   room: string;
+  floor: number | null;
   bed: number;
   totalAmount: number;
   payStatus: string;
@@ -33,6 +35,7 @@ export default function ManagerMonthlyPaymentsPage() {
   const today = useTodayISO();
   const [year, setYear] = useState(0);
   const [month, setMonth] = useState(0);
+  const [floor, setFloor] = useState("");
   const [data, setData] = useState<Data | null>(null);
 
   useEffect(() => {
@@ -43,8 +46,10 @@ export default function ManagerMonthlyPaymentsPage() {
 
   useEffect(() => {
     if (!year || !month) return;
-    api<Data>(`/api/v1/manager/payments/monthly?year=${year}&month=${month}`).then(setData);
-  }, [year, month]);
+    api<Data>(
+      `/api/v1/manager/payments/monthly?year=${year}&month=${month}${floor ? `&floor=${floor}` : ""}`,
+    ).then(setData);
+  }, [year, month, floor]);
 
   if (!data) return <LoadingSkeleton />;
 
@@ -65,6 +70,7 @@ export default function ManagerMonthlyPaymentsPage() {
             </option>
           ))}
         </select>
+        <FloorFilter scope="manager" value={floor} onChange={setFloor} />
       </div>
       <p className="mt-4 text-lg font-medium text-navy">
         {months[month - 1]} {year}
@@ -88,6 +94,7 @@ export default function ManagerMonthlyPaymentsPage() {
           <thead>
             <tr>
               <th>Mijoz</th>
+              <th>Qavat</th>
               <th>Xona</th>
               <th>Kunlik/Oylik</th>
               <th>Summa</th>
@@ -99,6 +106,7 @@ export default function ManagerMonthlyPaymentsPage() {
             {data.stayRows.map((r) => (
               <tr key={`${r.customer}-${r.room}-${r.bed}`}>
                 <td>{r.customer}</td>
+                <td>{floorLabel(r.floor)}</td>
                 <td>{roomBedLabel(r.room, r.bed)}</td>
                 <td>{r.type === "DAILY" ? "Kunlik" : "Oylik"}</td>
                 <td className="tabular">{formatMoney(r.totalAmount)}</td>

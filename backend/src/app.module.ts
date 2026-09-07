@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ReceptionModule } from './reception/reception.module';
 import { AdminModule } from './admin/admin.module';
 import { ManagerModule } from './manager/manager.module';
+import { RemindersModule } from './reminders/reminders.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -23,6 +24,7 @@ import { RolesGuard } from './auth/roles.guard';
     ReceptionModule,
     AdminModule,
     ManagerModule,
+    RemindersModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

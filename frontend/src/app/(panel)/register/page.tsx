@@ -4,12 +4,15 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
-import { formatLongDate, formatMoney, todayISO } from "@/lib/format";
+import { customerGenderLabel, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, parseDate, addDays, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
   number: string;
+  floor?: number | null;
+  gender: string;
   status: string;
+  monthlyPrice?: number;
   beds: { id: string; number: number; status: string; occupancy: unknown }[];
 };
 
@@ -21,8 +24,8 @@ type Home = {
   todayIncome: number;
   recent: {
     id: string;
-    customer: { fullName: string; phone: string };
-    room: { number: string };
+    customer: { fullName: string; phone: string; gender: string };
+    room: { number: string; floor: number };
     bed: { number: number };
   }[];
 };
@@ -30,10 +33,11 @@ type Home = {
 const emptyForm = {
   fullName: "",
   phone: "",
+  gender: "MALE" as "MALE" | "FEMALE",
   roomId: "",
   bedId: "",
-  stayType: "DAILY" as "DAILY" | "MONTHLY",
-  amount: "",
+  stayType: "MONTHLY" as "DAILY" | "MONTHLY",
+  amount: String(DEFAULT_REGISTER_AMOUNT),
   paymentStatus: "PAID" as "PAID" | "UNPAID",
   startDate: "",
   notes: "",
@@ -61,9 +65,20 @@ export default function RegisterPage() {
     if (today) setForm((prev) => (prev.startDate ? prev : { ...prev, startDate: today }));
   }, [today]);
 
-  const activeRooms = useMemo(() => rooms.filter((r) => r.status === "ACTIVE"), [rooms]);
+  // Faqat mijoz jinsiga ajratilgan xonalar ko‘rsatiladi — aralash joylashtirish oldini oladi.
+  const activeRooms = useMemo(
+    () => rooms.filter((r) => r.status === "ACTIVE" && r.gender === form.gender),
+    [rooms, form.gender],
+  );
   const room = activeRooms.find((r) => r.id === form.roomId);
   const freeBeds = (room?.beds || []).filter((b) => !b.occupancy && b.status === "ACTIVE");
+  const monthlyPrice = room?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
+  const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(form.amount || 0)) : 0;
+  const coveredDays = form.stayType === "MONTHLY" ? daysForAmount(paidPreview, monthlyPrice) : 0;
+  const coveredUntil =
+    form.stayType === "MONTHLY" && coveredDays && (today || form.startDate)
+      ? formatDate(addDays(parseDate(today || form.startDate), coveredDays))
+      : null;
 
   function patch<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -80,11 +95,12 @@ export default function RegisterPage() {
     const amount = Math.max(0, Number(form.amount || 0));
     setSaving(true);
     try {
-      await api("/api/v1/reception/customers/register", {
+      const stay = await api<{ paidDaysLabel?: string; dueDate?: string | null }>("/api/v1/reception/customers/register", {
         method: "POST",
         body: JSON.stringify({
           fullName: form.fullName.trim(),
           phone: form.phone.trim(),
+          gender: form.gender,
           notes: form.notes.trim() || null,
           bedId: form.bedId,
           stayType: form.stayType,
@@ -94,7 +110,8 @@ export default function RegisterPage() {
           paymentStatus: form.paymentStatus,
         }),
       });
-      setSuccess("Mijoz muvaffaqiyatli ro‘yxatga olindi.");
+      const due = stay.dueDate ? ` Muddat ${formatDate(stay.dueDate)} gacha (${stay.paidDaysLabel || describeDays(coveredDays)}).` : "";
+      setSuccess(`Mijoz muvaffaqiyatli ro‘yxatga olindi.${due}`);
       setForm({ ...emptyForm, startDate: todayISO() });
       load();
     } catch (err) {
@@ -148,16 +165,33 @@ export default function RegisterPage() {
           <FormField label="Telefon" required>
             <input value={form.phone} onChange={(e) => patch("phone", e.target.value)} className="w-full" />
           </FormField>
+          <FormField label="Jinsi" required>
+            <select
+              value={form.gender}
+              onChange={(e) =>
+                // Jins o‘zgarsa tanlangan xona/o‘rin boshqa jinsga tegishli bo‘lib qolmasligi uchun tozalanadi.
+                setForm((prev) => ({ ...prev, gender: e.target.value as "MALE" | "FEMALE", roomId: "", bedId: "" }))
+              }
+              className="w-full"
+            >
+              <option value="MALE">Bola</option>
+              <option value="FEMALE">Qiz</option>
+            </select>
+          </FormField>
           <FormField label="Xona" required>
             <select
               value={form.roomId}
               onChange={(e) => setForm((prev) => ({ ...prev, roomId: e.target.value, bedId: "" }))}
               className="w-full"
             >
-              <option value="">Tanlang</option>
+              <option value="">
+                {activeRooms.length
+                  ? "Tanlang"
+                  : `${form.gender === "FEMALE" ? "Qizlar" : "Bollar"} uchun xona yo‘q`}
+              </option>
               {activeRooms.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.number}
+                  {r.floor ? `${r.floor}-qavat · ${r.number}-xona` : `${r.number}-xona`}
                 </option>
               ))}
             </select>
@@ -173,13 +207,32 @@ export default function RegisterPage() {
             </select>
           </FormField>
           <FormField label="To‘lov turi" required>
-            <select value={form.stayType} onChange={(e) => patch("stayType", e.target.value as "DAILY" | "MONTHLY")} className="w-full">
-              <option value="DAILY">Kunlik</option>
+            <select
+              value={form.stayType}
+              onChange={(e) => {
+                const stayType = e.target.value as "DAILY" | "MONTHLY";
+                setForm((prev) => ({
+                  ...prev,
+                  stayType,
+                  amount: stayType === "MONTHLY" && !prev.amount ? String(DEFAULT_REGISTER_AMOUNT) : prev.amount,
+                }));
+              }}
+              className="w-full"
+            >
               <option value="MONTHLY">Oylik</option>
+              <option value="DAILY">Kunlik</option>
             </select>
           </FormField>
           <FormField label="To‘lov summasi">
-            <input type="number" min={0} value={form.amount} onChange={(e) => patch("amount", e.target.value)} className="w-full" />
+            <input type="number" min={0} step={1000} value={form.amount} onChange={(e) => patch("amount", e.target.value)} className="w-full" />
+            {form.stayType === "MONTHLY" ? (
+              <p className="mt-1 text-xs text-muted">
+                1 oy = {formatMoney(monthlyPrice)} (30 kun). Boshida odatda 3 oylik — {formatMoney(DEFAULT_REGISTER_AMOUNT)}.
+                {paidPreview > 0
+                  ? ` Shu summa ${describeDays(coveredDays)} beradi${coveredUntil ? `, muddat ${coveredUntil} gacha` : ""}.`
+                  : " To‘lamasa muddat hisoblanmaydi."}
+              </p>
+            ) : null}
           </FormField>
           <FormField label="To‘lov holati" required>
             <select value={form.paymentStatus} onChange={(e) => patch("paymentStatus", e.target.value as "PAID" | "UNPAID")} className="w-full">
@@ -212,6 +265,8 @@ export default function RegisterPage() {
                 <tr>
                   <th>F.I.Sh.</th>
                   <th>Telefon</th>
+                  <th>Jins</th>
+                  <th>Qavat</th>
                   <th>Xona</th>
                   <th>O‘rin</th>
                 </tr>
@@ -221,6 +276,8 @@ export default function RegisterPage() {
                   <tr key={row.id}>
                     <td>{row.customer.fullName}</td>
                     <td>{row.customer.phone}</td>
+                    <td>{customerGenderLabel(row.customer.gender)}</td>
+                    <td>{floorLabel(row.room.floor)}</td>
                     <td>{row.room.number}</td>
                     <td>{row.bed.number}</td>
                   </tr>

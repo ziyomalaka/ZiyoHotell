@@ -80,6 +80,7 @@ model Customer {
   stays     Stay[]
   payments  Payment[]
   checkLogs CheckLog[]
+  reminders Reminder[]
   occupancy Occupancy?
 
   @@index([phone])
@@ -92,6 +93,8 @@ model Room {
   floor        Int      @default(1)
   floorId      String?
   roomType     String   @default("ODDIY")
+  /// Xona kimga ajratilgan: MALE (bollar) | FEMALE (qizlar). Mijoz jinsi shu bilan mos bo'lishi shart.
+  gender       String   @default("MALE")
   capacity     Int
   /// Operational: ACTIVE | REPAIR | INACTIVE. Occupancy kind is computed from beds.
   status       String   @default("ACTIVE")
@@ -106,7 +109,7 @@ model Room {
   beds         Bed[]
   stays        Stay[]
 
-  @@unique([floorId, number])
+  @@unique([floorId, gender, number])
   @@index([floorId])
 }
 
@@ -147,9 +150,14 @@ model Stay {
   daysCount      Int?
   paymentMonth   String?
   dailyPrice     Int
+  /// Bitta o'rin uchun oylik narx (750 000 so'm = 30 kun).
   monthlyPrice   Int
   totalAmount    Int
   paidAmount     Int       @default(0)
+  /// To'lov qaysi sanagacha yopilgan. Hisob oxirgi to'lov qilingan kundan boradi.
+  paidUntil      DateTime?
+  /// To'langan summa jami qancha kun bergani.
+  paidDays       Int       @default(0)
   status         String    @default("ACTIVE")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -164,6 +172,7 @@ model Stay {
   occupancy    Occupancy?
   payments     Payment[]
   checkLogs    CheckLog[]
+  reminders    Reminder[]
 
   @@index([status])
   @@index([startDate])
@@ -178,6 +187,11 @@ model Payment {
   type            String
   period          String
   amount          Int
+  /// Shu to'lov qancha kun bergani (oylik to'lovlar uchun).
+  days            Int       @default(0)
+  /// To'lov yopgan davr: qaysi kundan qaysi kungacha.
+  coversFrom      DateTime?
+  coversTo        DateTime?
   method          String
   status          String
   paidAt          DateTime  @default(now())
@@ -198,6 +212,28 @@ model Payment {
   @@index([status])
   @@index([customerId])
   @@index([stayId])
+}
+
+/// To'lov muddati eslatmalari: har bir yashash uchun kuniga bittadan yoziladi (11:00 da).
+model Reminder {
+  id         String    @id @default(uuid())
+  stayId     String
+  customerId String
+  type       String    @default("PAYMENT_DUE")
+  dueDate    DateTime
+  /// YYYY-MM-DD: kuniga bitta eslatma bo'lishini ta'minlaydi.
+  forDate    String
+  daysLeft   Int
+  message    String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  stay     Stay     @relation(fields: [stayId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([stayId, forDate])
+  @@index([forDate])
+  @@index([readAt])
 }
 
 model CheckLog {

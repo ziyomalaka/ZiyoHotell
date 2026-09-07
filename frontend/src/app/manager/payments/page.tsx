@@ -3,10 +3,19 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
+import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import {
+  floorLabel,
+  formatDate,
+  formatMoney,
+  formatTime,
+  methodLabel,
+  payStatusLabel,
+  stayTypeLabel,
+} from "@/lib/format";
 
 type Pay = {
   id: string;
@@ -17,7 +26,12 @@ type Pay = {
   status: string;
   paidAt: string;
   customer: { fullName: string };
-  stay: { totalAmount: number; paidAmount: number; room: { number: string }; bed: { number: number } };
+  stay: {
+    totalAmount: number;
+    paidAmount: number;
+    room: { number: string; floor: number };
+    bed: { number: number };
+  };
   createdBy: { fullName: string };
 };
 
@@ -41,18 +55,20 @@ export default function ManagerPaymentsPage() {
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
   const [method, setMethod] = useState("");
+  const [floor, setFloor] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [data, setData] = useState<Data | null>(null);
 
   useEffect(() => {
     const p = new URLSearchParams({ range, q, type, status, method, from, to, page: String(page), pageSize: String(pageSize) });
+    if (floor) p.set("floor", floor);
     api<Data>(`/api/v1/manager/payments?${p}`).then(setData);
-  }, [range, q, type, status, method, from, to, page, pageSize]);
+  }, [range, q, type, status, method, from, to, page, pageSize, floor]);
 
   useEffect(() => {
     setPage(1);
-  }, [range, q, type, status, method, from, to, pageSize]);
+  }, [range, q, type, status, method, from, to, pageSize, floor]);
 
   if (!data) return <LoadingSkeleton />;
 
@@ -100,12 +116,18 @@ export default function ManagerPaymentsPage() {
           <option value="PARTIAL">Qisman</option>
           <option value="UNPAID">To‘lamagan</option>
         </select>
+        <FloorFilter
+          scope="manager"
+          value={floor}
+          onChange={setFloor}
+          className="rounded-lg border border-line bg-white px-3 py-2"
+        />
       </div>
       <div className="mt-4 card overflow-x-auto">
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["Mijoz", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Vaqt", "Holat", "Reception"].map((h) => (
+              {["Mijoz", "Qavat", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Vaqt", "Holat", "Reception"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -116,6 +138,7 @@ export default function ManagerPaymentsPage() {
             {data.rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.customer.fullName}</td>
+                <td className="px-3 py-3">{floorLabel(r.stay.room.floor)}</td>
                 <td className="px-3 py-3">
                   {r.stay.room.number}/{r.stay.bed.number}
                 </td>

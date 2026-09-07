@@ -6,6 +6,9 @@ const nav = [
   { href: "/admin/rooms", label: "Xonalar nazorati", icon: "bed" },
   { href: "/admin/staff", label: "Xodimlar", icon: "team" },
   { href: "/admin/customers", label: "Mijozlar", icon: "users" },
+  { href: "/admin/stays", label: "Kirish / Chiqish", icon: "door" },
+  { href: "/admin/payments", label: "To‘lovlar", icon: "pay" },
+  { href: "/admin/reports", label: "Hisobotlar", icon: "chart" },
   { href: "/admin/settings", label: "Tizim nazorati", icon: "cog" },
 ];
 

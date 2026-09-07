@@ -40,6 +40,13 @@ export class RoomDto {
   @IsUUID()
   floorId?: string;
 
+  @ApiPropertyOptional({ description: 'Qavat raqami. Qavat mavjud bo‘lmasa avtomatik yaratiladi.' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  floorNumber?: number;
+
   @ApiProperty()
   @IsString()
   @MinLength(1)
@@ -49,6 +56,11 @@ export class RoomDto {
   @IsOptional()
   @IsString()
   roomType?: string;
+
+  @ApiPropertyOptional({ enum: ['MALE', 'FEMALE'], description: 'MALE — bollar xonasi, FEMALE — qizlar xonasi' })
+  @IsOptional()
+  @IsIn(['MALE', 'FEMALE'])
+  gender?: string;
 
   @ApiProperty()
   @Type(() => Number)

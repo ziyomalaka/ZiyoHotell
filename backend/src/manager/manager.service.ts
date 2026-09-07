@@ -12,6 +12,7 @@ import {
   stayDebt,
   todayISO,
 } from '../common/datetime';
+import { GENDERS, genderLabel, roomGender } from '../common/gender';
 import { ReportsService } from '../reports/reports.service';
 
 const stayInclude = {
@@ -36,6 +37,20 @@ export class ManagerService {
 
   private contains(q: string): Prisma.StringFilter {
     return { contains: q, mode: 'insensitive' };
+  }
+
+  /** Qavat filtri: faqat 1 dan katta butun son qabul qilinadi. */
+  private level(floor?: number | string | null) {
+    const value = Number(floor);
+    return Number.isInteger(value) && value >= 1 ? value : null;
+  }
+
+  async floorOptions() {
+    const floors = await this.prisma.floor.findMany({
+      orderBy: { number: 'asc' },
+      include: { _count: { select: { rooms: true } } },
+    });
+    return floors.map((f) => ({ id: f.id, number: f.number, name: f.name, status: f.status, rooms: f._count.rooms }));
   }
 
   paidAtFromRange(range: string, from?: string | null, to?: string | null) {
@@ -136,6 +151,7 @@ export class ManagerService {
       else payStatus.unpaid += 1;
     }
     const occupancy = { full: 0, partial: 0, empty: 0, repair: 0 };
+    const byFloor = new Map<number, { floor: number; rooms: number; beds: number; occupied: number }>();
     for (const room of roomsList) {
       if (room.status === 'REPAIR' || room.status === 'INACTIVE') occupancy.repair += 1;
       else {
@@ -144,7 +160,33 @@ export class ManagerService {
         else if (occ >= room.capacity) occupancy.full += 1;
         else occupancy.partial += 1;
       }
+      const entry = byFloor.get(room.floor) || { floor: room.floor, rooms: 0, beds: 0, occupied: 0 };
+      entry.rooms += 1;
+      entry.beds += room.beds.filter((b) => b.status === 'ACTIVE').length;
+      entry.occupied += room.beds.filter((b) => b.occupancy).length;
+      byFloor.set(room.floor, entry);
     }
+    const floors = [...byFloor.values()]
+      .sort((a, b) => a.floor - b.floor)
+      .map((f) => ({
+        ...f,
+        free: Math.max(0, f.beds - f.occupied),
+        percent: f.beds ? Math.round((f.occupied / f.beds) * 100) : 0,
+      }));
+    const genders = GENDERS.map((gender) => {
+      const list = roomsList.filter((r) => roomGender(r.gender) === gender);
+      const beds = list.reduce((acc, r) => acc + r.beds.filter((b) => b.status === 'ACTIVE').length, 0);
+      const occ = list.reduce((acc, r) => acc + r.beds.filter((b) => b.occupancy).length, 0);
+      return {
+        gender,
+        name: genderLabel(gender),
+        rooms: list.length,
+        beds,
+        occupied: occ,
+        free: Math.max(0, beds - occ),
+        percent: beds ? Math.round((occ / beds) * 100) : 0,
+      };
+    });
     const monthChart = [];
     for (let d = 1; d <= lastDay; d++) {
       const day = isoDay(y, m, d);
@@ -194,6 +236,8 @@ export class ManagerService {
       debtorCount: debtors.size,
       occupancyPercent: beds ? Math.round((occupied / beds) * 100) : 0,
       occupancy,
+      floors,
+      genders,
       payStatus,
       monthChart,
       topDebtors,
@@ -206,6 +250,7 @@ export class ManagerService {
     tab?: string;
     type?: string;
     pay?: string;
+    floor?: number;
     skip: number;
     pageSize: number;
     sort?: string;
@@ -223,6 +268,17 @@ export class ManagerService {
       ];
     }
     if (opts.tab === 'living') where.occupancy = { isNot: null };
+    const floor = this.level(opts.floor);
+    if (floor) {
+      where.AND = [
+        {
+          OR: [
+            { occupancy: { stay: { room: { floor } } } },
+            { AND: [{ occupancy: null }, { stays: { some: { room: { floor } } } }] },
+          ],
+        },
+      ];
+    }
     const rows = await this.prisma.customer.findMany({
       where,
       include: {
@@ -237,8 +293,10 @@ export class ManagerService {
         id: c.id,
         fullName: c.fullName,
         phone: c.phone,
+        gender: c.gender,
         passportId: c.passportId,
         room: stay?.room.number || '—',
+        floor: stay?.room.floor ?? null,
         bed: stay?.bed.number ?? '—',
         startDate: stay?.startDate || null,
         type: stay?.type || '',
@@ -279,6 +337,7 @@ export class ManagerService {
     type?: string;
     status?: string;
     method?: string;
+    floor?: number;
     skip: number;
     pageSize: number;
   }) {
@@ -294,6 +353,8 @@ export class ManagerService {
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
     if (opts.method) where.method = opts.method;
+    const floor = this.level(opts.floor);
+    if (floor) where.stay = { room: { floor } };
     const paidAt = this.paidAtFromRange(opts.range || '', opts.from, opts.to);
     if (paidAt) where.paidAt = paidAt;
     const [total, rows, todayInc, monthInc, allInc, stays] = await Promise.all([
@@ -302,7 +363,10 @@ export class ManagerService {
       this.incomeSum(dayStart(todayISO()), dayEnd(todayISO())),
       this.incomeSum(dayStart(monthStartISO()), dayEnd(todayISO())),
       this.incomeSum(),
-      this.prisma.stay.findMany({ select: { totalAmount: true, paidAmount: true, customerId: true } }),
+      this.prisma.stay.findMany({
+        where: floor ? { room: { floor } } : {},
+        select: { totalAmount: true, paidAmount: true, customerId: true },
+      }),
     ]);
     const paid = new Set<string>();
     const partial = new Set<string>();
@@ -326,17 +390,20 @@ export class ManagerService {
     };
   }
 
-  async dailyPayments(date = todayISO()) {
-    const where = this.incomeWhere(dayStart(date), dayEnd(date));
+  async dailyPayments(date = todayISO(), floorNumber?: number) {
+    const floor = this.level(floorNumber);
+    const floorWhere = floor ? { stay: { room: { floor } } } : {};
+    const where = { ...this.incomeWhere(dayStart(date), dayEnd(date)), ...floorWhere };
     const [rows, unpaid] = await Promise.all([
       this.prisma.payment.findMany({ where, include: paymentInclude, orderBy: { paidAt: 'asc' } }),
       this.prisma.payment.count({
-        where: { status: 'UNPAID', paidAt: { gte: dayStart(date), lte: dayEnd(date) } },
+        where: { status: 'UNPAID', paidAt: { gte: dayStart(date), lte: dayEnd(date) }, ...floorWhere },
       }),
     ]);
     const sum = (pred: (p: (typeof rows)[number]) => boolean) => rows.filter(pred).reduce((a, p) => a + p.amount, 0);
     return {
       date,
+      floor,
       count: rows.length,
       paid: rows.length,
       unpaid,
@@ -351,14 +418,16 @@ export class ManagerService {
     };
   }
 
-  async monthlyPayments(year: number, month: number) {
+  async monthlyPayments(year: number, month: number, floorNumber?: number) {
+    const floor = this.level(floorNumber);
+    const floorWhere = floor ? { stay: { room: { floor } } } : {};
     const last = daysInMonth(year, month);
     const from = isoDay(year, month, 1);
     const to = isoDay(year, month, last);
     const today = todayISO();
     const end = to > today ? today : to;
     const rows = await this.prisma.payment.findMany({
-      where: this.incomeWhere(dayStart(from), dayEnd(end)),
+      where: { ...this.incomeWhere(dayStart(from), dayEnd(end)), ...floorWhere },
       include: paymentInclude,
       orderBy: { paidAt: 'desc' },
     });
@@ -371,6 +440,7 @@ export class ManagerService {
     }
     const stays = await this.prisma.stay.findMany({
       where: {
+        ...(floor ? { room: { floor } } : {}),
         OR: [
           { startDate: { gte: dayStart(from), lte: dayEnd(to) } },
           { status: 'ACTIVE' },
@@ -382,6 +452,7 @@ export class ManagerService {
     const stayRows = stays.map((s) => ({
       customer: s.customer.fullName,
       room: s.room.number,
+      floor: s.room.floor,
       bed: s.bed.number,
       type: s.type,
       month: `${String(month).padStart(2, '0')}.${year}`,
@@ -394,6 +465,7 @@ export class ManagerService {
     return {
       year,
       month,
+      floor,
       total: rows.reduce((a, p) => a + p.amount, 0),
       count: rows.length,
       paid: stayRows.filter((s) => s.payStatus === 'PAID').length,
@@ -408,9 +480,11 @@ export class ManagerService {
     };
   }
 
-  async debts(opts: { tab?: string; q?: string; type?: string; age?: string; skip: number; pageSize: number }) {
+  async debts(opts: { tab?: string; q?: string; type?: string; age?: string; floor?: number; skip: number; pageSize: number }) {
     const today = todayISO();
+    const floor = this.level(opts.floor);
     const stays = await this.prisma.stay.findMany({
+      where: floor ? { room: { floor } } : {},
       include: { customer: true, room: true, bed: true, payments: { where: { status: { not: 'CANCELLED' } }, orderBy: { paidAt: 'asc' } } },
     });
     let rows = stays
@@ -427,6 +501,7 @@ export class ManagerService {
           fullName: s.customer.fullName,
           phone: s.customer.phone,
           room: s.room.number,
+          floor: s.room.floor,
           bed: s.bed.number,
           type: s.type,
           totalAmount: s.totalAmount,
@@ -456,12 +531,12 @@ export class ManagerService {
     };
   }
 
-  async occupancy() {
-    return this.reports.occupancyReport();
+  async occupancy(floor?: number) {
+    return this.reports.occupancyReport(floor);
   }
 
-  async customersReport(from?: string, to?: string) {
-    return this.reports.customersReport(from, to);
+  async customersReport(from?: string, to?: string, floor?: number) {
+    return this.reports.customersReport(from, to, undefined, undefined, floor);
   }
 
   async checkHistory(opts: {
@@ -471,6 +546,7 @@ export class ManagerService {
     from?: string | null;
     to?: string | null;
     room?: string;
+    floor?: number;
     staffId?: string;
     skip: number;
     pageSize: number;
@@ -492,7 +568,13 @@ export class ManagerService {
         OR: [{ fullName: this.contains(q) }, { phone: this.contains(q) }, { passportId: this.contains(q) }],
       };
     }
-    if (opts.room) where.room = { number: this.contains(opts.room) };
+    const floor = this.level(opts.floor);
+    if (opts.room || floor) {
+      where.room = {
+        ...(opts.room ? { number: this.contains(opts.room) } : {}),
+        ...(floor ? { floor } : {}),
+      };
+    }
     if (opts.staffId) where.createdById = opts.staffId;
     const [total, rows, inToday, outToday, living] = await Promise.all([
       this.prisma.stay.count({ where }),
@@ -517,6 +599,7 @@ export class ManagerService {
           id: s.id,
           fullName: s.customer.fullName,
           room: s.room.number,
+          floor: s.room.floor,
           bed: s.bed.number,
           inAt: cin?.at || s.startDate,
           outAt: cout?.at || s.endDate,

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
+import { FloorFilter } from "@/components/FloorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatMoney, formatTime, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { floorLabel, formatMoney, formatTime, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type Row = {
@@ -14,7 +15,7 @@ type Row = {
   status: string;
   paidAt: string;
   customer: { fullName: string };
-  stay: { room: { number: string } };
+  stay: { room: { number: string; floor: number } };
 };
 
 type Data = {
@@ -29,6 +30,7 @@ type Data = {
 export default function ManagerDailyPaymentsPage() {
   const today = useTodayISO();
   const [date, setDate] = useState("");
+  const [floor, setFloor] = useState("");
   const [data, setData] = useState<Data | null>(null);
 
   useEffect(() => {
@@ -37,14 +39,17 @@ export default function ManagerDailyPaymentsPage() {
 
   useEffect(() => {
     if (!date) return;
-    api<Data>(`/api/v1/manager/payments/daily?date=${date}`).then(setData);
-  }, [date]);
+    api<Data>(`/api/v1/manager/payments/daily?date=${date}${floor ? `&floor=${floor}` : ""}`).then(setData);
+  }, [date, floor]);
 
   if (!data) return <LoadingSkeleton />;
 
   return (
     <div>
-      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <FloorFilter scope="manager" value={floor} onChange={setFloor} />
+      </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <div className="stat-quiet">
           <p>Bugungi tushum</p>
@@ -64,6 +69,7 @@ export default function ManagerDailyPaymentsPage() {
           <thead>
             <tr>
               <th>F.I.Sh.</th>
+              <th>Qavat</th>
               <th>Xona</th>
               <th>Summa</th>
               <th>Kunlik/Oylik</th>
@@ -75,6 +81,7 @@ export default function ManagerDailyPaymentsPage() {
             {data.rows.map((r) => (
               <tr key={r.id}>
                 <td>{r.customer.fullName}</td>
+                <td>{floorLabel(r.stay.room.floor)}</td>
                 <td>{r.stay.room.number}</td>
                 <td className="tabular">{formatMoney(r.amount)}</td>
                 <td>{stayTypeLabel(r.type)}</td>

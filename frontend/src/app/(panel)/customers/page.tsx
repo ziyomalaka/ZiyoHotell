@@ -4,22 +4,33 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EmptyState } from "@/components/EmptyState";
+import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { customerGenderLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
 
 type Row = {
   id: string;
   fullName: string;
   phone: string;
+  gender: string;
   payStatus: string;
   living?: boolean;
-  occupancy?: { stay: { startDate: string; endDate?: string | null; type: string; room: { number: string }; bed: { number: number } } } | null;
+  occupancy?: {
+    stay: {
+      startDate: string;
+      endDate?: string | null;
+      type: string;
+      room: { number: string; floor: number };
+      bed: { number: number };
+    };
+  } | null;
 };
 
 export default function ReceptionCustomersPage() {
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
+  const [floor, setFloor] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ total: number; rows: Row[] }>({ total: 0, rows: [] });
   const [drop, setDrop] = useState<Row | null>(null);
@@ -27,6 +38,7 @@ export default function ReceptionCustomersPage() {
 
   async function load(nextPage = page) {
     const p = new URLSearchParams({ tab, q, page: String(nextPage) });
+    if (floor) p.set("floor", floor);
     setData(await api(`/api/v1/reception/customers?${p}`));
   }
 
@@ -34,7 +46,7 @@ export default function ReceptionCustomersPage() {
     setPage(1);
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, q]);
+  }, [tab, q, floor]);
 
   async function remove() {
     if (!drop) return;
@@ -61,6 +73,7 @@ export default function ReceptionCustomersPage() {
           </button>
         ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / xona" className="min-w-[200px] flex-1" />
+        <FloorFilter scope="reception" value={floor} onChange={setFloor} />
       </div>
       {error ? <p className="mb-3 rounded-md bg-[#f8ecec] px-4 py-3 text-sm text-[#9b3b3b]">{error}</p> : null}
       <div className="overflow-x-auto">
@@ -69,6 +82,8 @@ export default function ReceptionCustomersPage() {
             <tr>
               <th>F.I.Sh.</th>
               <th>Telefon</th>
+              <th>Jins</th>
+              <th>Qavat</th>
               <th>Xona</th>
               <th>O‘rin</th>
               <th>Kirish</th>
@@ -84,6 +99,8 @@ export default function ReceptionCustomersPage() {
               <tr key={r.id}>
                 <td>{r.fullName}</td>
                 <td>{r.phone}</td>
+                <td>{customerGenderLabel(r.gender)}</td>
+                <td>{r.occupancy ? floorLabel(r.occupancy.stay.room.floor) : "—"}</td>
                 <td>{r.occupancy?.stay.room.number || "—"}</td>
                 <td>{r.occupancy?.stay.bed.number ?? "—"}</td>
                 <td>{r.occupancy ? formatDate(r.occupancy.stay.startDate) : "—"}</td>

@@ -1,5 +1,5 @@
 import { StatusBadge } from "./StatusBadge";
-import { occupancyLabel } from "@/lib/format";
+import { genderLabel, occupancyLabel } from "@/lib/format";
 
 export function BedIndicator({
   beds,
@@ -23,6 +23,8 @@ export function BedIndicator({
 
 export function RoomCard({
   number,
+  floor,
+  gender,
   capacity,
   occupied,
   free,
@@ -33,6 +35,8 @@ export function RoomCard({
   children,
 }: {
   number: string;
+  floor?: number | null;
+  gender?: string | null;
   capacity: number;
   occupied: number;
   free: number;
@@ -50,7 +54,14 @@ export function RoomCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xl font-semibold tracking-wide text-navy">{number}</p>
+        <div>
+          <p className="text-xl font-semibold tracking-wide text-navy">{number}</p>
+          <p className="mt-0.5 text-xs text-muted">
+            {floor ? `${floor}-qavat` : null}
+            {floor && gender ? " · " : null}
+            {gender ? genderLabel(gender) : null}
+          </p>
+        </div>
         <StatusBadge value={occupancy} label={occupancyLabel(occupancy)} />
       </div>
       <div className="mt-4">

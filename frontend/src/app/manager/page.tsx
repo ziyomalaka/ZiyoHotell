@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/EmptyState";
-import { formatMoney } from "@/lib/format";
+import { floorLabel, formatMoney } from "@/lib/format";
 
 type Dash = {
   living: number;
@@ -11,6 +11,8 @@ type Dash = {
   todayIncome: number;
   monthIncome: number;
   monthChart: { day: string; value: number }[];
+  floors: { floor: number; rooms: number; beds: number; occupied: number; free: number; percent: number }[];
+  genders: { gender: string; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number }[];
   recent: { at: string; text: string }[];
 };
 
@@ -79,6 +81,72 @@ export default function ManagerHome() {
           )}
         </section>
       </div>
+
+      {data.floors?.length ? (
+        <section className="mt-8">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted">Qavatlar bo‘yicha bandlik</h3>
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Qavat</th>
+                  <th>Xonalar</th>
+                  <th>O‘rinlar</th>
+                  <th>Band</th>
+                  <th>Bo‘sh</th>
+                  <th>Bandlik</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.floors.map((f) => (
+                  <tr key={f.floor}>
+                    <td>{floorLabel(f.floor)}</td>
+                    <td>{f.rooms}</td>
+                    <td>{f.beds}</td>
+                    <td>{f.occupied}</td>
+                    <td>{f.free}</td>
+                    <td className="tabular">{f.percent}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {data.genders?.length ? (
+        <section className="mt-8">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted">
+            Bollar va qizlar bo‘yicha bandlik
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Jins</th>
+                  <th>Xonalar</th>
+                  <th>O‘rinlar</th>
+                  <th>Band</th>
+                  <th>Bo‘sh</th>
+                  <th>Bandlik</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.genders.map((g) => (
+                  <tr key={g.gender}>
+                    <td>{g.name}</td>
+                    <td>{g.rooms}</td>
+                    <td>{g.beds}</td>
+                    <td>{g.occupied}</td>
+                    <td>{g.free}</td>
+                    <td className="tabular">{g.percent}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

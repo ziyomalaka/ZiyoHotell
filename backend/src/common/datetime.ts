@@ -1,3 +1,19 @@
+/** O'zbekcha oy nomlari (hisobot sarlavhalari uchun). */
+export const UZ_MONTHS = [
+  'yanvar',
+  'fevral',
+  'mart',
+  'aprel',
+  'may',
+  'iyun',
+  'iyul',
+  'avgust',
+  'sentabr',
+  'oktabr',
+  'noyabr',
+  'dekabr',
+];
+
 export function todayISO(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(date);
 }
@@ -79,4 +95,28 @@ export function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
   return next;
+}
+
+/** Toshkent vaqti bo‘yicha hozirgi soat va daqiqa. */
+export function tashkentClock(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Tashkent',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { hour: value('hour'), minute: value('minute') };
+}
+
+/**
+ * Toshkent vaqti bilan keyingi `hour`:00 gacha necha millisekund qolgani.
+ * Belgilangan soat bugun o‘tib ketgan bo‘lsa, ertangi kunga hisoblanadi.
+ */
+export function msUntilHour(hour: number, date = new Date()) {
+  const now = tashkentClock(date);
+  const minutesNow = now.hour * 60 + now.minute;
+  const target = hour * 60;
+  const diff = target > minutesNow ? target - minutesNow : 24 * 60 - minutesNow + target;
+  return diff * 60 * 1000 - date.getSeconds() * 1000;
 }

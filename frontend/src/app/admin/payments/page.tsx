@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { FilterBar } from "@/components/FilterBar";
+import { FloorFilter } from "@/components/FloorFilter";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, formatMoney, payStatusLabel } from "@/lib/format";
+import { floorLabel, formatDate, formatMoney, payStatusLabel } from "@/lib/format";
 
 type Pay = {
   id: string;
@@ -16,7 +17,12 @@ type Pay = {
   status: string;
   paidAt: string;
   customer: { fullName: string };
-  stay: { totalAmount: number; paidAmount: number; room: { number: string }; bed: { number: number } };
+  stay: {
+    totalAmount: number;
+    paidAmount: number;
+    room: { number: string; floor: number };
+    bed: { number: number };
+  };
   createdBy: { fullName: string };
 };
 
@@ -25,22 +31,29 @@ export default function AdminPaymentsPage() {
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
+  const [floor, setFloor] = useState("");
   const [data, setData] = useState<{ rows: Pay[]; debt: number }>({ rows: [], debt: 0 });
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
 
+  function query() {
+    const p = new URLSearchParams({ range, q, type, status });
+    if (floor) p.set("floor", floor);
+    return p;
+  }
+
   useEffect(() => {
     const p = new URLSearchParams({ range, q, type, status });
+    if (floor) p.set("floor", floor);
     api<{ rows: Pay[]; debt: number }>(`/api/v1/admin/payments?${p}`).then(setData);
-  }, [range, q, type, status]);
+  }, [range, q, type, status, floor]);
 
   async function cancel() {
     if (!cancelId) return;
     await api("/api/v1/admin/payments", { method: "POST", body: JSON.stringify({ id: cancelId, reason }) });
     setCancelId(null);
     setReason("");
-    const p = new URLSearchParams({ range, q, type, status });
-    setData(await api(`/api/v1/admin/payments?${p}`));
+    setData(await api(`/api/v1/admin/payments?${query()}`));
   }
 
   return (
@@ -54,6 +67,7 @@ export default function AdminPaymentsPage() {
           <button key={v} onClick={() => setRange(v)} className={`chip ${range===v ? "chip-active" : ""}`}>{l}</button>
         ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Qidiruv..." className="min-w-[180px] flex-1" />
+        <FloorFilter scope="admin" value={floor} onChange={setFloor} />
         <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">Tur</option>
           <option value="DAILY">Kunlik</option>
@@ -69,12 +83,13 @@ export default function AdminPaymentsPage() {
       <div className="mt-4 card overflow-x-auto">
         <table className="data-table">
           <thead className="bg-background text-left">
-            <tr>{["Mijoz","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
+            <tr>{["Mijoz","Qavat","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
           </thead>
           <tbody>
             {data.rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.customer.fullName}</td>
+                <td className="px-3 py-3">{floorLabel(r.stay.room.floor)}</td>
                 <td className="px-3 py-3">{r.stay.room.number}/{r.stay.bed.number}</td>
                 <td className="px-3 py-3">{r.type === "DAILY" ? "Kunlik" : "Oylik"}</td>
                 <td className="px-3 py-3">{r.period}</td>

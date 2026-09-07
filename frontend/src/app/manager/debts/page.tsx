@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatDate, formatMoney, payStatusLabel, roomLabel, bedLabel, stayTypeLabel } from "@/lib/format";
+import { floorLabel, formatDate, formatMoney, payStatusLabel, roomLabel, bedLabel, stayTypeLabel } from "@/lib/format";
 
 type Row = {
   n: number;
@@ -13,6 +14,7 @@ type Row = {
   fullName: string;
   phone: string;
   room: string;
+  floor: number | null;
   bed: number;
   type: string;
   totalAmount: number;
@@ -28,20 +30,22 @@ export default function ManagerDebtsPage() {
   const [age, setAge] = useState("");
   const [type, setType] = useState("");
   const [q, setQ] = useState("");
+  const [floor, setFloor] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [data, setData] = useState<{ total: number; totalDebt: number; rows: Row[] }>({ total: 0, totalDebt: 0, rows: [] });
 
   useEffect(() => {
     const p = new URLSearchParams({ tab, age, type, q, page: String(page), pageSize: String(pageSize), sort: "debt" });
+    if (floor) p.set("floor", floor);
     api<{ total: number; totalDebt: number; rows: Row[] }>(`/api/v1/manager/debts?${p}`)
       .then(setData)
       .catch(() => setData({ total: 0, totalDebt: 0, rows: [] }));
-  }, [tab, age, type, q, page, pageSize]);
+  }, [tab, age, type, q, page, pageSize, floor]);
 
   useEffect(() => {
     setPage(1);
-  }, [tab, age, type, q, pageSize]);
+  }, [tab, age, type, q, pageSize, floor]);
 
   return (
     <div>
@@ -76,12 +80,18 @@ export default function ManagerDebtsPage() {
           <option value="DAILY">Kunlik</option>
           <option value="MONTHLY">Oylik</option>
         </select>
+        <FloorFilter
+          scope="manager"
+          value={floor}
+          onChange={setFloor}
+          className="rounded-lg border border-line bg-white px-3 py-2"
+        />
       </div>
       <div className="mt-4 card overflow-x-auto">
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["Mijoz", "Telefon", "Xona", "O‘rin", "Tur", "To‘lanishi kerak", "To‘langan", "Qolgan qarz", "Boshlangan", "Kun", "Holat"].map((h) => (
+              {["Mijoz", "Telefon", "Qavat", "Xona", "O‘rin", "Tur", "To‘lanishi kerak", "To‘langan", "Qolgan qarz", "Boshlangan", "Kun", "Holat"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -93,6 +103,7 @@ export default function ManagerDebtsPage() {
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.fullName}</td>
                 <td className="px-3 py-3">{r.phone}</td>
+                <td className="px-3 py-3">{floorLabel(r.floor)}</td>
                 <td className="px-3 py-3">{roomLabel(r.room)}</td>
                 <td className="px-3 py-3">{bedLabel(r.bed)}</td>
                 <td className="px-3 py-3">{stayTypeLabel(r.type)}</td>

@@ -165,6 +165,50 @@ export function roomBedLabel(room: unknown, bed?: unknown) {
   return `${roomLabel(room)}/${bedLabel(bed)}`;
 }
 
+/** Xona yoki guruh jinsi: "Qizlar" / "Bollar". */
+export function genderLabel(value: unknown) {
+  return value === "FEMALE" ? "Qizlar" : value === "MALE" ? "Bollar" : "—";
+}
+
+/** Bitta mijozning jinsi: "Qiz" / "Bola". */
+export function customerGenderLabel(value: unknown) {
+  return value === "FEMALE" ? "Qiz" : value === "MALE" ? "Bola" : "—";
+}
+
+/**
+ * Xona raqamlarini tabiiy tartibda solishtiradi: 2 < 10 (matn tartibida 10 < 2 bo‘lib ketardi).
+ * Locale'ga bog‘lanmagan, shuning uchun server va clientda natija bir xil.
+ */
+export function compareRoomNumbers(a: string, b: string) {
+  const na = parseInt(a, 10);
+  const nb = parseInt(b, 10);
+  if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
+  if (Number.isNaN(na) !== Number.isNaN(nb)) return Number.isNaN(na) ? 1 : -1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Qavat raqamini oladi: son, `{ floor }` yoki `{ level: { number } }` shakllarini tushunadi. */
+export function floorOf(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value === "object") {
+    const row = value as { floor?: unknown; level?: { number?: unknown }; number?: unknown };
+    if (row.floor != null) return floorOf(row.floor);
+    if (row.level && typeof row.level === "object") return floorOf(row.level.number);
+  }
+  return null;
+}
+
+/** "2-qavat" ko‘rinishidagi yorliq. Qavat topilmasa "—". */
+export function floorLabel(value: unknown) {
+  const floor = floorOf(value);
+  return floor == null ? "—" : `${floor}-qavat`;
+}
+
 export function daysInMonth(year: number, month1to12: number) {
   return new Date(Date.UTC(year, month1to12, 0)).getUTCDate();
 }
@@ -206,4 +250,39 @@ export function occupancyLabel(kind: string) {
   if (kind === "partial") return "QISMAN BAND";
   if (kind === "full") return "TO‘LIQ BAND";
   return "TA’MIRDA";
+}
+
+/** Bir oylik to‘lov shu qancha kunga to‘g‘ri keladi (750 000 so‘m = 30 kun). */
+export const DAYS_PER_MONTH = 30;
+export const DEFAULT_MONTHLY_PRICE = 750000;
+export const DEFAULT_REGISTER_MONTHS = 3;
+export const DEFAULT_REGISTER_AMOUNT = DEFAULT_MONTHLY_PRICE * DEFAULT_REGISTER_MONTHS;
+
+/** To‘langan summa qancha kun bergani: 2 250 000 = 90 kun (3 oy). */
+export function daysForAmount(amount: number, monthlyPrice = DEFAULT_MONTHLY_PRICE) {
+  if (!monthlyPrice || monthlyPrice <= 0 || !amount || amount <= 0) return 0;
+  return Math.floor((amount / monthlyPrice) * DAYS_PER_MONTH);
+}
+
+export function splitDays(totalDays: number) {
+  const days = Math.max(0, Math.trunc(totalDays));
+  return { months: Math.floor(days / DAYS_PER_MONTH), days: days % DAYS_PER_MONTH };
+}
+
+/** "3 oy", "1 oy 15 kun", "12 kun". */
+export function describeDays(totalDays: number) {
+  const { months, days } = splitDays(totalDays);
+  if (!months && !days) return "—";
+  const parts: string[] = [];
+  if (months) parts.push(`${months} oy`);
+  if (days) parts.push(`${days} kun`);
+  return parts.join(" ");
+}
+
+/** Qolgan kun matni: "3 kun qoldi", "bugun tugaydi", "2 kun kechikdi". */
+export function daysLeftLabel(daysLeft: number | null | undefined) {
+  if (daysLeft == null) return "—";
+  if (daysLeft > 0) return `${daysLeft} kun qoldi`;
+  if (daysLeft === 0) return "bugun tugaydi";
+  return `${Math.abs(daysLeft)} kun kechikdi`;
 }

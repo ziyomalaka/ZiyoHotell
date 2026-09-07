@@ -9,6 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { AuthService } from '../auth/auth.service';
 import { dayEnd, dayStart, todayISO } from '../common/datetime';
+import { genderWord, roomGender } from '../common/gender';
+import { DEFAULT_MONTHLY_PRICE } from '../common/billing';
 import { DEFAULT_ROLE_PERMISSIONS, normalizeRole } from '../common/roles';
 
 const execFileAsync = promisify(execFile);
@@ -19,6 +21,12 @@ export class AdminService {
     private prisma: PrismaService,
     private auth: AuthService,
   ) {}
+
+  /** Qavat filtri: faqat 1 dan katta butun son qabul qilinadi. */
+  private level(floor?: number | string | null) {
+    const value = Number(floor);
+    return Number.isInteger(value) && value >= 1 ? value : null;
+  }
 
   private async audit(opts: {
     userId: string;
@@ -142,8 +150,10 @@ export class AdminService {
     input: {
       id?: string;
       floorId?: string;
+      floorNumber?: number;
       number: string;
       roomType?: string;
+      gender?: string;
       capacity: number;
       dailyPrice?: number;
       monthlyPrice?: number;
@@ -155,29 +165,63 @@ export class AdminService {
   ) {
     required({ number: input.number, capacity: input.capacity });
     let floor = input.floorId ? await this.prisma.floor.findUnique({ where: { id: input.floorId } }) : null;
+    if (!floor && input.floorNumber != null) {
+      const level = Number(input.floorNumber);
+      if (!Number.isInteger(level) || level < 1) throw new AppError('Qavat raqami 1 dan kichik bo‘lmasin.');
+      floor = await this.prisma.floor.upsert({
+        where: { number: level },
+        update: {},
+        create: { number: level, name: `${level}-qavat`, status: 'ACTIVE' },
+      });
+    }
     if (!floor) {
       floor = await this.prisma.floor.findFirst({ orderBy: { number: 'asc' } });
     }
     if (!floor) {
       floor = await this.prisma.floor.create({ data: { number: 1, name: '1-qavat' } });
     }
+    const old = input.id ? await this.prisma.room.findUnique({ where: { id: input.id } }) : null;
+    if (input.id && !old) throw new AppError('Xona topilmadi.', 404);
+    const gender = roomGender(input.gender, old?.gender);
+    // Qizlar va bollar bloklari alohida raqamlanadi: yakkalik qavat + jins ichida tekshiriladi.
     const dup = await this.prisma.room.findFirst({
-      where: { number: String(input.number).trim(), NOT: input.id ? { id: input.id } : undefined },
+      where: {
+        floorId: floor.id,
+        gender,
+        number: String(input.number).trim(),
+        NOT: input.id ? { id: input.id } : undefined,
+      },
     });
-    if (dup) throw new AppError('Bunday xona raqami mavjud.');
-    if (input.id) {
-      const old = await this.prisma.room.findUnique({ where: { id: input.id } });
-      if (!old) throw new AppError('Xona topilmadi.', 404);
-      if (input.status && input.status !== 'ACTIVE' && (await this.prisma.occupancy.count({ where: { bed: { roomId: input.id } } })) > 0) {
+    if (dup) {
+      throw new AppError(
+        `${floor.number}-qavatda ${genderWord(gender)} uchun ${dup.number} xonasi allaqachon mavjud.`,
+      );
+    }
+    if (old) {
+      if (input.status && input.status !== 'ACTIVE' && (await this.prisma.occupancy.count({ where: { bed: { roomId: old.id } } })) > 0) {
         throw new AppError('Ushbu xonada faol mijozlar mavjud.', 409, 'ROOM_HAS_ACTIVE_STAYS');
       }
+      // Xonada boshqa jinsdagi mijoz yashab turgan bo‘lsa, jinsni almashtirishga yo‘l qo‘yilmaydi.
+      if (gender !== old.gender) {
+        const conflicting = await this.prisma.occupancy.count({
+          where: { bed: { roomId: old.id }, customer: { gender: { not: gender } } },
+        });
+        if (conflicting > 0) {
+          throw new AppError(
+            `Xonada ${genderWord(old.gender)} yashamoqda, shuning uchun jinsni o‘zgartirib bo‘lmaydi.`,
+            409,
+            'ROOM_GENDER_CONFLICT',
+          );
+        }
+      }
       const row = await this.prisma.room.update({
-        where: { id: input.id },
+        where: { id: old.id },
         data: {
           floorId: floor.id,
           floor: floor.number,
           number: String(input.number).trim(),
           roomType: input.roomType || 'ODDIY',
+          gender,
           capacity: Number(input.capacity),
           dailyPrice: input.dailyPrice != null ? Number(input.dailyPrice) : old.dailyPrice,
           monthlyPrice: input.monthlyPrice != null ? Number(input.monthlyPrice) : old.monthlyPrice,
@@ -191,8 +235,8 @@ export class AdminService {
         entity: 'Room',
         entityId: row.id,
         ip,
-        oldValue: { dailyPrice: old.dailyPrice, monthlyPrice: old.monthlyPrice },
-        newValue: { dailyPrice: row.dailyPrice, monthlyPrice: row.monthlyPrice },
+        oldValue: { dailyPrice: old.dailyPrice, monthlyPrice: old.monthlyPrice, gender: old.gender },
+        newValue: { dailyPrice: row.dailyPrice, monthlyPrice: row.monthlyPrice, gender: row.gender },
       });
       return row;
     }
@@ -203,16 +247,24 @@ export class AdminService {
         floor: floor.number,
         number: String(input.number).trim(),
         roomType: input.roomType || 'ODDIY',
+        gender,
         capacity,
         dailyPrice: input.dailyPrice != null ? Number(input.dailyPrice) : 50000,
-        monthlyPrice: input.monthlyPrice != null ? Number(input.monthlyPrice) : 1200000,
+        monthlyPrice: input.monthlyPrice != null ? Number(input.monthlyPrice) : DEFAULT_MONTHLY_PRICE,
         status: input.status || 'ACTIVE',
         notes: input.notes || null,
         beds: { create: Array.from({ length: capacity }, (_, i) => ({ number: i + 1, status: 'ACTIVE' })) },
       },
       include: { beds: true, level: true },
     });
-    await this.audit({ userId, action: 'ROOM_CREATE', entity: 'Room', entityId: row.id, ip, newValue: { number: row.number } });
+    await this.audit({
+      userId,
+      action: 'ROOM_CREATE',
+      entity: 'Room',
+      entityId: row.id,
+      ip,
+      newValue: { number: row.number, floor: row.floor, gender: row.gender },
+    });
     return row;
   }
 
@@ -526,20 +578,26 @@ export class AdminService {
     return this.prisma.floor.findMany({ orderBy: { number: 'asc' }, include: { _count: { select: { rooms: true } } } });
   }
 
-  async listRooms() {
+  async listRooms(floorNumber?: number) {
+    const floor = this.level(floorNumber);
     const rooms = await this.prisma.room.findMany({
+      where: floor ? { floor } : {},
       include: { level: true, beds: { include: { occupancy: { include: { customer: true } } }, orderBy: { number: 'asc' } } },
       orderBy: [{ floor: 'asc' }, { number: 'asc' }],
     });
     return rooms.map((room) => ({
       ...room,
-      floor: room.level,
+      // Barcha javoblarda `floor` — qavat raqami (son), qavat nomi `level.name` ichida.
+      floor: room.level?.number ?? room.floor,
       occupied: room.beds.filter((b) => b.occupancy).length,
     }));
   }
 
   async listBeds() {
-    return this.prisma.bed.findMany({ include: { room: true, occupancy: true }, orderBy: [{ roomId: 'asc' }, { number: 'asc' }] });
+    return this.prisma.bed.findMany({
+      include: { room: { include: { level: true } }, occupancy: true },
+      orderBy: [{ room: { floor: 'asc' } }, { room: { number: 'asc' } }, { number: 'asc' }],
+    });
   }
 
   async listStaff(opts: { q?: string; skip: number; page: number; pageSize: number }) {
@@ -570,7 +628,16 @@ export class AdminService {
     return { total, page: opts.page, pageSize: opts.pageSize, rows };
   }
 
-  async listCustomers(opts: { q?: string; tab?: string; type?: string; pay?: string; skip: number; page: number; pageSize: number }) {
+  async listCustomers(opts: {
+    q?: string;
+    tab?: string;
+    type?: string;
+    pay?: string;
+    floor?: number;
+    skip: number;
+    page: number;
+    pageSize: number;
+  }) {
     const where: Prisma.CustomerWhereInput = {};
     const q = opts.q?.trim() || '';
     if (q) {
@@ -585,6 +652,17 @@ export class AdminService {
     if (opts.tab === 'left') where.occupancy = null;
     if (opts.tab === 'blocked') where.blocked = true;
     if (opts.type) where.stays = { some: { type: opts.type, status: 'ACTIVE' } };
+    const floor = this.level(opts.floor);
+    if (floor) {
+      where.AND = [
+        {
+          OR: [
+            { occupancy: { stay: { room: { floor } } } },
+            { AND: [{ occupancy: null }, { stays: { some: { room: { floor } } } }] },
+          ],
+        },
+      ];
+    }
     const [total, rows] = await Promise.all([
       this.prisma.customer.count({ where }),
       this.prisma.customer.findMany({
@@ -630,7 +708,15 @@ export class AdminService {
     return customer;
   }
 
-  async listStays(opts: { q?: string; tab?: string; staffId?: string; skip: number; page: number; pageSize: number }) {
+  async listStays(opts: {
+    q?: string;
+    tab?: string;
+    staffId?: string;
+    floor?: number;
+    skip: number;
+    page: number;
+    pageSize: number;
+  }) {
     const today = todayISO();
     const where: Prisma.StayWhereInput = {};
     const q = opts.q?.trim() || '';
@@ -649,6 +735,8 @@ export class AdminService {
       where.checkLogs = { some: { type: 'CHECK_OUT', at: { gte: dayStart(today), lte: dayEnd(today) } } };
     }
     if (opts.staffId) where.createdById = opts.staffId;
+    const stayFloor = this.level(opts.floor);
+    if (stayFloor) where.room = { floor: stayFloor };
     const [total, rows] = await Promise.all([
       this.prisma.stay.count({ where }),
       this.prisma.stay.findMany({
@@ -667,6 +755,7 @@ export class AdminService {
     range?: string;
     type?: string;
     status?: string;
+    floor?: number;
     from?: string;
     to?: string;
     skip: number;
@@ -685,6 +774,8 @@ export class AdminService {
     }
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
+    const payFloor = this.level(opts.floor);
+    if (payFloor) where.stay = { room: { floor: payFloor } };
     const paidAt: { gte?: Date; lte?: Date } = {};
     if (opts.range === 'today') {
       paidAt.gte = dayStart(today);
@@ -767,14 +858,20 @@ export class AdminService {
     });
   }
 
-  async debtReport() {
-    const stays = await this.prisma.stay.findMany({ include: { customer: true, room: true, bed: true } });
+  async debtReport(floorNumber?: number) {
+    const floor = this.level(floorNumber);
+    const stays = await this.prisma.stay.findMany({
+      where: floor ? { room: { floor } } : {},
+      include: { customer: true, room: true, bed: true },
+      orderBy: [{ room: { floor: 'asc' } }, { room: { number: 'asc' } }],
+    });
     const rows = stays
       .map((s) => ({
         id: s.id,
         fullName: s.customer?.fullName || '—',
         phone: s.customer?.phone || '',
         room: s.room?.number || '—',
+        floor: s.room?.floor ?? null,
         bed: s.bed?.number ?? 0,
         debt: Math.max(0, s.totalAmount - s.paidAmount),
       }))

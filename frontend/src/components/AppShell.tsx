@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import { BrandLogo } from "./BrandLogo";
 import { NavIcon, type NavItem } from "./NavIcon";
+import { ReminderBell } from "./ReminderBell";
 
 export function AppShell({
   children,
@@ -123,11 +124,7 @@ export function AppShell({
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="hidden tabular text-muted lg:inline">{now}</span>
-            <span className="hidden h-9 w-9 items-center justify-center rounded-full border border-line text-navy sm:inline-flex" title="Bildirishnoma">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9zm6 13a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2z" />
-              </svg>
-            </span>
+            <ReminderBell />
             <div className="relative">
               <button type="button" onClick={() => setMenu((v) => !v)} className="flex items-center gap-2 rounded-full border border-line py-1 pl-1 pr-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
