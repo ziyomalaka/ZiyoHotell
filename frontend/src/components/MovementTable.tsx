@@ -24,7 +24,7 @@ export function MovementTable({ data }: { data: MovementData | null }) {
   if (!data) return null;
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="stat-quiet">
           <p>Kirdi</p>
           <strong>{data.totalIn}</strong>
@@ -42,7 +42,7 @@ export function MovementTable({ data }: { data: MovementData | null }) {
           <strong className="text-lg">{formatMoney(data.totalIncome)}</strong>
         </div>
       </div>
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-4 hidden overflow-x-auto lg:block">
         <table className="data-table">
           <thead>
             <tr>
@@ -65,6 +65,29 @@ export function MovementTable({ data }: { data: MovementData | null }) {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="mt-4 space-y-3 lg:hidden">
+        {data.rows.map((r) => (
+          <article key={r.key} className="mgr-list-card">
+            <p className="mb-2 font-semibold text-navy">{r.label}</p>
+            <div className="mgr-kv">
+              <span>Kirdi</span>
+              <span>{r.in}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>Chiqdi</span>
+              <span>{r.out}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>Farq</span>
+              <span>{r.net}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>To‘lov</span>
+              <span className="tabular font-semibold">{formatMoney(r.income)}</span>
+            </div>
+          </article>
+        ))}
       </div>
     </div>
   );

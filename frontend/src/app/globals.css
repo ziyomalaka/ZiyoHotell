@@ -259,3 +259,82 @@ textarea:focus {
   padding: 1rem;
   backdrop-filter: blur(2px);
 }
+
+.mgr-hero {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 14px;
+  padding: 0.95rem 1.1rem;
+}
+.mgr-hero p {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-premium);
+}
+.mgr-hero strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.mgr-list-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+}
+.mgr-list-card summary {
+  list-style: none;
+  cursor: pointer;
+}
+.mgr-list-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.mgr-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--navy);
+}
+.mgr-kv span:first-child {
+  color: var(--muted);
+}
+.mgr-kv + .mgr-kv {
+  margin-top: 0.4rem;
+}
+
+.mgr-chip-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  -webkit-overflow-scrolling: touch;
+}
+.mgr-chip-row > * {
+  flex-shrink: 0;
+}
+
+@media (min-width: 1024px) {
+  .mgr-chip-row {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 1023px) {
+  .mgr-app .chip {
+    min-height: 44px;
+  }
+  .mgr-app .btn-excel {
+    width: 100%;
+  }
+  .mgr-app .stat-quiet strong {
+    overflow-wrap: anywhere;
+  }
+}

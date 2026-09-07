@@ -75,33 +75,37 @@ export default function ManagerReportsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => setTab("movement")} className={`chip ${tab === "movement" ? "chip-active" : ""}`}>
-          Kirim-chiqim
-        </button>
-        <button onClick={() => setTab("payment-due")} className={`chip ${tab === "payment-due" ? "chip-active" : ""}`}>
-          To‘lov muddati
-        </button>
-        <button onClick={() => setTab("customers")} className={`chip ${tab === "customers" ? "chip-active" : ""}`}>
-          Mijozlar
-        </button>
-        {tab === "movement"
-          ? MOVEMENT_VIEWS.map((v) => (
-              <button key={v.id} onClick={() => setRange(v.id)} className={`chip ${range === v.id ? "chip-active" : ""}`}>
-                {v.label}
-              </button>
-            ))
-          : null}
-        {tab === "customers" ? (
-          <>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </>
-        ) : null}
-        <FloorFilter scope="manager" value={floor} onChange={setFloor} />
-        <ExportExcelButton
-          onClick={() => downloadExcel(`/api/v1/manager/reports/export/excel?${excelQs}`, `Yotoqxona_${tab}.xlsx`)}
-        />
+      <div className="space-y-3">
+        <div className="mgr-chip-row">
+          <button onClick={() => setTab("movement")} className={`chip ${tab === "movement" ? "chip-active" : ""}`}>
+            Kirim-chiqim
+          </button>
+          <button onClick={() => setTab("payment-due")} className={`chip ${tab === "payment-due" ? "chip-active" : ""}`}>
+            To‘lov muddati
+          </button>
+          <button onClick={() => setTab("customers")} className={`chip ${tab === "customers" ? "chip-active" : ""}`}>
+            Mijozlar
+          </button>
+          {tab === "movement"
+            ? MOVEMENT_VIEWS.map((v) => (
+                <button key={v.id} onClick={() => setRange(v.id)} className={`chip ${range === v.id ? "chip-active" : ""}`}>
+                  {v.label}
+                </button>
+              ))
+            : null}
+        </div>
+        <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
+          {tab === "customers" ? (
+            <>
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full lg:w-auto" />
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full lg:w-auto" />
+            </>
+          ) : null}
+          <FloorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
+          <ExportExcelButton
+            onClick={() => downloadExcel(`/api/v1/manager/reports/export/excel?${excelQs}`, `Yotoqxona_${tab}.xlsx`)}
+          />
+        </div>
       </div>
 
       {tab === "movement" ? (
@@ -119,7 +123,7 @@ export default function ManagerReportsPage() {
 
       {tab === "customers" ? (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div className="stat-quiet">
               <p>Jami mijozlar</p>
               <strong>{customers?.total || 0}</strong>
@@ -133,7 +137,7 @@ export default function ManagerReportsPage() {
               <strong>{customers?.left || 0}</strong>
             </div>
           </div>
-          <div className="mt-5 overflow-x-auto">
+          <div className="mt-5 hidden overflow-x-auto lg:block">
             <table className="data-table">
               <thead>
                 <tr>
@@ -166,6 +170,47 @@ export default function ManagerReportsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="mt-5 space-y-3 lg:hidden">
+            {(customers?.rows || []).map((row, i) => (
+              <article key={i} className="mgr-list-card">
+                <p className="mb-2 font-semibold text-navy">{row.customer.fullName}</p>
+                <div className="mgr-kv">
+                  <span>Qavat</span>
+                  <span>{floorLabel(row.room.floor)}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Xona</span>
+                  <span>
+                    {row.room.number}/{row.bed.number}
+                  </span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Turi</span>
+                  <span>{stayTypeLabel(row.type)}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Summa</span>
+                  <span className="tabular font-semibold">{formatMoney(row.totalAmount)}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Davr</span>
+                  <span>{row.paidDaysLabel || "—"}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Muddat</span>
+                  <span>{formatDate(row.dueDate)}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Holati</span>
+                  <span>{payStatusLabel(row.paidAmount > 0 ? "PAID" : "UNPAID")}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Kirish</span>
+                  <span>{formatDate(row.startDate)}</span>
+                </div>
+              </article>
+            ))}
           </div>
           {!(customers?.rows || []).length ? <EmptyState className="mt-4" title="Mos mijoz yo‘q." /> : null}
         </>

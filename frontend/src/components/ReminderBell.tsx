@@ -52,7 +52,7 @@ export function ReminderBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative hidden h-9 w-9 items-center justify-center rounded-full border border-line text-navy sm:inline-flex"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-navy"
         title="To‘lov muddati eslatmalari"
         aria-label="Eslatmalar"
       >

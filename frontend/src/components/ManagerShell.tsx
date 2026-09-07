@@ -13,7 +13,7 @@ const nav = [
 export function ManagerShell({ children, user }: { children: React.ReactNode; user: SessionUser }) {
   return (
     <SessionProvider user={user}>
-      <AppShell userName={user.fullName} roleLabel="BOSHLIQ" nav={nav} homeHref="/manager">
+      <AppShell userName={user.fullName} roleLabel="BOSHLIQ" nav={nav} homeHref="/manager" variant="manager">
         {children}
       </AppShell>
     </SessionProvider>
