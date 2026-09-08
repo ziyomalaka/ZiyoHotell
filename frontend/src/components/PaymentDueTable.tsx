@@ -62,7 +62,7 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
               <th>O‘rin</th>
               <th>Tur</th>
               <th>To‘langan davr</th>
-              <th>Muddat</th>
+              <th>Chiqish kuni</th>
               <th>Qolgan</th>
               <th>Keyingi to‘lov</th>
             </tr>
@@ -116,7 +116,7 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
               <span>{r.paidDaysLabel}</span>
             </div>
             <div className="mgr-kv">
-              <span>Muddat</span>
+              <span>Chiqish kuni</span>
               <span>{formatDate(r.dueDate)}</span>
             </div>
             <div className="mgr-kv">

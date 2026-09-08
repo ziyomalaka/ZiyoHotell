@@ -13,7 +13,7 @@ import {
   todayISO,
 } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
-import { cashCardTotals } from '../common/billing';
+import { cashCardTotals, checkoutDate } from '../common/billing';
 import { ReportsService } from '../reports/reports.service';
 
 const stayInclude = {
@@ -340,7 +340,7 @@ export class ManagerService {
         bed: stay?.bed.number ?? '—',
         startDate: stay?.startDate || null,
         type: stay?.type || '',
-        payStatus: stay ? paymentStatusFromAmounts(stay.totalAmount, stay.paidAmount) : '—',
+        payStatus: stay ? (stay.paidAmount > 0 ? 'PAID' : 'UNPAID') : '—',
         debt,
         status: c.occupancy ? 'ACTIVE' : 'COMPLETED',
       };
@@ -507,6 +507,7 @@ export class ManagerService {
       debt: stayDebt(s.totalAmount, s.paidAmount),
       payStatus: paymentStatusFromAmounts(s.totalAmount, s.paidAmount),
       lastPaidAt: s.payments[0]?.paidAt || null,
+      checkoutDate: checkoutDate(s),
     }));
     return {
       year,

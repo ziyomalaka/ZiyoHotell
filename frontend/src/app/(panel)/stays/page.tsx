@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { daysLeftLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { checkoutDate, daysLeftLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -18,7 +18,9 @@ type Stay = {
   totalAmount: number;
   paidAmount: number;
   paidDaysLabel?: string;
+  paidUntil?: string | null;
   dueDate?: string | null;
+  checkoutDate?: string | null;
   daysLeft?: number | null;
   overdue?: boolean;
   dueSoon?: boolean;
@@ -82,6 +84,7 @@ export default function StaysPage() {
               <th>To‘lov turi</th>
               <th>To‘lov holati</th>
               <th>Muddat</th>
+              <th>Chiqish kuni</th>
               <th>Amal</th>
             </tr>
           </thead>
@@ -106,6 +109,7 @@ export default function StaysPage() {
                   {row.dueDate ? ` · ${formatDate(row.dueDate)}` : ""}
                   {row.daysLeft != null ? ` · ${daysLeftLabel(row.daysLeft)}` : ""}
                 </td>
+                <td>{formatDate(checkoutDate(row))}</td>
                 <td>
                   <button className="btn-primary min-h-9 px-3 text-sm" onClick={() => { setOutDate(todayISO()); setSelected(row); }}>
                     CHIQARISH

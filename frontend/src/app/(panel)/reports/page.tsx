@@ -8,6 +8,7 @@ import { FloorFilter } from "@/components/FloorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
 import {
+  checkoutDate,
   customerGenderLabel,
   floorLabel,
   formatDate,
@@ -29,6 +30,7 @@ type CustomerRep = {
     paidAmount: number;
     paidDaysLabel?: string;
     dueDate?: string | null;
+    checkoutDate?: string | null;
     startDate: string;
     endDate?: string | null;
     status: string;
@@ -218,7 +220,7 @@ export default function ReportsPage() {
                     <td>{formatDate(row.dueDate)}</td>
                     <td>{payStatusLabel(row.paidAmount > 0 ? "PAID" : "UNPAID")}</td>
                     <td>{formatDate(row.startDate)}</td>
-                    <td>{row.status === "COMPLETED" ? formatDate(row.endDate) : "—"}</td>
+                    <td>{formatDate(checkoutDate(row) || row.endDate)}</td>
                   </tr>
                 ))}
               </tbody>

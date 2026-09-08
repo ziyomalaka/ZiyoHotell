@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { DEFAULT_MONTHLY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -31,7 +31,13 @@ type Payment = {
   method?: string;
   paidAt: string;
   customer: { fullName: string };
-  stay: { room: { number: string; floor: number }; bed: { number: number } };
+  stay: {
+    room: { number: string; floor: number };
+    bed: { number: number };
+    paidUntil?: string | null;
+    endDate?: string | null;
+    status?: string;
+  };
 };
 
 export default function PaymentsPage() {
@@ -160,7 +166,7 @@ export default function PaymentsPage() {
               <th>Summa</th>
               <th>Usul</th>
               <th>Davr</th>
-              <th>Qaysigacha</th>
+              <th>Chiqish kuni</th>
               <th>To‘lov holati</th>
               <th>Sana</th>
             </tr>
@@ -176,7 +182,7 @@ export default function PaymentsPage() {
                 <td className="tabular">{formatMoney(row.amount)}</td>
                 <td>{methodLabel(row.method || "")}</td>
                 <td>{row.days ? describeDays(row.days) : "—"}</td>
-                <td>{row.coversTo ? formatDate(row.coversTo) : "—"}</td>
+                <td>{formatDate(row.coversTo || checkoutDate(row.stay))}</td>
                 <td>
                   <StatusBadge value={row.status === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(row.status)} />
                 </td>
@@ -210,18 +216,16 @@ export default function PaymentsPage() {
               Summa
               <input required type="number" min={1} step={1000} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-2 w-full" />
             </label>
-            {form.type === "MONTHLY" ? (
-              <p className="mt-1 text-xs text-muted">
-                {(() => {
-                  const stay = stays.find((s) => s.id === form.stayId);
-                  const price = stay?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
-                  const days = daysForAmount(Number(form.amount || 0), price);
-                  return days
-                    ? `Shu summa ${describeDays(days)} beradi va muddat to‘lov sanasidan (yoki qolgan muddat ustiga) qo‘shiladi.`
-                    : `1 oy = ${formatMoney(price)} (30 kun).`;
-                })()}
-              </p>
-            ) : null}
+            <p className="mt-1 text-xs text-muted">
+              {(() => {
+                const stay = stays.find((s) => s.id === form.stayId);
+                const price = stay?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
+                const days = daysForAmount(Number(form.amount || 0), price);
+                return days
+                  ? `Kuniga ${formatMoney(DEFAULT_DAILY_PRICE)}. Shu summa ${describeDays(days)} beradi, hisob kirish kunidan (yoki qolgan kunlar ustiga).`
+                  : `Kuniga ${formatMoney(DEFAULT_DAILY_PRICE)}. 30 kun = 1 oy = ${formatMoney(price)}.`;
+              })()}
+            </p>
             <label className="mt-3 block text-sm font-medium">
               Yashash turi
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="mt-2 w-full">

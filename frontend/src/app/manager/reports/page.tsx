@@ -7,7 +7,7 @@ import { ExportExcelButton } from "@/components/ExportExcelButton";
 import { FloorFilter } from "@/components/FloorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
-import { floorLabel, formatDate, formatMoney, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type Tab = "movement" | "payment-due" | "customers";
@@ -22,6 +22,9 @@ type CustomerRep = {
     paidAmount: number;
     paidDaysLabel?: string;
     dueDate?: string | null;
+    checkoutDate?: string | null;
+    paidUntil?: string | null;
+    endDate?: string | null;
     startDate: string;
     status: string;
     customer: { fullName: string; phone: string };
@@ -150,6 +153,7 @@ export default function ManagerReportsPage() {
                   <th>Muddat</th>
                   <th>Holati</th>
                   <th>Kirish</th>
+                  <th>Chiqish</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,6 +170,7 @@ export default function ManagerReportsPage() {
                     <td>{formatDate(row.dueDate)}</td>
                     <td>{payStatusLabel(row.paidAmount > 0 ? "PAID" : "UNPAID")}</td>
                     <td>{formatDate(row.startDate)}</td>
+                    <td>{formatDate(checkoutDate(row))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -208,6 +213,10 @@ export default function ManagerReportsPage() {
                 <div className="mgr-kv">
                   <span>Kirish</span>
                   <span>{formatDate(row.startDate)}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Chiqish</span>
+                  <span>{formatDate(checkoutDate(row))}</span>
                 </div>
               </article>
             ))}

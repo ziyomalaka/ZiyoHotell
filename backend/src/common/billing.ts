@@ -5,11 +5,14 @@ function asDay(value: Date) {
   return parseDate(todayISO(value));
 }
 
-/** Bir oylik to'lov shu qancha kunga to'g'ri keladi (750 000 so'm = 30 kun). */
+/** Kunlik narx: kirish kunidan boshlab har kun shu summa. */
+export const DEFAULT_DAILY_PRICE = 25000;
+
+/** 30 kun = 1 oy. */
 export const DAYS_PER_MONTH = 30;
 
-/** Bitta o'rinning oylik narxi. Yangi xonalar shu narx bilan yaratiladi. */
-export const DEFAULT_MONTHLY_PRICE = 750000;
+/** Bitta o'rinning oylik narxi = 25 000 × 30. Yangi xonalar shu narx bilan yaratiladi. */
+export const DEFAULT_MONTHLY_PRICE = DEFAULT_DAILY_PRICE * DAYS_PER_MONTH;
 
 /** To'lov muddati shu kun qolganda eslatma boshlanadi. */
 export const REMIND_BEFORE_DAYS = 3;
@@ -28,14 +31,20 @@ export function cashCardTotals(rows: { method?: string | null; amount: number }[
   return { cash, card };
 }
 
+/** Oylik narxdan kunlik tarif: 750 000 / 30 = 25 000. */
+export function dailyPriceFromMonthly(monthlyPrice: number) {
+  if (!monthlyPrice || monthlyPrice <= 0) return DEFAULT_DAILY_PRICE;
+  return Math.round(monthlyPrice / DAYS_PER_MONTH);
+}
+
 /**
  * To'langan summa qancha kun berganini hisoblaydi.
- * Oylik narx 30 kunga to'g'ri keladi, ya'ni yarim summa yarim oy (15 kun) beradi.
- * Kasr kunlar mijoz zarariga yaxlitlanmasligi uchun pastga qarab olinadi.
+ * Kuniga 25 000 so'm: 750 000 = 30 kun = 1 oy. Kasr kunlar pastga qarab olinadi.
  */
 export function daysForAmount(amount: number, monthlyPrice: number) {
-  if (!monthlyPrice || monthlyPrice <= 0 || !amount || amount <= 0) return 0;
-  return Math.floor((amount / monthlyPrice) * DAYS_PER_MONTH);
+  const daily = dailyPriceFromMonthly(monthlyPrice);
+  if (!daily || !amount || amount <= 0) return 0;
+  return Math.floor(amount / daily);
 }
 
 /** Kunlarni oy va kunga ajratadi: 45 kun -> { months: 1, days: 15 }. */
@@ -56,20 +65,48 @@ export function describeDays(totalDays: number) {
 
 /**
  * To'lov qaysi davrni yopganini hisoblaydi.
- * Oldingi muddat hali tugamagan bo'lsa yangi kunlar uning ustiga qo'shiladi;
- * muddat o'tib ketgan (yoki birinchi to'lov) bo'lsa hisob to'lov qilingan kundan boshlanadi.
+ * Hisob kirish kunidan boradi: to'langan jami kunlar shu sanadan qo'shiladi.
+ * Keyingi to'lov qolgan kunlar ustiga yoziladi.
  */
 export function paymentPeriod(opts: {
   amount: number;
   monthlyPrice: number;
   paidAt: Date;
+  startDate?: Date | null;
+  currentPaidDays?: number;
   currentPaidUntil?: Date | null;
 }) {
   const days = daysForAmount(opts.amount, opts.monthlyPrice);
-  const paidAt = asDay(opts.paidAt);
-  const current = opts.currentPaidUntil ? asDay(opts.currentPaidUntil) : null;
-  const from = current && current.getTime() > paidAt.getTime() ? current : paidAt;
+  const origin = asDay(opts.startDate || opts.paidAt);
+  const already = Math.max(0, Math.trunc(opts.currentPaidDays || 0));
+  const from = addDays(origin, already);
   return { days, from, to: addDays(from, days) };
+}
+
+/** To‘lov yopgan sana: paidUntil yo‘q bo‘lsa kirish + to‘langan kunlar. */
+export function inferredPaidUntil(stay: {
+  paidUntil?: Date | string | null;
+  startDate?: Date | string | null;
+  paidDays?: number | null;
+  endDate?: Date | string | null;
+}) {
+  if (stay.paidUntil) return stay.paidUntil;
+  const start = asDate(stay.startDate);
+  const days = Math.max(0, Math.trunc(stay.paidDays || 0));
+  if (start && days) return addDays(asDay(start), days);
+  return stay.endDate ?? null;
+}
+
+/** Chiqish kuni: chiqib ketgan bo'lsa haqiqiy chiqish, aks holda to'lov yopgan sana. */
+export function checkoutDate(stay: {
+  status?: string | null;
+  paidUntil?: Date | string | null;
+  startDate?: Date | string | null;
+  paidDays?: number | null;
+  endDate?: Date | string | null;
+}) {
+  if (stay.status === 'COMPLETED' && stay.endDate) return stay.endDate;
+  return inferredPaidUntil(stay);
 }
 
 /**
@@ -114,16 +151,23 @@ export function needsReminder(daysLeft: number | null) {
 
 /**
  * Ro'yxat va hisobotlarda ko'rsatiladigan to'lov muddati ma'lumoti.
- * Oylik yashovchida muddat `paidUntil`, kunlikda esa chiqish sanasi bo'yicha.
+ * Oylik yashovchida muddat `paidUntil` (kirish + to'langan kunlar), kunlikda chiqish sanasi.
  */
 export function periodInfo(
-  stay: { paidUntil?: Date | null; paidDays?: number | null; endDate?: Date | null },
+  stay: {
+    status?: string | null;
+    paidUntil?: Date | null;
+    paidDays?: number | null;
+    startDate?: Date | null;
+    endDate?: Date | null;
+  },
   now = new Date(),
 ) {
-  const dueDate = stay.paidUntil ?? stay.endDate ?? null;
+  const dueDate = inferredPaidUntil(stay);
   const daysLeft = daysLeftUntil(dueDate, now);
   return {
     dueDate,
+    checkoutDate: checkoutDate(stay),
     daysLeft,
     paidDaysLabel: describeDays(stay.paidDays || 0),
     overdue: daysLeft !== null && daysLeft < 0,

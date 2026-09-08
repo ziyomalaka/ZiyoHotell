@@ -8,6 +8,7 @@ import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
+  checkoutDate,
   floorLabel,
   formatDate,
   formatMoney,
@@ -26,9 +27,13 @@ type Pay = {
   status: string;
   paidAt: string;
   customer: { fullName: string };
+  coversTo?: string | null;
   stay: {
     totalAmount: number;
     paidAmount: number;
+    paidUntil?: string | null;
+    endDate?: string | null;
+    status?: string;
     room: { number: string; floor: number };
     bed: { number: number };
   };
@@ -139,7 +144,7 @@ export default function ManagerPaymentsPage() {
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["Mijoz", "Qavat", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Vaqt", "Holat", "Reception"].map((h) => (
+              {["Mijoz", "Qavat", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Chiqish kuni", "Vaqt", "Holat", "Reception"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -161,6 +166,7 @@ export default function ManagerPaymentsPage() {
                 <td className="px-3 py-3">{formatMoney(Math.max(0, r.stay.totalAmount - r.stay.paidAmount))}</td>
                 <td className="px-3 py-3">{methodLabel(r.method)}</td>
                 <td className="px-3 py-3">{formatDate(r.paidAt)}</td>
+                <td className="px-3 py-3">{formatDate(r.coversTo || checkoutDate(r.stay))}</td>
                 <td className="px-3 py-3">{formatTime(r.paidAt)}</td>
                 <td className="px-3 py-3">
                   <StatusBadge value={r.status} label={payStatusLabel(r.status)} />

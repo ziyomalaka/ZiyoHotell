@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { cashCardTotals, paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
+import { cashCardTotals, checkoutDate, daysForAmount, paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
 
 export type RegisterInput = {
   fullName: string;
@@ -169,16 +169,15 @@ export class ReceptionService {
         const paymentMonth = input.stayType === 'MONTHLY' ? input.paymentMonth || input.startDate.slice(0, 7) : null;
         const method = input.paymentMethod === 'BANK_TRANSFER' ? 'BANK' : input.paymentMethod || 'CASH';
 
-        // Oylik yashovchi to'lagan summa qancha kun berganini o'zi hisoblaydi:
-        // 750 000 = 30 kun, ya'ni 2 250 000 = 3 oy. Hisob to'lov qilingan kundan boradi,
-        // yashash keyinroq boshlansa esa kirish sanasidan.
+        // Kirish kunidan kuniga 25 000 so'm: 750 000 = 30 kun = 1 oy.
         const paidAt = parseDate(todayISO());
         const period =
-          input.stayType === 'MONTHLY' && paidAmount > 0
+          paidAmount > 0
             ? paymentPeriod({
                 amount: paidAmount,
                 monthlyPrice: bed.room.monthlyPrice,
                 paidAt,
+                startDate,
               })
             : null;
 
@@ -196,8 +195,8 @@ export class ReceptionService {
             monthlyPrice: bed.room.monthlyPrice,
             totalAmount: amount,
             paidAmount,
-            paidUntil: period?.to ?? null,
-            paidDays: period?.days ?? 0,
+            paidUntil: period?.to ?? endDate,
+            paidDays: period?.days ?? daysCount ?? 0,
             status: 'ACTIVE',
             createdById: userId,
           },
@@ -333,19 +332,16 @@ export class ReceptionService {
       const paidAmount = stay.paidAmount + amount;
       const paidAt = input.paymentDate ? parseDate(input.paymentDate) : new Date();
 
-      // Yangi to'lov muddatni uzaytiradi: summa qancha oy/kun berishini o'zi hisoblaydi.
-      // Muddat hali tugamagan bo'lsa qolgan kunlar ustiga qo'shiladi,
-      // o'tib ketgan bo'lsa hisob shu to'lov sanasidan boshlanadi.
+      // Yangi to'lov kirish kunidan hisoblangan kunlar ustiga qo'shiladi:
+      // 25 000 so'm = 1 kun, 750 000 = 30 kun = 1 oy.
       const type = input.type || stay.type;
-      const period =
-        type === 'MONTHLY'
-          ? paymentPeriod({
-              amount,
-              monthlyPrice: stay.monthlyPrice,
-              paidAt,
-              currentPaidUntil: stay.paidUntil,
-            })
-          : null;
+      const period = paymentPeriod({
+        amount,
+        monthlyPrice: stay.monthlyPrice,
+        paidAt,
+        startDate: stay.startDate,
+        currentPaidDays: stay.paidDays || daysForAmount(stay.paidAmount, stay.monthlyPrice),
+      });
 
       const payment = await tx.payment.create({
         data: {
@@ -354,9 +350,9 @@ export class ReceptionService {
           type,
           period: input.note?.trim() || input.period || stay.paymentMonth || input.paymentDate || '',
           amount,
-          days: period?.days ?? 0,
-          coversFrom: period?.from ?? null,
-          coversTo: period?.to ?? null,
+          days: period.days,
+          coversFrom: period.from,
+          coversTo: period.to,
           method,
           status: 'PAID',
           paidAt,
@@ -367,9 +363,7 @@ export class ReceptionService {
       });
       await tx.stay.update({
         where: { id: stay.id },
-        data: period
-          ? { paidAmount, paidUntil: period.to, paidDays: stay.paidDays + period.days }
-          : { paidAmount },
+        data: { paidAmount, paidUntil: period.to, paidDays: stay.paidDays + period.days },
       });
       await tx.auditLog.create({
         data: { userId, action: 'PAYMENT_CREATE', entity: 'Payment', entityId: payment.id, meta: JSON.stringify({ amount }) },
@@ -452,7 +446,20 @@ export class ReceptionService {
           living: Boolean(live),
           payStatus: !stay ? 'UNPAID' : stay.paidAmount > 0 ? 'PAID' : 'UNPAID',
           occupancy: stay
-            ? { stay: { startDate: stay.startDate, endDate: stay.endDate, type: stay.type, room: stay.room, bed: stay.bed } }
+            ? {
+                stay: {
+                  id: stay.id,
+                  startDate: stay.startDate,
+                  endDate: stay.endDate,
+                  paidUntil: stay.paidUntil,
+                  paidDays: stay.paidDays,
+                  monthlyPrice: stay.monthlyPrice,
+                  checkoutDate: checkoutDate(stay),
+                  type: stay.type,
+                  room: stay.room,
+                  bed: stay.bed,
+                },
+              }
             : null,
         };
       }),
@@ -680,7 +687,7 @@ export class ReceptionService {
       todayIncome: income.todayIncome,
       todayCash: income.todayCash,
       todayCard: income.todayCard,
-      recent,
+      recent: recent.map((s) => ({ ...s, ...periodInfo(s) })),
     };
   }
 

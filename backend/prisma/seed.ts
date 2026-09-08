@@ -28,7 +28,7 @@ const settings: Record<string, string> = {
   hours: '24/7',
   currency: 'UZS',
   dateFormat: 'DD.MM.YYYY',
-  dailyPrice: '50000',
+  dailyPrice: '25000',
   monthlyPrice: '750000',
   paymentDueDays: '5',
   allowPartial: 'true',

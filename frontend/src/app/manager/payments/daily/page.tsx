@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { floorLabel, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { checkoutDate, floorLabel, formatDate, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type Row = {
@@ -15,8 +15,14 @@ type Row = {
   method?: string;
   status: string;
   paidAt: string;
+  coversTo?: string | null;
   customer: { fullName: string };
-  stay: { room: { number: string; floor: number } };
+  stay: {
+    paidUntil?: string | null;
+    endDate?: string | null;
+    status?: string;
+    room: { number: string; floor: number };
+  };
 };
 
 type Data = {
@@ -85,6 +91,7 @@ export default function ManagerDailyPaymentsPage() {
               <th>Summa</th>
               <th>Usul</th>
               <th>Kunlik/Oylik</th>
+              <th>Chiqish kuni</th>
               <th>Vaqt</th>
               <th>Holati</th>
             </tr>
@@ -98,6 +105,7 @@ export default function ManagerDailyPaymentsPage() {
                 <td className="tabular">{formatMoney(r.amount)}</td>
                 <td>{methodLabel(r.method || "")}</td>
                 <td>{stayTypeLabel(r.type)}</td>
+                <td>{formatDate(r.coversTo || checkoutDate(r.stay))}</td>
                 <td>{formatTime(r.paidAt)}</td>
                 <td>
                   <StatusBadge value={r.status === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.status)} />
@@ -134,6 +142,10 @@ export default function ManagerDailyPaymentsPage() {
               <div className="mgr-kv">
                 <span>Kunlik/Oylik</span>
                 <span>{stayTypeLabel(r.type)}</span>
+              </div>
+              <div className="mgr-kv">
+                <span>Chiqish kuni</span>
+                <span>{formatDate(r.coversTo || checkoutDate(r.stay))}</span>
               </div>
               <div className="mgr-kv">
                 <span>Vaqt</span>

@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { AddPaymentModal } from "@/components/AddPaymentModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { customerGenderLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { checkoutDate, customerGenderLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
 
 type Row = {
   id: string;
@@ -18,8 +19,13 @@ type Row = {
   living?: boolean;
   occupancy?: {
     stay: {
+      id: string;
       startDate: string;
       endDate?: string | null;
+      paidUntil?: string | null;
+      paidDays?: number | null;
+      monthlyPrice?: number;
+      checkoutDate?: string | null;
       type: string;
       room: { number: string; floor: number };
       bed: { number: number };
@@ -34,6 +40,7 @@ export default function ReceptionCustomersPage() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ total: number; rows: Row[] }>({ total: 0, rows: [] });
   const [drop, setDrop] = useState<Row | null>(null);
+  const [pay, setPay] = useState<Row | null>(null);
   const [error, setError] = useState("");
 
   async function load(nextPage = page) {
@@ -104,10 +111,17 @@ export default function ReceptionCustomersPage() {
                 <td>{r.occupancy?.stay.room.number || "—"}</td>
                 <td>{r.occupancy?.stay.bed.number ?? "—"}</td>
                 <td>{r.occupancy ? formatDate(r.occupancy.stay.startDate) : "—"}</td>
-                <td>{r.occupancy?.stay.endDate ? formatDate(r.occupancy.stay.endDate) : "—"}</td>
+                <td>{r.occupancy ? formatDate(checkoutDate(r.occupancy.stay)) : "—"}</td>
                 <td>{r.occupancy ? stayTypeLabel(r.occupancy.stay.type) : "—"}</td>
                 <td>
-                  <StatusBadge value={r.payStatus === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.payStatus)} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge value={r.payStatus === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.payStatus)} />
+                    {r.living && r.occupancy?.stay.id ? (
+                      <button type="button" className="text-sm font-semibold text-royal" onClick={() => setPay(r)}>
+                        To‘lov
+                      </button>
+                    ) : null}
+                  </div>
                 </td>
                 <td>
                   <StatusBadge
@@ -127,6 +141,23 @@ export default function ReceptionCustomersPage() {
       </div>
       {!data.rows.length ? <EmptyState className="mt-4" text="Hozircha mijozlar mavjud emas." /> : null}
       <PaginationBar page={page} pageSize={20} total={data.total} onPage={(p) => { setPage(p); load(p); }} />
+      {pay?.occupancy?.stay.id ? (
+        <AddPaymentModal
+          stay={{
+            id: pay.occupancy.stay.id,
+            type: pay.occupancy.stay.type,
+            monthlyPrice: pay.occupancy.stay.monthlyPrice,
+            paidDays: pay.occupancy.stay.paidDays,
+            startDate: pay.occupancy.stay.startDate,
+            customerName: pay.fullName,
+          }}
+          onClose={() => setPay(null)}
+          onSaved={() => {
+            setPay(null);
+            load();
+          }}
+        />
+      ) : null}
       {drop ? (
         <ConfirmModal
           danger

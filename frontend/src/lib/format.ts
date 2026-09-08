@@ -59,7 +59,7 @@ export function formatMoney(value: number) {
   return `${n < 0 ? "-" : ""}${grouped} so‘m`;
 }
 
-export function todayISO(date = new Date()) {
+export function todayISO(date: Date | string = new Date()) {
   const p = tashkentParts(date);
   if (!p) return "";
   return `${p.year}-${pad2(p.month)}-${pad2(p.day)}`;
@@ -252,16 +252,18 @@ export function occupancyLabel(kind: string) {
   return "TA’MIRDA";
 }
 
-/** Bir oylik to‘lov shu qancha kunga to‘g‘ri keladi (750 000 so‘m = 30 kun). */
+/** Kuniga 25 000 so‘m; 30 kun = 1 oy = 750 000 so‘m. */
+export const DEFAULT_DAILY_PRICE = 25000;
 export const DAYS_PER_MONTH = 30;
-export const DEFAULT_MONTHLY_PRICE = 750000;
+export const DEFAULT_MONTHLY_PRICE = DEFAULT_DAILY_PRICE * DAYS_PER_MONTH;
 export const DEFAULT_REGISTER_MONTHS = 3;
 export const DEFAULT_REGISTER_AMOUNT = DEFAULT_MONTHLY_PRICE * DEFAULT_REGISTER_MONTHS;
 
-/** To‘langan summa qancha kun bergani: 2 250 000 = 90 kun (3 oy). */
+/** To‘langan summa qancha kun bergani: 25 000 = 1 kun, 750 000 = 30 kun. */
 export function daysForAmount(amount: number, monthlyPrice = DEFAULT_MONTHLY_PRICE) {
-  if (!monthlyPrice || monthlyPrice <= 0 || !amount || amount <= 0) return 0;
-  return Math.floor((amount / monthlyPrice) * DAYS_PER_MONTH);
+  const daily = monthlyPrice > 0 ? monthlyPrice / DAYS_PER_MONTH : DEFAULT_DAILY_PRICE;
+  if (!daily || !amount || amount <= 0) return 0;
+  return Math.floor(amount / daily);
 }
 
 export function splitDays(totalDays: number) {
@@ -285,4 +287,24 @@ export function daysLeftLabel(daysLeft: number | null | undefined) {
   if (daysLeft > 0) return `${daysLeft} kun qoldi`;
   if (daysLeft === 0) return "bugun tugaydi";
   return `${Math.abs(daysLeft)} kun kechikdi`;
+}
+
+/** Chiqish kuni: chiqib ketgan bo‘lsa haqiqiy sana, aks holda to‘lov yopgan sana. */
+export function checkoutDate(stay: {
+  status?: string | null;
+  paidUntil?: string | null;
+  endDate?: string | null;
+  dueDate?: string | null;
+  checkoutDate?: string | null;
+  startDate?: string | null;
+  paidDays?: number | null;
+}) {
+  if (stay.checkoutDate) return stay.checkoutDate;
+  if (stay.status === "COMPLETED" && stay.endDate) return stay.endDate;
+  if (stay.paidUntil || stay.dueDate) return stay.paidUntil || stay.dueDate || null;
+  if (stay.startDate && stay.paidDays) {
+    const start = isDateOnly(stay.startDate) ? stay.startDate : todayISO(stay.startDate);
+    if (start) return addDays(parseDate(start), stay.paidDays).toISOString();
+  }
+  return stay.endDate || null;
 }

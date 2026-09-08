@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable, StreamableFile } from '@nestjs/common';
 import ExcelJS from 'exceljs';
+import { checkoutDate } from '../common/billing';
 import { formatDate, formatDateTime, formatMoney, todayISO } from '../common/datetime';
 import { genderLabel } from '../common/gender';
 import { PrismaService } from '../prisma/prisma.service';
@@ -72,7 +73,7 @@ export class ExcelService {
       'O‘rin',
       'Tur',
       'To‘langan davr',
-      'Muddat tugashi',
+      'Chiqish kuni',
       'Qolgan kun',
       'Holat',
       'Keyingi to‘lov',
@@ -153,7 +154,7 @@ export class ExcelService {
           row.totalAmount,
           row.paidAmount > 0 ? 'To‘ladi' : 'To‘lamadi',
           formatDate(row.startDate),
-          row.status === 'COMPLETED' ? formatDate(row.endDate) : '',
+          formatDate(checkoutDate(row)),
         ]);
       });
       sheet.addRow([]);
@@ -202,7 +203,7 @@ export class ExcelService {
       return this.file(wb, `Yotoqxona_KirimChiqim${fx}_${day}.xlsx`);
     }
     const data = await this.reports.paymentsReport(from, to, floor);
-    sheet.addRow(['№', 'Mijoz', 'Qavat', 'Xona/O‘rin', 'Turi', 'Davr', 'Summa', 'Sana', 'Usul', 'Holat', 'Kim kiritgan']);
+    sheet.addRow(['№', 'Mijoz', 'Qavat', 'Xona/O‘rin', 'Turi', 'Davr', 'Summa', 'Sana', 'Chiqish kuni', 'Usul', 'Holat', 'Kim kiritgan']);
     data.rows.forEach((row, i) => {
       sheet.addRow([
         i + 1,
@@ -213,6 +214,7 @@ export class ExcelService {
         row.period,
         formatMoney(row.amount),
         formatDate(row.paidAt),
+        formatDate(row.coversTo || checkoutDate(row.stay)),
         methodLabel(row.method),
         row.status,
         row.createdBy.fullName,
@@ -234,7 +236,7 @@ export class ExcelService {
     const fx = this.floorSuffix(floor);
     if (type === 'customers') {
       const data = await this.reports.customersReport(from, to, undefined, undefined, floor);
-      sheet.addRow(['F.I.Sh.', 'Telefon', 'Jins', 'Qavat', 'Xona', 'Kirish', 'Holat']);
+      sheet.addRow(['F.I.Sh.', 'Telefon', 'Jins', 'Qavat', 'Xona', 'Kirish', 'Chiqish', 'Holat']);
       data.rows.forEach((row) =>
         sheet.addRow([
           row.customer.fullName,
@@ -243,6 +245,7 @@ export class ExcelService {
           row.room.floor,
           row.room.number,
           formatDate(row.startDate),
+          formatDate(checkoutDate(row)),
           row.status,
         ]),
       );
@@ -350,7 +353,7 @@ export class ExcelService {
     const fx = this.floorSuffix(floor);
     if (type === 'customers') {
       const data = await this.managerSvc.customersReport(opts.from, opts.to, floor);
-      sheet.addRow(['№', 'F.I.Sh.', 'Telefon', 'Jins', 'Qavat', 'Xona', 'O‘rin', 'Kirish', 'Tur', 'Holat']);
+      sheet.addRow(['№', 'F.I.Sh.', 'Telefon', 'Jins', 'Qavat', 'Xona', 'O‘rin', 'Kirish', 'Chiqish', 'Tur', 'Holat']);
       data.rows.forEach((row, i) =>
         sheet.addRow([
           i + 1,
@@ -361,6 +364,7 @@ export class ExcelService {
           row.room.number,
           row.bed.number,
           formatDate(row.startDate),
+          formatDate(checkoutDate(row)),
           stayTypeLabel(row.type),
           row.status === 'ACTIVE' ? 'Yashamoqda' : 'Chiqib ketgan',
         ]),
@@ -373,7 +377,7 @@ export class ExcelService {
     }
     if (type === 'daily') {
       const data = await this.managerSvc.dailyPayments(date, floor);
-      sheet.addRow(['№', 'Vaqt', 'Mijoz', 'Qavat', 'Xona', 'O‘rin', 'Tur', 'Davr', 'Summa', 'Usul', 'Reception', 'Holat']);
+      sheet.addRow(['№', 'Vaqt', 'Mijoz', 'Qavat', 'Xona', 'O‘rin', 'Tur', 'Davr', 'Summa', 'Chiqish kuni', 'Usul', 'Reception', 'Holat']);
       data.rows.forEach((row, i) =>
         sheet.addRow([
           i + 1,
@@ -385,6 +389,7 @@ export class ExcelService {
           stayTypeLabel(row.type),
           row.period,
           row.amount,
+          formatDate(row.coversTo || checkoutDate(row.stay)),
           methodLabel(row.method),
           row.createdBy.fullName,
           payStatusLabel(row.status),
@@ -399,7 +404,7 @@ export class ExcelService {
     }
     if (type === 'monthly') {
       const data = await this.managerSvc.monthlyPayments(year, month, floor);
-      sheet.addRow(['Mijoz', 'Qavat', 'Xona', 'O‘rin', 'Oy', 'To‘lanishi kerak', 'To‘langan', 'Qolgan', 'Holat', 'Oxirgi to‘lov']);
+      sheet.addRow(['Mijoz', 'Qavat', 'Xona', 'O‘rin', 'Oy', 'To‘lanishi kerak', 'To‘langan', 'Qolgan', 'Holat', 'Oxirgi to‘lov', 'Chiqish kuni']);
       data.stayRows.forEach((row) =>
         sheet.addRow([
           row.customer,
@@ -412,6 +417,7 @@ export class ExcelService {
           row.debt,
           payStatusLabel(row.payStatus),
           formatDate(row.lastPaidAt),
+          formatDate(row.checkoutDate),
         ]),
       );
       sheet.addRow([]);
@@ -508,6 +514,7 @@ export class ExcelService {
       'Qarzdorlik',
       'To‘lov usuli',
       'Sana',
+      'Chiqish kuni',
       'Reception',
       'Holat',
     ]);
@@ -526,6 +533,7 @@ export class ExcelService {
         Math.max(0, row.stay.totalAmount - row.stay.paidAmount),
         methodLabel(row.method),
         formatDate(row.paidAt),
+        formatDate(row.coversTo || checkoutDate(row.stay)),
         row.createdBy.fullName,
         payStatusLabel(row.status),
       ]),

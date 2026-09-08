@@ -6,7 +6,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { floorLabel, formatDate, formatMoney, payStatusLabel } from "@/lib/format";
+import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel } from "@/lib/format";
 
 type Pay = {
   id: string;
@@ -17,9 +17,13 @@ type Pay = {
   status: string;
   paidAt: string;
   customer: { fullName: string };
+  coversTo?: string | null;
   stay: {
     totalAmount: number;
     paidAmount: number;
+    paidUntil?: string | null;
+    endDate?: string | null;
+    status?: string;
     room: { number: string; floor: number };
     bed: { number: number };
   };
@@ -83,7 +87,7 @@ export default function AdminPaymentsPage() {
       <div className="mt-4 card overflow-x-auto">
         <table className="data-table">
           <thead className="bg-background text-left">
-            <tr>{["Mijoz","Qavat","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
+            <tr>{["Mijoz","Qavat","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Chiqish kuni","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
           </thead>
           <tbody>
             {data.rows.map((r) => (
@@ -98,6 +102,7 @@ export default function AdminPaymentsPage() {
                 <td className="px-3 py-3">{formatMoney(Math.max(0, r.stay.totalAmount - r.stay.paidAmount))}</td>
                 <td className="px-3 py-3">{r.method}</td>
                 <td className="px-3 py-3">{formatDate(r.paidAt)}</td>
+                <td className="px-3 py-3">{formatDate(r.coversTo || checkoutDate(r.stay))}</td>
                 <td className="px-3 py-3"><StatusBadge value={r.status} label={payStatusLabel(r.status)} /></td>
                 <td className="px-3 py-3">{r.createdBy.fullName}</td>
                 <td className="px-3 py-3">{r.status !== "CANCELLED" ? <button className="text-red" onClick={() => setCancelId(r.id)}>Bekor</button> : null}</td>

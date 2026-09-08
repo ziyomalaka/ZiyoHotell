@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { floorLabel, formatDate, formatMoney, payStatusLabel, roomBedLabel } from "@/lib/format";
+import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel, roomBedLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type StayRow = {
@@ -16,6 +16,7 @@ type StayRow = {
   totalAmount: number;
   payStatus: string;
   lastPaidAt: string | null;
+  checkoutDate?: string | null;
   type?: string;
 };
 
@@ -110,6 +111,7 @@ export default function ManagerMonthlyPaymentsPage() {
               <th>Summa</th>
               <th>Holati</th>
               <th>Sana</th>
+              <th>Chiqish kuni</th>
             </tr>
           </thead>
           <tbody>
@@ -124,6 +126,7 @@ export default function ManagerMonthlyPaymentsPage() {
                   <StatusBadge value={r.payStatus === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.payStatus)} />
                 </td>
                 <td>{formatDate(r.lastPaidAt)}</td>
+                <td>{formatDate(r.checkoutDate)}</td>
               </tr>
             ))}
           </tbody>
@@ -156,6 +159,10 @@ export default function ManagerMonthlyPaymentsPage() {
               <div className="mgr-kv">
                 <span>Sana</span>
                 <span>{formatDate(r.lastPaidAt)}</span>
+              </div>
+              <div className="mgr-kv">
+                <span>Chiqish kuni</span>
+                <span>{formatDate(r.checkoutDate)}</span>
               </div>
             </div>
           </details>

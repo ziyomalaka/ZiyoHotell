@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { AddPaymentModal } from "@/components/AddPaymentModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { customerGenderLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { checkoutDate, customerGenderLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
 
 type Row = {
   id: string;
@@ -16,8 +17,13 @@ type Row = {
   living?: boolean;
   occupancy?: {
     stay: {
+      id: string;
       startDate: string;
       endDate?: string | null;
+      paidUntil?: string | null;
+      paidDays?: number | null;
+      monthlyPrice?: number;
+      checkoutDate?: string | null;
       type: string;
       room: { number: string; floor: number };
       bed: { number: number };
@@ -32,6 +38,7 @@ export default function AdminCustomersPage() {
   const [floor, setFloor] = useState("");
   const [data, setData] = useState<{ rows: Row[] }>({ rows: [] });
   const [drop, setDrop] = useState<Row | null>(null);
+  const [payRow, setPayRow] = useState<Row | null>(null);
   const [error, setError] = useState("");
 
   async function load() {
@@ -107,10 +114,17 @@ export default function AdminCustomersPage() {
                 <td>{r.occupancy?.stay.room.number || "—"}</td>
                 <td>{r.occupancy?.stay.bed.number ?? "—"}</td>
                 <td>{r.occupancy ? formatDate(r.occupancy.stay.startDate) : "—"}</td>
-                <td>{r.occupancy?.stay.endDate ? formatDate(r.occupancy.stay.endDate) : "—"}</td>
+                <td>{r.occupancy ? formatDate(checkoutDate(r.occupancy.stay)) : "—"}</td>
                 <td>{r.occupancy ? stayTypeLabel(r.occupancy.stay.type) : "—"}</td>
                 <td>
-                  <StatusBadge value={r.payStatus === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.payStatus)} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge value={r.payStatus === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.payStatus)} />
+                    {r.living && r.occupancy?.stay.id ? (
+                      <button type="button" className="text-sm font-semibold text-royal" onClick={() => setPayRow(r)}>
+                        To‘lov
+                      </button>
+                    ) : null}
+                  </div>
                 </td>
                 <td>
                   <StatusBadge
@@ -128,6 +142,23 @@ export default function AdminCustomersPage() {
           </tbody>
         </table>
       </div>
+      {payRow?.occupancy?.stay.id ? (
+        <AddPaymentModal
+          stay={{
+            id: payRow.occupancy.stay.id,
+            type: payRow.occupancy.stay.type,
+            monthlyPrice: payRow.occupancy.stay.monthlyPrice,
+            paidDays: payRow.occupancy.stay.paidDays,
+            startDate: payRow.occupancy.stay.startDate,
+            customerName: payRow.fullName,
+          }}
+          onClose={() => setPayRow(null)}
+          onSaved={() => {
+            setPayRow(null);
+            load();
+          }}
+        />
+      ) : null}
       {drop ? (
         <ConfirmModal
           danger

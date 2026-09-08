@@ -10,7 +10,7 @@ import { AppError, required } from '../common/errors';
 import { AuthService } from '../auth/auth.service';
 import { dayEnd, dayStart, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { DEFAULT_MONTHLY_PRICE } from '../common/billing';
+import { checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE } from '../common/billing';
 import { DEFAULT_ROLE_PERMISSIONS, normalizeRole } from '../common/roles';
 
 const execFileAsync = promisify(execFile);
@@ -249,7 +249,7 @@ export class AdminService {
         roomType: input.roomType || 'ODDIY',
         gender,
         capacity,
-        dailyPrice: input.dailyPrice != null ? Number(input.dailyPrice) : 50000,
+        dailyPrice: input.dailyPrice != null ? Number(input.dailyPrice) : DEFAULT_DAILY_PRICE,
         monthlyPrice: input.monthlyPrice != null ? Number(input.monthlyPrice) : DEFAULT_MONTHLY_PRICE,
         status: input.status || 'ACTIVE',
         notes: input.notes || null,
@@ -682,9 +682,22 @@ export class AdminService {
         const live = c.occupancy?.stay;
         const stay = live || c.stays[0];
         const occupancy = stay
-          ? { stay: { startDate: stay.startDate, endDate: stay.endDate, type: stay.type, room: stay.room, bed: stay.bed } }
+          ? {
+              stay: {
+                id: stay.id,
+                startDate: stay.startDate,
+                endDate: stay.endDate,
+                paidUntil: stay.paidUntil,
+                paidDays: stay.paidDays,
+                monthlyPrice: stay.monthlyPrice,
+                checkoutDate: checkoutDate(stay),
+                type: stay.type,
+                room: stay.room,
+                bed: stay.bed,
+              },
+            }
           : null;
-        const payStatus = !stay ? 'UNPAID' : stay.paidAmount <= 0 ? 'UNPAID' : stay.paidAmount >= stay.totalAmount ? 'PAID' : 'UNPAID';
+        const payStatus = !stay ? 'UNPAID' : stay.paidAmount > 0 ? 'PAID' : 'UNPAID';
         return { ...c, living: Boolean(live), occupancy, payStatus };
       })
       .filter((c) => {

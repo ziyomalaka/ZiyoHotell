@@ -6,7 +6,7 @@ import { FloorFilter } from "@/components/FloorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
 import { StatCard } from "@/components/StatCard";
-import { floorLabel, formatDate, formatMoney, roomBedLabel } from "@/lib/format";
+import { checkoutDate, floorLabel, formatDate, formatMoney, roomBedLabel } from "@/lib/format";
 
 type FloorStat = { floor: number; rooms: number; beds: number; occupied: number; free: number; percent: number };
 type GenderStat = { gender: string; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number };
@@ -40,7 +40,16 @@ export default function AdminReportsPage() {
     arrived?: number;
     left?: number;
     living?: number;
-    rows?: { customer: { fullName: string }; room: { number: string; floor: number }; startDate: string; status: string }[];
+    rows?: {
+      customer: { fullName: string };
+      room: { number: string; floor: number };
+      bed?: { number: number };
+      startDate: string;
+      endDate?: string | null;
+      paidUntil?: string | null;
+      checkoutDate?: string | null;
+      status: string;
+    }[];
   } | null;
   const payments = data as { daily?: number; monthly?: number; total?: number; paid?: number; partial?: number; unpaid?: number } | null;
   const occupancy = data as {
@@ -120,6 +129,31 @@ export default function AdminReportsPage() {
             <StatCard label="Chiqib ketganlar" value={customers.left || 0} />
             <StatCard label="Yashayotganlar" value={customers.living || 0} />
           </div>
+          {customers.rows?.length ? (
+            <div className="mt-4 card overflow-x-auto">
+              <table className="data-table">
+                <thead className="bg-background text-left">
+                  <tr>
+                    {["F.I.Sh.", "Qavat", "Xona", "Kirish", "Chiqish", "Holat"].map((h) => (
+                      <th key={h} className="px-3 py-3">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.rows.map((r, i) => (
+                    <tr key={i} className="border-t border-line">
+                      <td className="px-3 py-3">{r.customer.fullName}</td>
+                      <td className="px-3 py-3">{floorLabel(r.room.floor)}</td>
+                      <td className="px-3 py-3">{r.bed ? roomBedLabel(r.room.number, r.bed.number) : r.room.number}</td>
+                      <td className="px-3 py-3">{formatDate(r.startDate)}</td>
+                      <td className="px-3 py-3">{formatDate(checkoutDate(r))}</td>
+                      <td className="px-3 py-3">{r.status === "ACTIVE" ? "Yashamoqda" : "Chiqib ketgan"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {type === "payments" && payments ? (

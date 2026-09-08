@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
-import { customerGenderLabel, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, parseDate, addDays, todayISO } from "@/lib/format";
+import { checkoutDate, customerGenderLabel, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, parseDate, addDays, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
@@ -26,6 +26,11 @@ type Home = {
   todayCard?: number;
   recent: {
     id: string;
+    startDate?: string;
+    checkoutDate?: string | null;
+    paidUntil?: string | null;
+    endDate?: string | null;
+    status?: string;
     customer: { fullName: string; phone: string; gender: string };
     room: { number: string; floor: number };
     bed: { number: number };
@@ -77,10 +82,10 @@ export default function RegisterPage() {
   const freeBeds = (room?.beds || []).filter((b) => !b.occupancy && b.status === "ACTIVE");
   const monthlyPrice = room?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
   const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(form.amount || 0)) : 0;
-  const coveredDays = form.stayType === "MONTHLY" ? daysForAmount(paidPreview, monthlyPrice) : 0;
+  const coveredDays = daysForAmount(paidPreview, monthlyPrice);
   const coveredUntil =
-    form.stayType === "MONTHLY" && coveredDays && (today || form.startDate)
-      ? formatDate(addDays(parseDate(today || form.startDate), coveredDays))
+    coveredDays && form.startDate
+      ? formatDate(addDays(parseDate(form.startDate), coveredDays))
       : null;
 
   function patch<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -114,7 +119,7 @@ export default function RegisterPage() {
           paymentMethod: form.paymentMethod,
         }),
       });
-      const due = stay.dueDate ? ` Muddat ${formatDate(stay.dueDate)} gacha (${stay.paidDaysLabel || describeDays(coveredDays)}).` : "";
+      const due = stay.dueDate ? ` Chiqish kuni ${formatDate(stay.dueDate)} (${stay.paidDaysLabel || describeDays(coveredDays)}).` : "";
       setSuccess(`Mijoz muvaffaqiyatli ro‘yxatga olindi.${due}`);
       setForm({ ...emptyForm, startDate: todayISO() });
       load();
@@ -234,12 +239,20 @@ export default function RegisterPage() {
             <input type="number" min={0} step={1000} value={form.amount} onChange={(e) => patch("amount", e.target.value)} className="w-full" />
             {form.stayType === "MONTHLY" ? (
               <p className="mt-1 text-xs text-muted">
-                1 oy = {formatMoney(monthlyPrice)} (30 kun). Boshida odatda 3 oylik — {formatMoney(DEFAULT_REGISTER_AMOUNT)}.
+                Kuniga {formatMoney(DEFAULT_DAILY_PRICE)}. 30 kun = 1 oy = {formatMoney(monthlyPrice)}. Boshida odatda 3
+                oylik — {formatMoney(DEFAULT_REGISTER_AMOUNT)}.
                 {paidPreview > 0
-                  ? ` Shu summa ${describeDays(coveredDays)} beradi${coveredUntil ? `, muddat ${coveredUntil} gacha` : ""}.`
+                  ? ` Shu summa ${describeDays(coveredDays)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}. Hisob kirish kunidan.`
                   : " To‘lamasa muddat hisoblanmaydi."}
               </p>
-            ) : null}
+            ) : (
+              <p className="mt-1 text-xs text-muted">
+                Kuniga {formatMoney(DEFAULT_DAILY_PRICE)}. Hisob kirish kunidan.
+                {paidPreview > 0
+                  ? ` Shu summa ${describeDays(coveredDays)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.`
+                  : ""}
+              </p>
+            )}
           </FormField>
           <FormField label="To‘lov holati" required>
             <select value={form.paymentStatus} onChange={(e) => patch("paymentStatus", e.target.value as "PAID" | "UNPAID")} className="w-full">
@@ -288,6 +301,8 @@ export default function RegisterPage() {
                   <th>Qavat</th>
                   <th>Xona</th>
                   <th>O‘rin</th>
+                  <th>Kirish</th>
+                  <th>Chiqish</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,6 +314,8 @@ export default function RegisterPage() {
                     <td>{floorLabel(row.room.floor)}</td>
                     <td>{row.room.number}</td>
                     <td>{row.bed.number}</td>
+                    <td>{formatDate(row.startDate)}</td>
+                    <td>{formatDate(checkoutDate(row))}</td>
                   </tr>
                 ))}
               </tbody>
