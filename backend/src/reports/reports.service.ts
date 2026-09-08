@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UZ_MONTHS, addDays, dayEnd, dayStart, todayISO } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
-import { periodInfo } from '../common/billing';
+import { cashCardTotals, periodInfo } from '../common/billing';
 
 @Injectable()
 export class ReportsService {
@@ -116,11 +116,15 @@ export class ReportsService {
       select: { totalAmount: true, paidAmount: true, status: true },
     });
     const unpaidStays = unpaidDebt.filter((s) => s.paidAmount < s.totalAmount);
+    const paidRows = payments.filter((p) => p.status === 'PAID');
+    const split = cashCardTotals(paidRows);
     return {
       floor: level,
       daily: sum('PAID', 'DAILY'),
       monthly: sum('PAID', 'MONTHLY'),
       total: sum('PAID'),
+      cash: split.cash,
+      card: split.card,
       paid: sum('PAID'),
       partial: 0,
       unpaid: unpaidStays.reduce((acc, s) => acc + Math.max(0, s.totalAmount - s.paidAmount), 0),
@@ -267,20 +271,24 @@ export class ReportsService {
           NOT: { status: 'CANCELLED' },
           ...(level ? { stay: { room: { floor: level } } } : {}),
         },
-        select: { amount: true, paidAt: true },
+        select: { amount: true, paidAt: true, method: true, status: true },
       }),
     ]);
 
-    const index = new Map(buckets.map((b) => [b.key, { ...b, in: 0, out: 0, income: 0 }]));
+    const paid = payments.filter((p) => p.status === 'PAID');
+    const index = new Map(buckets.map((b) => [b.key, { ...b, in: 0, out: 0, income: 0, cash: 0, card: 0 }]));
     for (const log of logs) {
       const row = index.get(bucketKey(log.at, view));
       if (!row) continue;
       if (log.type === 'CHECK_OUT') row.out += 1;
       else row.in += 1;
     }
-    for (const pay of payments) {
+    for (const pay of paid) {
       const row = index.get(bucketKey(pay.paidAt, view));
-      if (row) row.income += pay.amount;
+      if (!row) continue;
+      row.income += pay.amount;
+      if (pay.method === 'CASH') row.cash += pay.amount;
+      if (pay.method === 'CARD') row.card += pay.amount;
     }
 
     const rows = [...index.values()]
@@ -289,6 +297,7 @@ export class ReportsService {
     const living = await this.prisma.occupancy.count({
       where: level ? { bed: { room: { floor: level } } } : {},
     });
+    const split = cashCardTotals(paid);
 
     return {
       range: view,
@@ -297,6 +306,8 @@ export class ReportsService {
       totalIn: rows.reduce((a, r) => a + r.in, 0),
       totalOut: rows.reduce((a, r) => a + r.out, 0),
       totalIncome: rows.reduce((a, r) => a + r.income, 0),
+      cash: split.cash,
+      card: split.card,
       rows,
     };
   }

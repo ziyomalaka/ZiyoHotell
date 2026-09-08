@@ -17,6 +17,17 @@ export const REMIND_BEFORE_DAYS = 3;
 /** Eslatmalar har kuni Toshkent vaqti bilan shu soatda yoziladi. */
 export const REMIND_AT_HOUR = 11;
 
+/** To‘langan summalarni naqd va karta bo‘yicha ajratadi. */
+export function cashCardTotals(rows: { method?: string | null; amount: number }[]) {
+  let cash = 0;
+  let card = 0;
+  for (const row of rows) {
+    if (row.method === 'CASH') cash += row.amount;
+    else if (row.method === 'CARD') card += row.amount;
+  }
+  return { cash, card };
+}
+
 /**
  * To'langan summa qancha kun berganini hisoblaydi.
  * Oylik narx 30 kunga to'g'ri keladi, ya'ni yarim summa yarim oy (15 kun) beradi.

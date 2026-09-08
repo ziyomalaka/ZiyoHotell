@@ -22,6 +22,8 @@ type Home = {
   freeBeds: number;
   inToday: number;
   todayIncome: number;
+  todayCash?: number;
+  todayCard?: number;
   recent: {
     id: string;
     customer: { fullName: string; phone: string; gender: string };
@@ -39,6 +41,7 @@ const emptyForm = {
   stayType: "MONTHLY" as "DAILY" | "MONTHLY",
   amount: String(DEFAULT_REGISTER_AMOUNT),
   paymentStatus: "PAID" as "PAID" | "UNPAID",
+  paymentMethod: "CASH" as "CASH" | "CARD",
   startDate: "",
   notes: "",
 };
@@ -108,6 +111,7 @@ export default function RegisterPage() {
           amount,
           paidAmount: form.paymentStatus === "PAID" ? amount : 0,
           paymentStatus: form.paymentStatus,
+          paymentMethod: form.paymentMethod,
         }),
       });
       const due = stay.dueDate ? ` Muddat ${formatDate(stay.dueDate)} gacha (${stay.paidDaysLabel || describeDays(coveredDays)}).` : "";
@@ -153,6 +157,9 @@ export default function RegisterPage() {
           <div className="stat-quiet">
             <p>Bugun tushum</p>
             <strong className="text-base">{formatMoney(home?.todayIncome || 0)}</strong>
+            <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
+              Naqd {formatMoney(home?.todayCash || 0)} · Karta {formatMoney(home?.todayCard || 0)}
+            </p>
           </div>
         </div>
       </div>
@@ -206,7 +213,7 @@ export default function RegisterPage() {
               ))}
             </select>
           </FormField>
-          <FormField label="To‘lov turi" required>
+          <FormField label="Yashash turi" required>
             <select
               value={form.stayType}
               onChange={(e) => {
@@ -240,6 +247,18 @@ export default function RegisterPage() {
               <option value="UNPAID">To‘lamadi</option>
             </select>
           </FormField>
+          {form.paymentStatus === "PAID" ? (
+            <FormField label="To‘lov turini tanlang" required>
+              <select
+                value={form.paymentMethod}
+                onChange={(e) => patch("paymentMethod", e.target.value as "CASH" | "CARD")}
+                className="w-full"
+              >
+                <option value="CASH">Naqd</option>
+                <option value="CARD">Karta</option>
+              </select>
+            </FormField>
+          ) : null}
           <FormField label="Kirish sanasi" required>
             <input type="date" value={form.startDate} onChange={(e) => patch("startDate", e.target.value)} className="w-full" />
           </FormField>

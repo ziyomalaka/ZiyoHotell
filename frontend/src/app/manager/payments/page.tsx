@@ -39,8 +39,14 @@ type Data = {
   total: number;
   rows: Pay[];
   todayIncome: number;
+  todayCash?: number;
+  todayCard?: number;
   monthIncome: number;
+  monthCash?: number;
+  monthCard?: number;
   totalIncome: number;
+  cash?: number;
+  card?: number;
   debt: number;
   paid: number;
   partial: number;
@@ -77,8 +83,14 @@ export default function ManagerPaymentsPage() {
       <h1 className="sr-only">To‘lovlar nazorati</h1>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard gold label="BUGUNGI TUSHUM" value={formatMoney(data.todayIncome)} />
+        <StatCard gold label="BUGUN NAQD" value={formatMoney(data.todayCash || 0)} />
+        <StatCard gold label="BUGUN KARTA" value={formatMoney(data.todayCard || 0)} />
         <StatCard gold label="OYLIK TUSHUM" value={formatMoney(data.monthIncome)} />
+        <StatCard gold label="OY NAQD" value={formatMoney(data.monthCash || 0)} />
+        <StatCard gold label="OY KARTA" value={formatMoney(data.monthCard || 0)} />
         <StatCard gold label="JAMI TUSHUM" value={formatMoney(data.totalIncome)} />
+        <StatCard gold label="JAMI NAQD" value={formatMoney(data.cash || 0)} />
+        <StatCard gold label="JAMI KARTA" value={formatMoney(data.card || 0)} />
         <StatCard gold label="JAMI QARZDORLIK" value={formatMoney(data.debt)} />
         <StatCard label="TO‘LOV QILGANLAR" value={`${data.paid} ta`} />
         <StatCard label="QISMAN / TO‘LAMAGAN" value={`${data.partial} / ${data.unpaid}`} />

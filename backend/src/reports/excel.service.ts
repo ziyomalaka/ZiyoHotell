@@ -104,13 +104,17 @@ export class ExcelService {
   /** Kirim-chiqim varag‘i: davr kesimida kelgan, ketgan va to‘lov summasi. */
   private async movementSheet(sheet: ExcelJS.Worksheet, range?: string, floor?: number) {
     const data = await this.reports.movementReport(range, floor);
-    sheet.addRow(['Davr', 'Kirdi', 'Chiqdi', 'Farq', 'To‘lov summasi']);
-    data.rows.forEach((r) => sheet.addRow([r.label, r.in, r.out, r.net, formatMoney(r.income)]));
+    sheet.addRow(['Davr', 'Kirdi', 'Chiqdi', 'Farq', 'To‘lov', 'Naqd', 'Karta']);
+    data.rows.forEach((r) =>
+      sheet.addRow([r.label, r.in, r.out, r.net, formatMoney(r.income), formatMoney(r.cash), formatMoney(r.card)]),
+    );
     sheet.addRow([]);
     sheet.addRow(['Jami kirdi', data.totalIn]);
     sheet.addRow(['Jami chiqdi', data.totalOut]);
     sheet.addRow(['Hozir yashayapti', data.living]);
     sheet.addRow(['Jami to‘lov', formatMoney(data.totalIncome)]);
+    sheet.addRow(['Naqd', formatMoney(data.cash)]);
+    sheet.addRow(['Karta', formatMoney(data.card)]);
     return data;
   }
 
@@ -209,7 +213,7 @@ export class ExcelService {
         row.period,
         formatMoney(row.amount),
         formatDate(row.paidAt),
-        row.method,
+        methodLabel(row.method),
         row.status,
         row.createdBy.fullName,
       ]);
@@ -217,6 +221,8 @@ export class ExcelService {
     sheet.addRow([]);
     sheet.addRow([`JAMI TO‘LOVLAR: ${data.rows.length}`]);
     sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
+    sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
+    sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
     sheet.addRow([`JAMI QARZDORLIK: ${formatMoney(data.unpaid)}`]);
     return this.file(wb, `Yotoqxona_Tolovlar${fx}_${day}.xlsx`);
   }
@@ -387,6 +393,8 @@ export class ExcelService {
       sheet.addRow([]);
       sheet.addRow([`JAMI TO‘LOVLAR: ${data.count}`]);
       sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
+      sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
+      sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
       return this.file(wb, `Yotoqxona_Kunlik_Tolovlar${fx}_${date}.xlsx`);
     }
     if (type === 'monthly') {
@@ -408,6 +416,8 @@ export class ExcelService {
       );
       sheet.addRow([]);
       sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
+      sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
+      sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
       sheet.addRow([`JAMI TO‘LOVLAR: ${data.count}`]);
       sheet.addRow([`JAMI QARZDORLIK: ${formatMoney(data.debt)}`]);
       return this.file(wb, `Yotoqxona_Oylik_Tolovlar${fx}_${date.slice(0, 7)}.xlsx`);
@@ -523,6 +533,8 @@ export class ExcelService {
     sheet.addRow([]);
     sheet.addRow([`JAMI TO‘LOVLAR: ${data.rows.length}`]);
     sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
+    sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
+    sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
     sheet.addRow([`JAMI QARZDORLIK: ${formatMoney(data.unpaid)}`]);
     return this.file(wb, `Yotoqxona_Tolovlar${fx}_${date.slice(0, 7)}.xlsx`);
   }

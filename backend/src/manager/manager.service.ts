@@ -13,6 +13,7 @@ import {
   todayISO,
 } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
+import { cashCardTotals } from '../common/billing';
 import { ReportsService } from '../reports/reports.service';
 
 const stayInclude = {
@@ -94,8 +95,17 @@ export class ManagerService {
   }
 
   private async incomeSum(from?: Date, to?: Date) {
-    const row = await this.prisma.payment.aggregate({ _sum: { amount: true }, _count: true, where: this.incomeWhere(from, to) });
-    return { amount: row._sum.amount || 0, count: row._count };
+    const rows = await this.prisma.payment.findMany({
+      where: this.incomeWhere(from, to),
+      select: { amount: true, method: true },
+    });
+    const split = cashCardTotals(rows);
+    return {
+      amount: rows.reduce((acc, p) => acc + p.amount, 0),
+      count: rows.length,
+      cash: split.cash,
+      card: split.card,
+    };
   }
 
   async dashboard() {
@@ -231,7 +241,11 @@ export class ManagerService {
       occupied,
       free: beds - occupied,
       todayIncome: todayInc.amount,
+      todayCash: todayInc.cash,
+      todayCard: todayInc.card,
       monthIncome: monthInc.amount,
+      monthCash: monthInc.cash,
+      monthCard: monthInc.card,
       debt,
       debtorCount: debtors.size,
       occupancyPercent: beds ? Math.round((occupied / beds) * 100) : 0,
@@ -381,8 +395,14 @@ export class ManagerService {
       total,
       rows,
       todayIncome: todayInc.amount,
+      todayCash: todayInc.cash,
+      todayCard: todayInc.card,
       monthIncome: monthInc.amount,
+      monthCash: monthInc.cash,
+      monthCard: monthInc.card,
       totalIncome: allInc.amount,
+      cash: allInc.cash,
+      card: allInc.card,
       debt: stays.reduce((a, s) => a + stayDebt(s.totalAmount, s.paidAmount), 0),
       paid: paid.size,
       partial: partial.size,
@@ -467,6 +487,7 @@ export class ManagerService {
       month,
       floor,
       total: rows.reduce((a, p) => a + p.amount, 0),
+      ...cashCardTotals(rows),
       count: rows.length,
       paid: stayRows.filter((s) => s.payStatus === 'PAID').length,
       partial: stayRows.filter((s) => s.payStatus === 'PARTIAL').length,

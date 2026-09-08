@@ -23,6 +23,8 @@ type Data = {
   year: number;
   month: number;
   total: number;
+  cash?: number;
+  card?: number;
   paid: number;
   unpaid: number;
   partial: number;
@@ -75,10 +77,18 @@ export default function ManagerMonthlyPaymentsPage() {
       <p className="mt-4 text-lg font-medium text-navy">
         {months[month - 1]} {year}
       </p>
-      <div className="mt-4 grid grid-cols-3 gap-2 lg:gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:gap-3">
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Shu oy tushumi</p>
           <strong className="text-base sm:text-2xl">{formatMoney(data.total)}</strong>
+        </div>
+        <div className="stat-quiet px-2 py-3 sm:px-4">
+          <p className="leading-tight">Naqd</p>
+          <strong className="text-base sm:text-2xl">{formatMoney(data.cash || 0)}</strong>
+        </div>
+        <div className="stat-quiet px-2 py-3 sm:px-4">
+          <p className="leading-tight">Karta</p>
+          <strong className="text-base sm:text-2xl">{formatMoney(data.card || 0)}</strong>
         </div>
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">To‘laganlar</p>

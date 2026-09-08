@@ -38,7 +38,7 @@ type CustomerRep = {
   }[];
 };
 
-type PayRep = { total?: number; unpaidCount?: number };
+type PayRep = { total?: number; unpaidCount?: number; cash?: number; card?: number };
 
 export default function ReportsPage() {
   const today = useTodayISO();
@@ -153,7 +153,7 @@ export default function ReportsPage() {
 
       {tab === "customers" ? (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="stat-quiet">
               <p>Jami mijozlar</p>
               <strong>{customers?.total || 0}</strong>
@@ -169,6 +169,14 @@ export default function ReportsPage() {
             <div className="stat-quiet">
               <p>Jami to‘lov</p>
               <strong className="text-lg">{formatMoney(payments?.total || 0)}</strong>
+            </div>
+            <div className="stat-quiet">
+              <p>Naqd</p>
+              <strong className="text-lg">{formatMoney(payments?.cash || 0)}</strong>
+            </div>
+            <div className="stat-quiet">
+              <p>Karta</p>
+              <strong className="text-lg">{formatMoney(payments?.card || 0)}</strong>
             </div>
             <div className="stat-quiet">
               <p>To‘lamaganlar</p>

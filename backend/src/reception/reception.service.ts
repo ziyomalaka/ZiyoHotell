@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
+import { cashCardTotals, paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
 
 export type RegisterInput = {
   fullName: string;
@@ -625,6 +625,10 @@ export class ReceptionService {
       rows,
       todayIncome: summary.todayIncome,
       monthIncome: summary.monthIncome,
+      todayCash: summary.todayCash,
+      todayCard: summary.todayCard,
+      monthCash: summary.monthCash,
+      monthCard: summary.monthCard,
       meta: { page: opts.page, limit: opts.pageSize, total, totalPages: Math.ceil(total / opts.pageSize) || 1 },
     };
   }
@@ -632,19 +636,25 @@ export class ReceptionService {
   async incomeSummary() {
     const today = todayISO();
     const monthStart = today.slice(0, 8) + '01';
-    const [todayAgg, monthAgg] = await Promise.all([
-      this.prisma.payment.aggregate({
+    const [todayRows, monthRows] = await Promise.all([
+      this.prisma.payment.findMany({
         where: { status: 'PAID', paidAt: { gte: dayStart(today), lte: dayEnd(today) } },
-        _sum: { amount: true },
+        select: { amount: true, method: true },
       }),
-      this.prisma.payment.aggregate({
+      this.prisma.payment.findMany({
         where: { status: 'PAID', paidAt: { gte: dayStart(monthStart), lte: dayEnd(today) } },
-        _sum: { amount: true },
+        select: { amount: true, method: true },
       }),
     ]);
+    const todaySplit = cashCardTotals(todayRows);
+    const monthSplit = cashCardTotals(monthRows);
     return {
-      todayIncome: todayAgg._sum.amount || 0,
-      monthIncome: monthAgg._sum.amount || 0,
+      todayIncome: todayRows.reduce((acc, p) => acc + p.amount, 0),
+      monthIncome: monthRows.reduce((acc, p) => acc + p.amount, 0),
+      todayCash: todaySplit.cash,
+      todayCard: todaySplit.card,
+      monthCash: monthSplit.cash,
+      monthCard: monthSplit.card,
     };
   }
 
@@ -668,6 +678,8 @@ export class ReceptionService {
       freeBeds,
       inToday,
       todayIncome: income.todayIncome,
+      todayCash: income.todayCash,
+      todayCard: income.todayCard,
       recent,
     };
   }

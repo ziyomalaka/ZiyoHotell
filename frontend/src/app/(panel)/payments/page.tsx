@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { DEFAULT_MONTHLY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { DEFAULT_MONTHLY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -28,6 +28,7 @@ type Payment = {
   days?: number;
   coversTo?: string | null;
   status: string;
+  method?: string;
   paidAt: string;
   customer: { fullName: string };
   stay: { room: { number: string; floor: number }; bed: { number: number } };
@@ -40,13 +41,29 @@ export default function PaymentsPage() {
   const [status, setStatus] = useState("");
   const [floor, setFloor] = useState("");
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<{ total: number; rows: Payment[]; todayIncome?: number; monthIncome?: number }>({
+  const [data, setData] = useState<{
+    total: number;
+    rows: Payment[];
+    todayIncome?: number;
+    monthIncome?: number;
+    todayCash?: number;
+    todayCard?: number;
+    monthCash?: number;
+    monthCard?: number;
+  }>({
     total: 0,
     rows: [],
   });
   const [stays, setStays] = useState<Stay[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ stayId: "", amount: String(DEFAULT_MONTHLY_PRICE), type: "MONTHLY", paymentDate: "", note: "" });
+  const [form, setForm] = useState({
+    stayId: "",
+    amount: String(DEFAULT_MONTHLY_PRICE),
+    type: "MONTHLY",
+    method: "CASH",
+    paymentDate: "",
+    note: "",
+  });
   const [error, setError] = useState("");
 
   async function load(nextPage = page) {
@@ -75,12 +92,13 @@ export default function PaymentsPage() {
           stayId: form.stayId,
           amount: Number(form.amount),
           type: form.type,
+          method: form.method,
           paymentDate: form.paymentDate,
           note: form.note || undefined,
         }),
       });
       setOpen(false);
-      setForm({ stayId: "", amount: String(DEFAULT_MONTHLY_PRICE), type: "MONTHLY", paymentDate: todayISO(), note: "" });
+      setForm({ stayId: "", amount: String(DEFAULT_MONTHLY_PRICE), type: "MONTHLY", method: "CASH", paymentDate: todayISO(), note: "" });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik");
@@ -89,14 +107,25 @@ export default function PaymentsPage() {
 
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="stat-quiet">
           <p>Bugungi tushum</p>
           <strong>{formatMoney(data.todayIncome || 0)}</strong>
         </div>
         <div className="stat-quiet">
+          <p>Bugun naqd</p>
+          <strong>{formatMoney(data.todayCash || 0)}</strong>
+        </div>
+        <div className="stat-quiet">
+          <p>Bugun karta</p>
+          <strong>{formatMoney(data.todayCard || 0)}</strong>
+        </div>
+        <div className="stat-quiet">
           <p>Shu oy tushumi</p>
           <strong>{formatMoney(data.monthIncome || 0)}</strong>
+          <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
+            Naqd {formatMoney(data.monthCash || 0)} · Karta {formatMoney(data.monthCard || 0)}
+          </p>
         </div>
       </div>
 
@@ -129,6 +158,7 @@ export default function PaymentsPage() {
               <th>O‘rin</th>
               <th>Kunlik/Oylik</th>
               <th>Summa</th>
+              <th>Usul</th>
               <th>Davr</th>
               <th>Qaysigacha</th>
               <th>To‘lov holati</th>
@@ -144,6 +174,7 @@ export default function PaymentsPage() {
                 <td>{row.stay.bed.number}</td>
                 <td>{stayTypeLabel(row.type)}</td>
                 <td className="tabular">{formatMoney(row.amount)}</td>
+                <td>{methodLabel(row.method || "")}</td>
                 <td>{row.days ? describeDays(row.days) : "—"}</td>
                 <td>{row.coversTo ? formatDate(row.coversTo) : "—"}</td>
                 <td>
@@ -192,10 +223,17 @@ export default function PaymentsPage() {
               </p>
             ) : null}
             <label className="mt-3 block text-sm font-medium">
-              To‘lov turi
+              Yashash turi
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="mt-2 w-full">
                 <option value="DAILY">Kunlik</option>
                 <option value="MONTHLY">Oylik</option>
+              </select>
+            </label>
+            <label className="mt-3 block text-sm font-medium">
+              To‘lov turini tanlang
+              <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} className="mt-2 w-full">
+                <option value="CASH">Naqd</option>
+                <option value="CARD">Karta</option>
               </select>
             </label>
             <label className="mt-3 block text-sm font-medium">

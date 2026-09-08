@@ -9,7 +9,11 @@ type Dash = {
   living: number;
   free: number;
   todayIncome: number;
+  todayCash?: number;
+  todayCard?: number;
   monthIncome: number;
+  monthCash?: number;
+  monthCard?: number;
   monthChart: { day: string; value: number }[];
   floors: { floor: number; rooms: number; beds: number; occupied: number; free: number; percent: number }[];
   genders: { gender: string; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number }[];
@@ -49,10 +53,16 @@ export default function ManagerHome() {
             <span className="hidden lg:inline">Bugun</span>
           </p>
           <strong className="text-lg sm:text-xl">{formatMoney(data.todayIncome)}</strong>
+          <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
+            Naqd {formatMoney(data.todayCash || 0)} · Karta {formatMoney(data.todayCard || 0)}
+          </p>
         </div>
         <div className="stat-quiet">
           <p>Oy davomida</p>
           <strong className="text-lg sm:text-xl">{formatMoney(data.monthIncome)}</strong>
+          <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
+            Naqd {formatMoney(data.monthCash || 0)} · Karta {formatMoney(data.monthCard || 0)}
+          </p>
         </div>
         <div className="stat-quiet">
           <p>Yashayotganlar</p>

@@ -5,13 +5,14 @@ import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { floorLabel, formatMoney, formatTime, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { floorLabel, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type Row = {
   id: string;
   amount: number;
   type: string;
+  method?: string;
   status: string;
   paidAt: string;
   customer: { fullName: string };
@@ -24,6 +25,8 @@ type Data = {
   unpaid?: number;
   count: number;
   total: number;
+  cash?: number;
+  card?: number;
   rows: Row[];
 };
 
@@ -50,10 +53,18 @@ export default function ManagerDailyPaymentsPage() {
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full lg:w-auto" />
         <FloorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-2 lg:gap-3">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:gap-3">
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Bugungi tushum</p>
           <strong className="text-base sm:text-2xl">{formatMoney(data.total)}</strong>
+        </div>
+        <div className="stat-quiet px-2 py-3 sm:px-4">
+          <p className="leading-tight">Naqd</p>
+          <strong className="text-base sm:text-2xl">{formatMoney(data.cash || 0)}</strong>
+        </div>
+        <div className="stat-quiet px-2 py-3 sm:px-4">
+          <p className="leading-tight">Karta</p>
+          <strong className="text-base sm:text-2xl">{formatMoney(data.card || 0)}</strong>
         </div>
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Bugun to‘lagan</p>
@@ -72,6 +83,7 @@ export default function ManagerDailyPaymentsPage() {
               <th>Qavat</th>
               <th>Xona</th>
               <th>Summa</th>
+              <th>Usul</th>
               <th>Kunlik/Oylik</th>
               <th>Vaqt</th>
               <th>Holati</th>
@@ -84,6 +96,7 @@ export default function ManagerDailyPaymentsPage() {
                 <td>{floorLabel(r.stay.room.floor)}</td>
                 <td>{r.stay.room.number}</td>
                 <td className="tabular">{formatMoney(r.amount)}</td>
+                <td>{methodLabel(r.method || "")}</td>
                 <td>{stayTypeLabel(r.type)}</td>
                 <td>{formatTime(r.paidAt)}</td>
                 <td>
@@ -113,6 +126,10 @@ export default function ManagerDailyPaymentsPage() {
               <div className="mgr-kv">
                 <span>Qavat</span>
                 <span>{floorLabel(r.stay.room.floor)}</span>
+              </div>
+              <div className="mgr-kv">
+                <span>Usul</span>
+                <span>{methodLabel(r.method || "")}</span>
               </div>
               <div className="mgr-kv">
                 <span>Kunlik/Oylik</span>
