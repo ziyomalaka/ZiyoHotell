@@ -89,10 +89,18 @@ export function revertPeriod(
 }
 
 /** Muddatgacha qolgan kun: manfiy bo'lsa muddat o'tib ketgan. */
-export function daysLeftUntil(paidUntil: Date | null | undefined, from: Date) {
-  if (!paidUntil) return null;
+export function daysLeftUntil(paidUntil: Date | string | null | undefined, from: Date | string = new Date()) {
+  const due = asDate(paidUntil);
+  const origin = asDate(from);
+  if (!due || !origin) return null;
   const day = 24 * 60 * 60 * 1000;
-  return Math.ceil((dateOnly(paidUntil) - dateOnly(from)) / day);
+  return Math.ceil((dateOnly(due) - dateOnly(origin)) / day);
+}
+
+function asDate(value: Date | string | null | undefined) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function dateOnly(value: Date) {

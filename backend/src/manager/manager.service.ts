@@ -46,6 +46,32 @@ export class ManagerService {
     return Number.isInteger(value) && value >= 1 ? value : null;
   }
 
+  /** Bandlikni ko‘rish uchun xonalar — yozish yo‘q. */
+  async listRooms(floorNumber?: number) {
+    const floor = this.level(floorNumber);
+    const rooms = await this.prisma.room.findMany({
+      where: { status: 'ACTIVE', ...(floor ? { floor } : {}) },
+      include: {
+        level: true,
+        beds: {
+          include: { occupancy: { include: { customer: true } } },
+          orderBy: { number: 'asc' },
+        },
+      },
+      orderBy: [{ floor: 'asc' }, { number: 'asc' }],
+    });
+    return rooms.map((room) => {
+      const occupied = room.beds.filter((bed) => bed.occupancy).length;
+      return {
+        ...room,
+        floor: room.level?.number ?? room.floor,
+        occupied,
+        free: Math.max(0, room.capacity - occupied),
+        kind: occupied <= 0 ? 'empty' : occupied >= room.capacity ? 'full' : 'partial',
+      };
+    });
+  }
+
   async floorOptions() {
     const floors = await this.prisma.floor.findMany({
       orderBy: { number: 'asc' },

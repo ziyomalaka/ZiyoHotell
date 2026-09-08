@@ -35,6 +35,12 @@ export class ManagerController {
     return this.manager.floorOptions();
   }
 
+  @Get('rooms')
+  @ApiOperation({ summary: 'Xonalar ro‘yxati (faqat o‘qish)' })
+  rooms(@Query('floor') floor?: string) {
+    return this.manager.listRooms(floor ? Number(floor) : undefined);
+  }
+
   @Get('customers')
   customers(@Query() query: PageQueryDto & { pay?: string; sort?: string; order?: string }) {
     return this.manager.customers({ ...query, ...parsePage(query) });

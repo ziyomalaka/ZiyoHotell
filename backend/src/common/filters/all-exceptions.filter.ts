@@ -46,6 +46,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = 'Ushbu amalni bajarish uchun ruxsatingiz yo‘q.';
         code = 'ACCESS_DENIED';
       }
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError && exception.code === 'P2021') {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      const table = String(exception.meta?.table ?? exception.meta?.modelName ?? '');
+      message = table
+        ? `${table} jadvali topilmadi. backend papkasida npx prisma migrate deploy qiling.`
+        : 'Ma’lumotlar bazasi sxemasi eskirgan. npx prisma migrate deploy qiling.';
+      code = 'SCHEMA_MISSING';
+      this.logger.error(exception);
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError && exception.code === 'P2002') {
       status = HttpStatus.CONFLICT;
       const target = String(exception.meta?.target ?? '');

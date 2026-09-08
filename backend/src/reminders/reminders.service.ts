@@ -113,7 +113,11 @@ export class RemindersService implements OnModuleInit, OnModuleDestroy {
 
   /** Eslatmalar ro'yxati: qo'ng'iroq uchun o'qilmaganlar, tarix uchun hammasi. */
   async list(opts: { onlyUnread?: boolean; take?: number } = {}) {
+    if (!this.prisma.reminder) {
+      throw new Error('Prisma Reminder client yo‘q. backend papkasida npx prisma generate qiling.');
+    }
     await this.catchUp();
+    const take = Number.isFinite(opts.take) ? Math.min(200, Math.max(1, Number(opts.take))) : 50;
     const [rows, unread] = await Promise.all([
       this.prisma.reminder.findMany({
         where: opts.onlyUnread ? { readAt: null } : {},
@@ -129,30 +133,32 @@ export class RemindersService implements OnModuleInit, OnModuleDestroy {
           },
         },
         orderBy: [{ forDate: 'desc' }, { daysLeft: 'asc' }],
-        take: Math.min(200, Math.max(1, opts.take || 50)),
+        take,
       }),
       this.prisma.reminder.count({ where: { readAt: null } }),
     ]);
 
     return {
       unread,
-      rows: rows.map((r) => ({
-        id: r.id,
-        stayId: r.stayId,
-        customerId: r.customerId,
-        fullName: r.customer.fullName,
-        phone: r.customer.phone,
-        floor: r.stay.room.floor,
-        room: r.stay.room.number,
-        bed: r.stay.bed.number,
-        gender: r.stay.room.gender,
-        dueDate: r.dueDate,
-        daysLeft: r.daysLeft,
-        amount: r.stay.monthlyPrice,
-        message: r.message,
-        forDate: r.forDate,
-        readAt: r.readAt,
-      })),
+      rows: rows
+        .filter((r) => r.customer && r.stay?.room && r.stay?.bed)
+        .map((r) => ({
+          id: r.id,
+          stayId: r.stayId,
+          customerId: r.customerId,
+          fullName: r.customer.fullName,
+          phone: r.customer.phone,
+          floor: r.stay.room.floor,
+          room: r.stay.room.number,
+          bed: r.stay.bed.number,
+          gender: r.stay.room.gender,
+          dueDate: r.dueDate,
+          daysLeft: r.daysLeft,
+          amount: r.stay.monthlyPrice,
+          message: r.message,
+          forDate: r.forDate,
+          readAt: r.readAt,
+        })),
     };
   }
 
