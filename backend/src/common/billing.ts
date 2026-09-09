@@ -5,14 +5,20 @@ function asDay(value: Date) {
   return parseDate(todayISO(value));
 }
 
-/** Kunlik narx: kirish kunidan boshlab har kun shu summa. */
-export const DEFAULT_DAILY_PRICE = 25000;
+/** Oylik yashash: kuniga 25 000, 30 kun = 1 oy. */
+export const MONTHLY_DAY_PRICE = 25000;
+
+/** Kunlik yashash: kuniga 50 000. */
+export const DAILY_STAY_PRICE = 50000;
 
 /** 30 kun = 1 oy. */
 export const DAYS_PER_MONTH = 30;
 
-/** Bitta o'rinning oylik narxi = 25 000 × 30. Yangi xonalar shu narx bilan yaratiladi. */
-export const DEFAULT_MONTHLY_PRICE = DEFAULT_DAILY_PRICE * DAYS_PER_MONTH;
+/** Yangi xonalar oylik narxi = 25 000 × 30. */
+export const DEFAULT_MONTHLY_PRICE = MONTHLY_DAY_PRICE * DAYS_PER_MONTH;
+
+/** Xona kunlik narxi (kunlik yashash). */
+export const DEFAULT_DAILY_PRICE = DAILY_STAY_PRICE;
 
 /** To'lov muddati shu kun qolganda eslatma boshlanadi. */
 export const REMIND_BEFORE_DAYS = 3;
@@ -33,16 +39,22 @@ export function cashCardTotals(rows: { method?: string | null; amount: number }[
 
 /** Oylik narxdan kunlik tarif: 750 000 / 30 = 25 000. */
 export function dailyPriceFromMonthly(monthlyPrice: number) {
-  if (!monthlyPrice || monthlyPrice <= 0) return DEFAULT_DAILY_PRICE;
+  if (!monthlyPrice || monthlyPrice <= 0) return MONTHLY_DAY_PRICE;
   return Math.round(monthlyPrice / DAYS_PER_MONTH);
+}
+
+/** Kunlik yashash = 50 000/kun, oylik = 25 000/kun. */
+export function dailyRate(type?: string | null, monthlyPrice?: number) {
+  if (type === 'DAILY') return DAILY_STAY_PRICE;
+  return dailyPriceFromMonthly(monthlyPrice || DEFAULT_MONTHLY_PRICE);
 }
 
 /**
  * To'langan summa qancha kun berganini hisoblaydi.
- * Kuniga 25 000 so'm: 750 000 = 30 kun = 1 oy. Kasr kunlar pastga qarab olinadi.
+ * Oylik: 25 000 = 1 kun, 750 000 = 30 kun. Kunlik: 50 000 = 1 kun.
  */
-export function daysForAmount(amount: number, monthlyPrice: number) {
-  const daily = dailyPriceFromMonthly(monthlyPrice);
+export function daysForAmount(amount: number, monthlyPrice: number, type?: string | null) {
+  const daily = dailyRate(type, monthlyPrice);
   if (!daily || !amount || amount <= 0) return 0;
   return Math.floor(amount / daily);
 }
@@ -53,13 +65,16 @@ export function splitDays(totalDays: number) {
   return { months: Math.floor(days / DAYS_PER_MONTH), days: days % DAYS_PER_MONTH };
 }
 
-/** Odam o'qiy oladigan shakl: "3 oy", "1 oy 15 kun", "12 kun". */
-export function describeDays(totalDays: number) {
-  const { months, days } = splitDays(totalDays);
-  if (!months && !days) return '—';
+/** Odam o'qiy oladigan shakl: "3 oy", "1 oy 15 kun", "12 kun". Kunlikda faqat kun. */
+export function describeDays(totalDays: number, type?: string | null) {
+  const days = Math.max(0, Math.trunc(totalDays));
+  if (!days) return '—';
+  if (type === 'DAILY') return `${days} kun`;
   const parts: string[] = [];
+  const months = Math.floor(days / DAYS_PER_MONTH);
+  const rest = days % DAYS_PER_MONTH;
   if (months) parts.push(`${months} oy`);
-  if (days) parts.push(`${days} kun`);
+  if (rest) parts.push(`${rest} kun`);
   return parts.join(' ');
 }
 
@@ -75,8 +90,9 @@ export function paymentPeriod(opts: {
   startDate?: Date | null;
   currentPaidDays?: number;
   currentPaidUntil?: Date | null;
+  type?: string | null;
 }) {
-  const days = daysForAmount(opts.amount, opts.monthlyPrice);
+  const days = daysForAmount(opts.amount, opts.monthlyPrice, opts.type);
   const origin = asDay(opts.startDate || opts.paidAt);
   const already = Math.max(0, Math.trunc(opts.currentPaidDays || 0));
   const from = addDays(origin, already);
@@ -160,6 +176,7 @@ export function periodInfo(
     paidDays?: number | null;
     startDate?: Date | null;
     endDate?: Date | null;
+    type?: string | null;
   },
   now = new Date(),
 ) {
@@ -169,7 +186,7 @@ export function periodInfo(
     dueDate,
     checkoutDate: checkoutDate(stay),
     daysLeft,
-    paidDaysLabel: describeDays(stay.paidDays || 0),
+    paidDaysLabel: describeDays(stay.paidDays || 0, stay.type),
     overdue: daysLeft !== null && daysLeft < 0,
     dueSoon: needsReminder(daysLeft),
   };

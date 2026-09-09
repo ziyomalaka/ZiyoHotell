@@ -3,8 +3,9 @@
 import { FormEvent, useState } from "react";
 import { api } from "@/lib/api";
 import {
-  DEFAULT_DAILY_PRICE,
+  DAILY_STAY_PRICE,
   DEFAULT_MONTHLY_PRICE,
+  MONTHLY_DAY_PRICE,
   addDays,
   daysForAmount,
   describeDays,
@@ -32,7 +33,7 @@ export function AddPaymentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [amount, setAmount] = useState(String(DEFAULT_MONTHLY_PRICE));
+  const [amount, setAmount] = useState(stay.type === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE));
   const [type, setType] = useState(stay.type === "DAILY" ? "DAILY" : "MONTHLY");
   const [method, setMethod] = useState("CASH");
   const [paymentDate, setPaymentDate] = useState(todayISO());
@@ -41,7 +42,7 @@ export function AddPaymentModal({
   const [saving, setSaving] = useState(false);
 
   const price = stay.monthlyPrice || DEFAULT_MONTHLY_PRICE;
-  const days = daysForAmount(Number(amount || 0), price);
+  const days = daysForAmount(Number(amount || 0), price, type);
     const start = stay.startDate ? todayISO(stay.startDate) : "";
   const coveredUntil =
     days && start
@@ -90,14 +91,24 @@ export function AddPaymentModal({
           />
         </label>
         <p className="mt-1 text-xs text-muted">
-          Kuniga {formatMoney(DEFAULT_DAILY_PRICE)}. 30 kun = 1 oy = {formatMoney(price)}.
+          {type === "DAILY"
+            ? `Kuniga ${formatMoney(DAILY_STAY_PRICE)}.`
+            : `Kuniga ${formatMoney(MONTHLY_DAY_PRICE)}. 30 kun = 1 oy = ${formatMoney(price)}.`}
           {days
-            ? ` Shu summa ${describeDays(days)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.`
+            ? ` Shu summa ${describeDays(days, type)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.`
             : ""}
         </p>
         <label className="mt-3 block text-sm font-medium">
           Yashash turi
-          <select value={type} onChange={(e) => setType(e.target.value)} className="mt-2 w-full">
+          <select
+            value={type}
+            onChange={(e) => {
+              const next = e.target.value;
+              setType(next);
+              setAmount(next === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE));
+            }}
+            className="mt-2 w-full"
+          >
             <option value="MONTHLY">Oylik</option>
             <option value="DAILY">Kunlik</option>
           </select>

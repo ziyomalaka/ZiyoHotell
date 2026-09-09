@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -181,7 +181,7 @@ export default function PaymentsPage() {
                 <td>{stayTypeLabel(row.type)}</td>
                 <td className="tabular">{formatMoney(row.amount)}</td>
                 <td>{methodLabel(row.method || "")}</td>
-                <td>{row.days ? describeDays(row.days) : "—"}</td>
+                <td>{row.days ? describeDays(row.days, row.type) : "—"}</td>
                 <td>{formatDate(row.coversTo || checkoutDate(row.stay))}</td>
                 <td>
                   <StatusBadge value={row.status === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(row.status)} />
@@ -201,7 +201,21 @@ export default function PaymentsPage() {
             <h2 className="text-lg font-semibold text-navy">To‘lov qo‘shish</h2>
             <label className="mt-4 block text-sm font-medium">
               Mijoz
-              <select required value={form.stayId} onChange={(e) => setForm({ ...form, stayId: e.target.value })} className="mt-2 w-full">
+              <select
+                required
+                value={form.stayId}
+                onChange={(e) => {
+                  const stay = stays.find((s) => s.id === e.target.value);
+                  const type = stay?.type === "DAILY" ? "DAILY" : "MONTHLY";
+                  setForm({
+                    ...form,
+                    stayId: e.target.value,
+                    type,
+                    amount: type === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE),
+                  });
+                }}
+                className="mt-2 w-full"
+              >
                 <option value="">Tanlang</option>
                 {stays.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -220,15 +234,31 @@ export default function PaymentsPage() {
               {(() => {
                 const stay = stays.find((s) => s.id === form.stayId);
                 const price = stay?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
-                const days = daysForAmount(Number(form.amount || 0), price);
+                const days = daysForAmount(Number(form.amount || 0), price, form.type);
+                if (form.type === "DAILY") {
+                  return days
+                    ? `Kuniga ${formatMoney(DAILY_STAY_PRICE)}. Shu summa ${describeDays(days, "DAILY")} beradi, hisob kirish kunidan.`
+                    : `Kuniga ${formatMoney(DAILY_STAY_PRICE)}.`;
+                }
                 return days
-                  ? `Kuniga ${formatMoney(DEFAULT_DAILY_PRICE)}. Shu summa ${describeDays(days)} beradi, hisob kirish kunidan (yoki qolgan kunlar ustiga).`
-                  : `Kuniga ${formatMoney(DEFAULT_DAILY_PRICE)}. 30 kun = 1 oy = ${formatMoney(price)}.`;
+                  ? `Kuniga ${formatMoney(MONTHLY_DAY_PRICE)}. Shu summa ${describeDays(days)} beradi, hisob kirish kunidan (yoki qolgan kunlar ustiga).`
+                  : `Kuniga ${formatMoney(MONTHLY_DAY_PRICE)}. 30 kun = 1 oy = ${formatMoney(price)}.`;
               })()}
             </p>
             <label className="mt-3 block text-sm font-medium">
               Yashash turi
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="mt-2 w-full">
+              <select
+                value={form.type}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm({
+                    ...form,
+                    type: next,
+                    amount: next === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE),
+                  });
+                }}
+                className="mt-2 w-full"
+              >
                 <option value="DAILY">Kunlik</option>
                 <option value="MONTHLY">Oylik</option>
               </select>

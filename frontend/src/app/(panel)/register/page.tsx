@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
-import { checkoutDate, customerGenderLabel, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, parseDate, addDays, todayISO } from "@/lib/format";
+import { checkoutDate, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, parseDate, addDays, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
@@ -82,7 +82,7 @@ export default function RegisterPage() {
   const freeBeds = (room?.beds || []).filter((b) => !b.occupancy && b.status === "ACTIVE");
   const monthlyPrice = room?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
   const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(form.amount || 0)) : 0;
-  const coveredDays = daysForAmount(paidPreview, monthlyPrice);
+  const coveredDays = daysForAmount(paidPreview, monthlyPrice, form.stayType);
   const coveredUntil =
     coveredDays && form.startDate
       ? formatDate(addDays(parseDate(form.startDate), coveredDays))
@@ -119,7 +119,7 @@ export default function RegisterPage() {
           paymentMethod: form.paymentMethod,
         }),
       });
-      const due = stay.dueDate ? ` Chiqish kuni ${formatDate(stay.dueDate)} (${stay.paidDaysLabel || describeDays(coveredDays)}).` : "";
+      const due = stay.dueDate ? ` Chiqish kuni ${formatDate(stay.dueDate)} (${stay.paidDaysLabel || describeDays(coveredDays, form.stayType)}).` : "";
       setSuccess(`Mijoz muvaffaqiyatli ro‘yxatga olindi.${due}`);
       setForm({ ...emptyForm, startDate: todayISO() });
       load();
@@ -226,7 +226,7 @@ export default function RegisterPage() {
                 setForm((prev) => ({
                   ...prev,
                   stayType,
-                  amount: stayType === "MONTHLY" && !prev.amount ? String(DEFAULT_REGISTER_AMOUNT) : prev.amount,
+                  amount: stayType === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_REGISTER_AMOUNT),
                 }));
               }}
               className="w-full"
@@ -239,17 +239,17 @@ export default function RegisterPage() {
             <input type="number" min={0} step={1000} value={form.amount} onChange={(e) => patch("amount", e.target.value)} className="w-full" />
             {form.stayType === "MONTHLY" ? (
               <p className="mt-1 text-xs text-muted">
-                Kuniga {formatMoney(DEFAULT_DAILY_PRICE)}. 30 kun = 1 oy = {formatMoney(monthlyPrice)}. Boshida odatda 3
+                Kuniga {formatMoney(MONTHLY_DAY_PRICE)}. 30 kun = 1 oy = {formatMoney(monthlyPrice)}. Boshida odatda 3
                 oylik — {formatMoney(DEFAULT_REGISTER_AMOUNT)}.
                 {paidPreview > 0
-                  ? ` Shu summa ${describeDays(coveredDays)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}. Hisob kirish kunidan.`
+                  ? ` Shu summa ${describeDays(coveredDays, form.stayType)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}. Hisob kirish kunidan.`
                   : " To‘lamasa muddat hisoblanmaydi."}
               </p>
             ) : (
               <p className="mt-1 text-xs text-muted">
-                Kuniga {formatMoney(DEFAULT_DAILY_PRICE)}. Hisob kirish kunidan.
+                Kuniga {formatMoney(DAILY_STAY_PRICE)}. Hisob kirish kunidan.
                 {paidPreview > 0
-                  ? ` Shu summa ${describeDays(coveredDays)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.`
+                  ? ` Shu summa ${describeDays(coveredDays, "DAILY")} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.`
                   : ""}
               </p>
             )}

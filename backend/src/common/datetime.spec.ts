@@ -38,6 +38,24 @@ describe('billing period', () => {
     expect(describeDays(45)).toBe('1 oy 15 kun');
   });
 
+  it('kunlik yashashda 50 000 so‘m = 1 kun', () => {
+    expect(daysForAmount(50000, 750000, 'DAILY')).toBe(1);
+    expect(daysForAmount(150000, 750000, 'DAILY')).toBe(3);
+    expect(daysForAmount(750000, 750000, 'DAILY')).toBe(15);
+    expect(describeDays(3, 'DAILY')).toBe('3 kun');
+    const startDate = new Date(Date.UTC(2026, 8, 1, 12, 0, 0));
+    const paidAt = new Date(Date.UTC(2026, 8, 1, 15, 0, 0));
+    const period = paymentPeriod({
+      amount: 50000,
+      monthlyPrice: 750000,
+      paidAt,
+      startDate,
+      type: 'DAILY',
+    });
+    expect(period.days).toBe(1);
+    expect(period.to.toISOString().slice(0, 10)).toBe('2026-09-02');
+  });
+
   it('hisob kirish kunidan boshlanadi', () => {
     const startDate = new Date(Date.UTC(2026, 8, 1, 12, 0, 0));
     const paidAt = new Date(Date.UTC(2026, 8, 8, 15, 40, 0));

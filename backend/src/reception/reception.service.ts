@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { cashCardTotals, checkoutDate, daysForAmount, paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
+import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
 
 export type RegisterInput = {
   fullName: string;
@@ -164,12 +164,9 @@ export class ReceptionService {
         }
 
         const startDate = parseDate(input.startDate);
-        const daysCount = input.stayType === 'DAILY' ? Math.max(1, Number(input.daysCount || 1)) : null;
-        const endDate = daysCount ? addDays(startDate, daysCount) : null;
         const paymentMonth = input.stayType === 'MONTHLY' ? input.paymentMonth || input.startDate.slice(0, 7) : null;
         const method = input.paymentMethod === 'BANK_TRANSFER' ? 'BANK' : input.paymentMethod || 'CASH';
 
-        // Kirish kunidan kuniga 25 000 so'm: 750 000 = 30 kun = 1 oy.
         const paidAt = parseDate(todayISO());
         const period =
           paidAmount > 0
@@ -178,8 +175,14 @@ export class ReceptionService {
                 monthlyPrice: bed.room.monthlyPrice,
                 paidAt,
                 startDate,
+                type: input.stayType,
               })
             : null;
+        const daysCount =
+          input.stayType === 'DAILY'
+            ? period?.days || Math.max(1, Number(input.daysCount || 1))
+            : null;
+        const endDate = daysCount ? addDays(startDate, daysCount) : null;
 
         const stay = await tx.stay.create({
           data: {
@@ -191,7 +194,7 @@ export class ReceptionService {
             endDate,
             daysCount,
             paymentMonth,
-            dailyPrice: bed.room.dailyPrice,
+            dailyPrice: input.stayType === 'DAILY' ? DAILY_STAY_PRICE : bed.room.dailyPrice,
             monthlyPrice: bed.room.monthlyPrice,
             totalAmount: amount,
             paidAmount,
@@ -332,15 +335,15 @@ export class ReceptionService {
       const paidAmount = stay.paidAmount + amount;
       const paidAt = input.paymentDate ? parseDate(input.paymentDate) : new Date();
 
-      // Yangi to'lov kirish kunidan hisoblangan kunlar ustiga qo'shiladi:
-      // 25 000 so'm = 1 kun, 750 000 = 30 kun = 1 oy.
+      // Oylik: 25 000/kun. Kunlik: 50 000/kun. Hisob kirish kunidan.
       const type = input.type || stay.type;
       const period = paymentPeriod({
         amount,
         monthlyPrice: stay.monthlyPrice,
         paidAt,
         startDate: stay.startDate,
-        currentPaidDays: stay.paidDays || daysForAmount(stay.paidAmount, stay.monthlyPrice),
+        currentPaidDays: stay.paidDays || daysForAmount(stay.paidAmount, stay.monthlyPrice, stay.type),
+        type,
       });
 
       const payment = await tx.payment.create({

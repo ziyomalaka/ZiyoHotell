@@ -252,16 +252,18 @@ export function occupancyLabel(kind: string) {
   return "TA’MIRDA";
 }
 
-/** Kuniga 25 000 so‘m; 30 kun = 1 oy = 750 000 so‘m. */
-export const DEFAULT_DAILY_PRICE = 25000;
+/** Oylik: kuniga 25 000, 30 kun = 1 oy = 750 000. Kunlik: kuniga 50 000. */
+export const MONTHLY_DAY_PRICE = 25000;
+export const DAILY_STAY_PRICE = 50000;
 export const DAYS_PER_MONTH = 30;
-export const DEFAULT_MONTHLY_PRICE = DEFAULT_DAILY_PRICE * DAYS_PER_MONTH;
+export const DEFAULT_MONTHLY_PRICE = MONTHLY_DAY_PRICE * DAYS_PER_MONTH;
+export const DEFAULT_DAILY_PRICE = DAILY_STAY_PRICE;
 export const DEFAULT_REGISTER_MONTHS = 3;
 export const DEFAULT_REGISTER_AMOUNT = DEFAULT_MONTHLY_PRICE * DEFAULT_REGISTER_MONTHS;
 
-/** To‘langan summa qancha kun bergani: 25 000 = 1 kun, 750 000 = 30 kun. */
-export function daysForAmount(amount: number, monthlyPrice = DEFAULT_MONTHLY_PRICE) {
-  const daily = monthlyPrice > 0 ? monthlyPrice / DAYS_PER_MONTH : DEFAULT_DAILY_PRICE;
+/** Oylik: 25 000 = 1 kun. Kunlik: 50 000 = 1 kun. */
+export function daysForAmount(amount: number, monthlyPrice = DEFAULT_MONTHLY_PRICE, type?: string | null) {
+  const daily = type === "DAILY" ? DAILY_STAY_PRICE : monthlyPrice > 0 ? monthlyPrice / DAYS_PER_MONTH : MONTHLY_DAY_PRICE;
   if (!daily || !amount || amount <= 0) return 0;
   return Math.floor(amount / daily);
 }
@@ -271,13 +273,15 @@ export function splitDays(totalDays: number) {
   return { months: Math.floor(days / DAYS_PER_MONTH), days: days % DAYS_PER_MONTH };
 }
 
-/** "3 oy", "1 oy 15 kun", "12 kun". */
-export function describeDays(totalDays: number) {
-  const { months, days } = splitDays(totalDays);
-  if (!months && !days) return "—";
+/** "3 oy", "1 oy 15 kun", "12 kun". Kunlikda faqat kun. */
+export function describeDays(totalDays: number, type?: string | null) {
+  const days = Math.max(0, Math.trunc(totalDays));
+  if (!days) return "—";
+  if (type === "DAILY") return `${days} kun`;
+  const { months, days: rest } = splitDays(days);
   const parts: string[] = [];
   if (months) parts.push(`${months} oy`);
-  if (days) parts.push(`${days} kun`);
+  if (rest) parts.push(`${rest} kun`);
   return parts.join(" ");
 }
 
