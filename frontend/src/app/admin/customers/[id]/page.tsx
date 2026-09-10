@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { customerGenderLabel, floorLabel, formatDate, formatMoney } from "@/lib/format";
+import { customerGenderLabel, dash, displayUzPhone, floorLabel, formatDate, formatMoney } from "@/lib/format";
 
 type Profile = {
   fullName: string;
@@ -37,9 +37,9 @@ export default function CustomerProfilePage() {
     <div className="space-y-5">
       <h1 className="sr-only">{c.fullName}</h1>
       <section className="card p-5 text-sm">
-        <p>Telefon: {c.phone}</p>
+        <p>Telefon: {displayUzPhone(c.phone)}</p>
         <p>Jins: {customerGenderLabel(c.gender)}</p>
-        <p>Pasport: {c.passportId}</p>
+        <p>ID raqami: {dash(c.passportId)}</p>
         <p>Manzil: {c.address || "—"}</p>
         <p>
           Qavat / xona / o‘rin:{" "}

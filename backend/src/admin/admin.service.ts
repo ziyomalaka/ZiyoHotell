@@ -782,6 +782,7 @@ export class AdminService {
       where.OR = [
         { customer: { fullName: { contains: q, mode: 'insensitive' } } },
         { customer: { phone: { contains: q, mode: 'insensitive' } } },
+        { customer: { passportId: { contains: q, mode: 'insensitive' } } },
         { stay: { room: { number: { contains: q, mode: 'insensitive' } } } },
       ];
     }

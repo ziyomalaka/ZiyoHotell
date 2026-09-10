@@ -1,11 +1,12 @@
 "use client";
 
-import { customerGenderLabel, daysLeftLabel, floorLabel, formatDate, formatMoney, stayTypeLabel } from "@/lib/format";
+import { customerGenderLabel, dash, displayUzPhone, daysLeftLabel, floorLabel, formatDate, formatMoney, stayTypeLabel } from "@/lib/format";
 
 export type PaymentDueRow = {
   stayId: string;
   fullName: string;
   phone: string;
+  passportId?: string;
   gender?: string;
   floor: number;
   room: string;
@@ -56,6 +57,7 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
             <tr>
               <th>F.I.Sh.</th>
               <th>Telefon</th>
+              <th>ID raqami</th>
               <th>Jins</th>
               <th>Qavat</th>
               <th>Xona</th>
@@ -71,7 +73,8 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
             {data.rows.map((r) => (
               <tr key={r.stayId} className={r.overdue ? "bg-[#f8ecec]" : r.dueSoon ? "bg-[#f8f3e8]" : undefined}>
                 <td>{r.fullName}</td>
-                <td>{r.phone}</td>
+                <td>{displayUzPhone(r.phone)}</td>
+                <td>{dash(r.passportId)}</td>
                 <td>{customerGenderLabel(r.gender)}</td>
                 <td>{floorLabel(r.floor)}</td>
                 <td>{r.room}</td>
@@ -95,7 +98,11 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
             <p className="mb-2 font-semibold text-navy">{r.fullName}</p>
             <div className="mgr-kv">
               <span>Telefon</span>
-              <span>{r.phone}</span>
+              <span>{displayUzPhone(r.phone)}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>ID raqami</span>
+              <span>{dash(r.passportId)}</span>
             </div>
             <div className="mgr-kv">
               <span>Jins</span>

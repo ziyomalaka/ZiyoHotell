@@ -5,13 +5,15 @@ import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
 import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
+import { normalizePassportId } from '../common/passport';
+import { normalizePhone } from '../common/phone';
 
 export type RegisterInput = {
   fullName: string;
-  phone: string;
+  phone?: string;
   gender?: string;
   birthDate?: string | null;
-  passportId?: string;
+  passportId: string;
   address?: string | null;
   extraPhone?: string | null;
   notes?: string | null;
@@ -89,7 +91,7 @@ export class ReceptionService {
   async registerCustomer(input: RegisterInput, userId: string) {
     required({
       fullName: input.fullName,
-      phone: input.phone,
+      passportId: input.passportId,
       bedId: input.bedId,
       startDate: input.startDate,
       stayType: input.stayType,
@@ -102,7 +104,8 @@ export class ReceptionService {
     const paymentStatus = input.paymentStatus === 'PAID' && amount > 0 ? 'PAID' : 'UNPAID';
     const paidAmount = paymentStatus === 'PAID' ? amount : 0;
     const gender = roomGender(input.gender);
-    const passportId = input.passportId?.trim() || `AUTO-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const phone = normalizePhone(input.phone);
+    const passportId = normalizePassportId(input.passportId);
 
     return this.prisma.$transaction(
       async (tx) => {
@@ -123,12 +126,7 @@ export class ReceptionService {
           );
         }
 
-        let customer = input.passportId?.trim()
-          ? await tx.customer.findUnique({ where: { passportId: input.passportId.trim() } })
-          : await tx.customer.findFirst({
-              where: { phone: input.phone.trim(), occupancy: null },
-              orderBy: { createdAt: 'desc' },
-            });
+        let customer = await tx.customer.findUnique({ where: { passportId } });
         if (customer) {
           const active = await tx.occupancy.findUnique({ where: { customerId: customer.id } });
           if (active) {
@@ -138,12 +136,12 @@ export class ReceptionService {
             where: { id: customer.id },
             data: {
               fullName: input.fullName.trim(),
-              phone: input.phone.trim(),
+              phone: phone || customer.phone,
               gender,
               birthDate: input.birthDate ? parseDate(input.birthDate) : customer.birthDate,
-              passportId: input.passportId?.trim() || customer.passportId,
+              passportId,
               address: input.address?.trim() || customer.address,
-              extraPhone: input.extraPhone?.trim() || customer.extraPhone,
+              extraPhone: normalizePhone(input.extraPhone) || customer.extraPhone,
               notes: input.notes?.trim() || null,
             },
           });
@@ -151,12 +149,12 @@ export class ReceptionService {
           customer = await tx.customer.create({
             data: {
               fullName: input.fullName.trim(),
-              phone: input.phone.trim(),
+              phone,
               gender,
               birthDate: input.birthDate ? parseDate(input.birthDate) : null,
               passportId,
               address: input.address?.trim() || null,
-              extraPhone: input.extraPhone?.trim() || null,
+              extraPhone: normalizePhone(input.extraPhone) || null,
               notes: input.notes?.trim() || null,
               createdById: userId,
             },
@@ -404,6 +402,7 @@ export class ReceptionService {
       where.OR = [
         { fullName: this.contains(q) },
         { phone: this.contains(q) },
+        { passportId: this.contains(q) },
         { occupancy: { stay: { room: { number: this.contains(q) } } } },
       ];
     }
@@ -445,6 +444,7 @@ export class ReceptionService {
           id: c.id,
           fullName: c.fullName,
           phone: c.phone,
+          passportId: c.passportId,
           gender: c.gender,
           living: Boolean(live),
           payStatus: !stay ? 'UNPAID' : stay.paidAmount > 0 ? 'PAID' : 'UNPAID',
@@ -468,6 +468,65 @@ export class ReceptionService {
       }),
       meta: { page: opts.page, limit: opts.pageSize, total, totalPages: Math.ceil(total / opts.pageSize) || 1 },
     };
+  }
+
+  async updateCustomer(
+    id: string,
+    input: {
+      fullName: string;
+      phone?: string;
+      gender?: string;
+      birthDate?: string | null;
+      passportId: string;
+      address?: string | null;
+      extraPhone?: string | null;
+      notes?: string | null;
+    },
+    userId: string,
+  ) {
+    required({ fullName: input.fullName, passportId: input.passportId });
+    const customer = await this.prisma.customer.findUnique({
+      where: { id },
+      include: { occupancy: { include: { stay: { include: { room: true } } } } },
+    });
+    if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
+    const gender = input.gender === 'FEMALE' ? 'FEMALE' : input.gender === 'MALE' ? 'MALE' : customer.gender;
+    const room = customer.occupancy?.stay.room;
+    if (room && roomGender(room.gender) !== gender) {
+      throw new AppError(
+        `Yashayotgan xona ${genderWord(room.gender)} uchun. Jinsni o‘zgartirish uchun avval chiqaring.`,
+        409,
+        'GENDER_MISMATCH',
+      );
+    }
+    const passportId = normalizePassportId(input.passportId);
+    if (passportId !== customer.passportId) {
+      const taken = await this.prisma.customer.findUnique({ where: { passportId } });
+      if (taken) throw new AppError('Ushbu ID raqami allaqachon mavjud.', 409, 'PASSPORT_TAKEN');
+    }
+    const row = await this.prisma.customer.update({
+      where: { id },
+      data: {
+        fullName: input.fullName.trim(),
+        phone: normalizePhone(input.phone),
+        gender,
+        notes: input.notes?.trim() || null,
+        extraPhone: normalizePhone(input.extraPhone) || null,
+        address: input.address?.trim() || null,
+        passportId,
+        birthDate: input.birthDate ? parseDate(input.birthDate) : input.birthDate === null || input.birthDate === '' ? null : customer.birthDate,
+      },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'CUSTOMER_UPDATE',
+        entity: 'Customer',
+        entityId: id,
+        meta: JSON.stringify({ fullName: row.fullName, phone: row.phone }),
+      },
+    });
+    return row;
   }
 
   async deleteCustomer(id: string, userId: string) {
@@ -590,6 +649,7 @@ export class ReceptionService {
       where.OR = [
         { customer: { fullName: this.contains(q) } },
         { customer: { phone: this.contains(q) } },
+        { customer: { passportId: this.contains(q) } },
         { stay: { room: { number: this.contains(q) } } },
       ];
     }

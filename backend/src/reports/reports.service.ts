@@ -66,6 +66,7 @@ export class ReportsService {
           customerId: s.customerId,
           fullName: s.customer.fullName,
           phone: s.customer.phone,
+          passportId: s.customer.passportId,
           gender: s.customer.gender,
           floor: s.room.floor,
           room: s.room.number,

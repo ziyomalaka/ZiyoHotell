@@ -6,11 +6,13 @@ import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { floorLabel, formatDate, formatTime, roomBedLabel } from "@/lib/format";
+import { dash, displayUzPhone, floorLabel, formatDate, formatTime, roomBedLabel } from "@/lib/format";
 
 type Row = {
   id: string;
   fullName: string;
+  phone?: string;
+  passportId?: string;
   room: string;
   floor: number | null;
   bed: number;
@@ -77,7 +79,7 @@ export default function ManagerStaysPage() {
             {l}
           </button>
         ))}
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / ID / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
         <FloorFilter
@@ -91,7 +93,7 @@ export default function ManagerStaysPage() {
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["F.I.Sh.", "Qavat", "Xona/o‘rin", "Kirish sanasi", "Kirish vaqti", "Chiqish sanasi", "Chiqish vaqti", "Holati", "Reception"].map((h) => (
+              {["F.I.Sh.", "Telefon", "ID raqami", "Qavat", "Xona/o‘rin", "Kirish sanasi", "Kirish vaqti", "Chiqish sanasi", "Chiqish vaqti", "Holati", "Reception"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -102,6 +104,8 @@ export default function ManagerStaysPage() {
             {data.rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.fullName}</td>
+                <td className="px-3 py-3">{displayUzPhone(r.phone)}</td>
+                <td className="px-3 py-3">{dash(r.passportId)}</td>
                 <td className="px-3 py-3">{floorLabel(r.floor)}</td>
                 <td className="px-3 py-3">
                   {roomBedLabel(r.room, r.bed)}

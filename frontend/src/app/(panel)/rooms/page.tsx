@@ -6,14 +6,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { FilterBar } from "@/components/FilterBar";
 import { FloorFilter } from "@/components/FloorFilter";
 import { BedCard, RoomCard } from "@/components/RoomVisual";
-import { compareRoomNumbers, formatDate, formatMoney, genderLabel } from "@/lib/format";
+import { compareRoomNumbers, dash, displayUzPhone, formatDate, formatMoney, genderLabel } from "@/lib/format";
 
 type Stay = { startDate: string; type: string; paidAmount: number; totalAmount: number };
 type Bed = {
   id: string;
   number: number;
   status: string;
-  occupancy?: { customer: { fullName: string; phone: string }; stay: Stay } | null;
+  occupancy?: { customer: { fullName: string; phone: string; passportId?: string }; stay: Stay } | null;
 };
 type Room = {
   id: string;
@@ -157,7 +157,8 @@ export default function RoomsPage() {
             {guest?.occupancy ? (
               <div className="mt-4 rounded-xl bg-background p-4 text-sm">
                 <p className="font-semibold text-navy">{guest.occupancy.customer.fullName}</p>
-                <p>{guest.occupancy.customer.phone}</p>
+                <p>Telefon: {displayUzPhone(guest.occupancy.customer.phone)}</p>
+                <p>ID raqami: {dash(guest.occupancy.customer.passportId)}</p>
                 <p>Kirish: {formatDate(guest.occupancy.stay.startDate)}</p>
                 <p>{guest.occupancy.stay.type === "DAILY" ? "Kunlik" : "Oylik"}</p>
                 <p className="tabular">

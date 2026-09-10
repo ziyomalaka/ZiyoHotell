@@ -8,6 +8,8 @@ import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   customerGenderLabel,
+  dash,
+  displayUzPhone,
   floorLabel,
   formatDate,
   payStatusLabel,
@@ -20,6 +22,7 @@ type Row = {
   id: string;
   fullName: string;
   phone: string;
+  passportId?: string;
   gender: string;
   room: string;
   floor: number | null;
@@ -78,7 +81,7 @@ export default function ManagerCustomersPage() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="F.I.Sh. / telefon / xona"
+          placeholder="F.I.Sh. / telefon / ID / xona"
           className="w-full lg:max-w-md"
         />
         <FloorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
@@ -91,6 +94,7 @@ export default function ManagerCustomersPage() {
             <tr>
               <th>F.I.Sh.</th>
               <th>Telefon</th>
+              <th>ID raqami</th>
               <th>Jins</th>
               <th>Qavat</th>
               <th>Xona</th>
@@ -104,7 +108,8 @@ export default function ManagerCustomersPage() {
             {data.rows.map((r) => (
               <tr key={r.id}>
                 <td>{r.fullName}</td>
-                <td>{r.phone}</td>
+                <td>{displayUzPhone(r.phone)}</td>
+                <td>{dash(r.passportId)}</td>
                 <td>{customerGenderLabel(r.gender)}</td>
                 <td>{floorLabel(r.floor)}</td>
                 <td>{roomLabel(r.room)}</td>
@@ -128,7 +133,11 @@ export default function ManagerCustomersPage() {
             </div>
             <div className="mgr-kv">
               <span>Telefon</span>
-              <span>{r.phone}</span>
+              <span>{displayUzPhone(r.phone)}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>ID raqami</span>
+              <span>{dash(r.passportId)}</span>
             </div>
             <div className="mgr-kv">
               <span>Jins</span>

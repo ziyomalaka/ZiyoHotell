@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, daysLeftLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, daysLeftLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -24,7 +24,7 @@ type Stay = {
   daysLeft?: number | null;
   overdue?: boolean;
   dueSoon?: boolean;
-  customer: { fullName: string; phone: string };
+  customer: { fullName: string; phone: string; passportId?: string };
   room: { number: string; floor: number };
   bed: { number: number };
 };
@@ -68,7 +68,7 @@ export default function StaysPage() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / xona" className="min-w-[220px] flex-1" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / ID / xona" className="min-w-[220px] flex-1" />
         <FloorFilter scope="reception" value={floor} onChange={setFloor} />
       </div>
       <div className="overflow-x-auto">
@@ -77,6 +77,7 @@ export default function StaysPage() {
             <tr>
               <th>F.I.Sh.</th>
               <th>Telefon</th>
+              <th>ID raqami</th>
               <th>Qavat</th>
               <th>Xona</th>
               <th>O‘rin</th>
@@ -92,7 +93,8 @@ export default function StaysPage() {
             {data.rows.map((row) => (
               <tr key={row.id} className={row.overdue ? "bg-[#f8ecec]" : row.dueSoon ? "bg-[#f8f3e8]" : undefined}>
                 <td>{row.customer.fullName}</td>
-                <td>{row.customer.phone}</td>
+                <td>{displayUzPhone(row.customer.phone)}</td>
+                <td>{dash(row.customer.passportId)}</td>
                 <td>{floorLabel(row.room.floor)}</td>
                 <td>{row.room.number}</td>
                 <td>{row.bed.number}</td>

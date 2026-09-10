@@ -7,6 +7,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Put,
   Query,
   StreamableFile,
 } from '@nestjs/common';
@@ -16,7 +17,7 @@ import { parsePage } from '../common/errors';
 import { ROLES } from '../common/roles';
 import { ExcelService } from '../reports/excel.service';
 import { ReportsService } from '../reports/reports.service';
-import { CancelPaymentDto, CheckoutDto, CreatePaymentDto, PageQueryDto, RegisterDto } from './dto';
+import { CancelPaymentDto, CheckoutDto, CreatePaymentDto, PageQueryDto, RegisterDto, UpdateCustomerDto } from './dto';
 import { ReceptionService } from './reception.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -75,6 +76,13 @@ export class ReceptionController {
   @ApiOperation({ summary: 'Mijoz profili' })
   customer(@Param('id') id: string) {
     return this.reception.getCustomer(id);
+  }
+
+  @Put('customers/:id')
+  @Permissions('customers.create')
+  @ApiOperation({ summary: 'Mijoz ma’lumotlarini tahrirlash' })
+  updateCustomer(@Param('id') id: string, @Body() body: UpdateCustomerDto, @CurrentUser() user: { id: string }) {
+    return this.reception.updateCustomer(id, body, user.id);
   }
 
   @Delete('customers/:id')

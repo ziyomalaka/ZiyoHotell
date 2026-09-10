@@ -387,6 +387,7 @@ export class ManagerService {
       where.OR = [
         { customer: { fullName: this.contains(q) } },
         { customer: { phone: this.contains(q) } },
+        { customer: { passportId: this.contains(q) } },
         { stay: { room: { number: this.contains(q) } } },
       ];
     }
@@ -548,6 +549,7 @@ export class ManagerService {
           customerId: s.customerId,
           fullName: s.customer.fullName,
           phone: s.customer.phone,
+          passportId: s.customer.passportId,
           room: s.room.number,
           floor: s.room.floor,
           bed: s.bed.number,
@@ -570,7 +572,15 @@ export class ManagerService {
     if (opts.age === '8-30') rows = rows.filter((r) => r.days >= 8 && r.days <= 30);
     if (opts.age === '30+') rows = rows.filter((r) => r.days > 30);
     const q = opts.q?.trim().toLowerCase() || '';
-    if (q) rows = rows.filter((r) => r.fullName.toLowerCase().includes(q) || r.phone.includes(q) || r.room.includes(q));
+    if (q) {
+      rows = rows.filter(
+        (r) =>
+          r.fullName.toLowerCase().includes(q) ||
+          r.phone.toLowerCase().includes(q) ||
+          r.passportId.toLowerCase().includes(q) ||
+          r.room.includes(q),
+      );
+    }
     const totalDebt = rows.reduce((a, r) => a + r.debt, 0);
     return {
       total: rows.length,
@@ -646,6 +656,8 @@ export class ManagerService {
         return {
           id: s.id,
           fullName: s.customer.fullName,
+          phone: s.customer.phone,
+          passportId: s.customer.passportId,
           room: s.room.number,
           floor: s.room.floor,
           bed: s.bed.number,

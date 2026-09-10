@@ -94,6 +94,7 @@ describe('ZiyoHotel e2e', () => {
       where: { status: 'ACTIVE', occupancy: null, room: { status: 'ACTIVE' } },
     });
     expect(bed).toBeTruthy();
+    const stamp = String(Date.now()).slice(-7);
     const payload = (passport: string) => ({
       fullName: 'Race Test',
       phone: '998900000001',
@@ -110,11 +111,11 @@ describe('ZiyoHotel e2e', () => {
       request(app.getHttpServer())
         .post('/api/v1/reception/customers/register')
         .set('Cookie', receptionCookie)
-        .send(payload(`RACE-A-${Date.now()}`)),
+        .send(payload(`AA${stamp}`)),
       request(app.getHttpServer())
         .post('/api/v1/reception/customers/register')
         .set('Cookie', receptionCookie)
-        .send(payload(`RACE-B-${Date.now()}`)),
+        .send(payload(`AB${stamp}`)),
     ]);
     const statuses = [a.status, b.status].sort();
     expect(statuses).toEqual([201, 409]);

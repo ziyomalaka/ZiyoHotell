@@ -7,7 +7,7 @@ import { ExportExcelButton } from "@/components/ExportExcelButton";
 import { FloorFilter } from "@/components/FloorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
-import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type Tab = "movement" | "payment-due" | "customers";
@@ -27,7 +27,7 @@ type CustomerRep = {
     endDate?: string | null;
     startDate: string;
     status: string;
-    customer: { fullName: string; phone: string };
+    customer: { fullName: string; phone: string; passportId?: string };
     room: { number: string; floor: number };
     bed: { number: number };
   }[];
@@ -145,6 +145,8 @@ export default function ManagerReportsPage() {
               <thead>
                 <tr>
                   <th>F.I.Sh.</th>
+                  <th>Telefon</th>
+                  <th>ID raqami</th>
                   <th>Qavat</th>
                   <th>Xona</th>
                   <th>Turi</th>
@@ -160,6 +162,8 @@ export default function ManagerReportsPage() {
                 {(customers?.rows || []).map((row, i) => (
                   <tr key={i}>
                     <td>{row.customer.fullName}</td>
+                    <td>{displayUzPhone(row.customer.phone)}</td>
+                    <td>{dash(row.customer.passportId)}</td>
                     <td>{floorLabel(row.room.floor)}</td>
                     <td>
                       {row.room.number}/{row.bed.number}
@@ -180,6 +184,14 @@ export default function ManagerReportsPage() {
             {(customers?.rows || []).map((row, i) => (
               <article key={i} className="mgr-list-card">
                 <p className="mb-2 font-semibold text-navy">{row.customer.fullName}</p>
+                <div className="mgr-kv">
+                  <span>Telefon</span>
+                  <span>{displayUzPhone(row.customer.phone)}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>ID raqami</span>
+                  <span>{dash(row.customer.passportId)}</span>
+                </div>
                 <div className="mgr-kv">
                   <span>Qavat</span>
                   <span>{floorLabel(row.room.floor)}</span>

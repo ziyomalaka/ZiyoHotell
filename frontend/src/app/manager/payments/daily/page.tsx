@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, floorLabel, formatDate, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type Row = {
@@ -16,7 +16,7 @@ type Row = {
   status: string;
   paidAt: string;
   coversTo?: string | null;
-  customer: { fullName: string };
+  customer: { fullName: string; phone?: string; passportId?: string };
   stay: {
     paidUntil?: string | null;
     endDate?: string | null;
@@ -86,6 +86,8 @@ export default function ManagerDailyPaymentsPage() {
           <thead>
             <tr>
               <th>F.I.Sh.</th>
+              <th>Telefon</th>
+              <th>ID raqami</th>
               <th>Qavat</th>
               <th>Xona</th>
               <th>Summa</th>
@@ -100,6 +102,8 @@ export default function ManagerDailyPaymentsPage() {
             {data.rows.map((r) => (
               <tr key={r.id}>
                 <td>{r.customer.fullName}</td>
+                <td>{displayUzPhone(r.customer.phone)}</td>
+                <td>{dash(r.customer.passportId)}</td>
                 <td>{floorLabel(r.stay.room.floor)}</td>
                 <td>{r.stay.room.number}</td>
                 <td className="tabular">{formatMoney(r.amount)}</td>
@@ -131,6 +135,14 @@ export default function ManagerDailyPaymentsPage() {
               </div>
             </summary>
             <div className="mt-3 border-t border-line pt-3">
+              <div className="mgr-kv">
+                <span>Telefon</span>
+                <span>{displayUzPhone(r.customer.phone)}</span>
+              </div>
+              <div className="mgr-kv">
+                <span>ID raqami</span>
+                <span>{dash(r.customer.passportId)}</span>
+              </div>
               <div className="mgr-kv">
                 <span>Qavat</span>
                 <span>{floorLabel(r.stay.room.floor)}</span>

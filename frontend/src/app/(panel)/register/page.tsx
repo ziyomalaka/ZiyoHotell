@@ -4,7 +4,9 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
-import { checkoutDate, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, parseDate, addDays, todayISO } from "@/lib/format";
+import { IdNumberInput } from "@/components/IdNumberInput";
+import { PhoneInput } from "@/components/PhoneInput";
+import { checkoutDate, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
@@ -31,7 +33,7 @@ type Home = {
     paidUntil?: string | null;
     endDate?: string | null;
     status?: string;
-    customer: { fullName: string; phone: string; gender: string };
+    customer: { fullName: string; phone: string; passportId?: string; gender: string };
     room: { number: string; floor: number };
     bed: { number: number };
   }[];
@@ -40,6 +42,7 @@ type Home = {
 const emptyForm = {
   fullName: "",
   phone: "",
+  passportId: "",
   gender: "MALE" as "MALE" | "FEMALE",
   roomId: "",
   bedId: "",
@@ -96,8 +99,16 @@ export default function RegisterPage() {
     event.preventDefault();
     setError("");
     setSuccess("");
-    if (!form.fullName.trim() || !form.phone.trim() || !form.bedId || !form.startDate) {
+    if (!form.fullName.trim() || !form.bedId || !form.startDate) {
       setError("Majburiy maydonlarni to‘ldiring.");
+      return;
+    }
+    if (!isValidPassportId(form.passportId)) {
+      setError("ID raqami 2 ta harf va 7 ta raqam bo‘lishi kerak. Masalan: AA1234567.");
+      return;
+    }
+    if (!isValidUzPhone(form.phone)) {
+      setError("Telefon raqami +998 dan keyin 9 ta raqam bo‘lishi kerak.");
       return;
     }
     const amount = Math.max(0, Number(form.amount || 0));
@@ -108,6 +119,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           fullName: form.fullName.trim(),
           phone: form.phone.trim(),
+          passportId: form.passportId.trim(),
           gender: form.gender,
           notes: form.notes.trim() || null,
           bedId: form.bedId,
@@ -174,8 +186,11 @@ export default function RegisterPage() {
           <FormField label="F.I.Sh." required>
             <input value={form.fullName} onChange={(e) => patch("fullName", e.target.value)} className="w-full" />
           </FormField>
-          <FormField label="Telefon" required>
-            <input value={form.phone} onChange={(e) => patch("phone", e.target.value)} className="w-full" />
+          <FormField label="Telefon">
+            <PhoneInput value={form.phone} onChange={(value) => patch("phone", value)} />
+          </FormField>
+          <FormField label="ID raqami" required>
+            <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} />
           </FormField>
           <FormField label="Jinsi" required>
             <select
@@ -297,6 +312,7 @@ export default function RegisterPage() {
                 <tr>
                   <th>F.I.Sh.</th>
                   <th>Telefon</th>
+                  <th>ID raqami</th>
                   <th>Jins</th>
                   <th>Qavat</th>
                   <th>Xona</th>
@@ -309,7 +325,8 @@ export default function RegisterPage() {
                 {home.recent.map((row) => (
                   <tr key={row.id}>
                     <td>{row.customer.fullName}</td>
-                    <td>{row.customer.phone}</td>
+                    <td>{displayUzPhone(row.customer.phone)}</td>
+                    <td>{dash(row.customer.passportId)}</td>
                     <td>{customerGenderLabel(row.customer.gender)}</td>
                     <td>{floorLabel(row.room.floor)}</td>
                     <td>{row.room.number}</td>

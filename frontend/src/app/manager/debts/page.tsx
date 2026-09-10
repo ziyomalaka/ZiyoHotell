@@ -6,13 +6,14 @@ import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { floorLabel, formatDate, formatMoney, payStatusLabel, roomLabel, bedLabel, stayTypeLabel } from "@/lib/format";
+import { dash, displayUzPhone, floorLabel, formatDate, formatMoney, payStatusLabel, roomLabel, bedLabel, stayTypeLabel } from "@/lib/format";
 
 type Row = {
   n: number;
   id: string;
   fullName: string;
   phone: string;
+  passportId?: string;
   room: string;
   floor: number | null;
   bed: number;
@@ -67,7 +68,7 @@ export default function ManagerDebtsPage() {
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / ID / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
         <select value={age} onChange={(e) => setAge(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2">
           <option value="">Muddat</option>
           <option value="today">Bugungi qarz</option>
@@ -91,7 +92,7 @@ export default function ManagerDebtsPage() {
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["Mijoz", "Telefon", "Qavat", "Xona", "O‘rin", "Tur", "To‘lanishi kerak", "To‘langan", "Qolgan qarz", "Boshlangan", "Kun", "Holat"].map((h) => (
+              {["Mijoz", "Telefon", "ID raqami", "Qavat", "Xona", "O‘rin", "Tur", "To‘lanishi kerak", "To‘langan", "Qolgan qarz", "Boshlangan", "Kun", "Holat"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -102,7 +103,8 @@ export default function ManagerDebtsPage() {
             {data.rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.fullName}</td>
-                <td className="px-3 py-3">{r.phone}</td>
+                <td className="px-3 py-3">{displayUzPhone(r.phone)}</td>
+                <td className="px-3 py-3">{dash(r.passportId)}</td>
                 <td className="px-3 py-3">{floorLabel(r.floor)}</td>
                 <td className="px-3 py-3">{roomLabel(r.room)}</td>
                 <td className="px-3 py-3">{bedLabel(r.bed)}</td>

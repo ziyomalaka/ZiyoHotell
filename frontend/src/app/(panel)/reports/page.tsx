@@ -10,6 +10,8 @@ import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTab
 import {
   checkoutDate,
   customerGenderLabel,
+  dash,
+  displayUzPhone,
   floorLabel,
   formatDate,
   formatMoney,
@@ -34,7 +36,7 @@ type CustomerRep = {
     startDate: string;
     endDate?: string | null;
     status: string;
-    customer: { fullName: string; phone: string; gender: string };
+    customer: { fullName: string; phone: string; passportId?: string; gender: string };
     room: { number: string; floor: number };
     bed: { number: number };
   }[];
@@ -192,6 +194,7 @@ export default function ReportsPage() {
                 <tr>
                   <th>F.I.Sh.</th>
                   <th>Telefon</th>
+                  <th>ID raqami</th>
                   <th>Jins</th>
                   <th>Qavat</th>
                   <th>Xona</th>
@@ -209,7 +212,8 @@ export default function ReportsPage() {
                 {(customers?.rows || []).map((row, i) => (
                   <tr key={i}>
                     <td>{row.customer.fullName}</td>
-                    <td>{row.customer.phone}</td>
+                    <td>{displayUzPhone(row.customer.phone)}</td>
+                    <td>{dash(row.customer.passportId)}</td>
                     <td>{customerGenderLabel(row.customer.gender)}</td>
                     <td>{floorLabel(row.room.floor)}</td>
                     <td>{row.room.number}</td>

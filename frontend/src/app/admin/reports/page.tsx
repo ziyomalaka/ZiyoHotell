@@ -6,7 +6,7 @@ import { FloorFilter } from "@/components/FloorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
 import { StatCard } from "@/components/StatCard";
-import { checkoutDate, floorLabel, formatDate, formatMoney, roomBedLabel } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, roomBedLabel } from "@/lib/format";
 
 type FloorStat = { floor: number; rooms: number; beds: number; occupied: number; free: number; percent: number };
 type GenderStat = { gender: string; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number };
@@ -41,7 +41,7 @@ export default function AdminReportsPage() {
     left?: number;
     living?: number;
     rows?: {
-      customer: { fullName: string };
+      customer: { fullName: string; phone?: string; passportId?: string };
       room: { number: string; floor: number };
       bed?: { number: number };
       startDate: string;
@@ -134,7 +134,7 @@ export default function AdminReportsPage() {
               <table className="data-table">
                 <thead className="bg-background text-left">
                   <tr>
-                    {["F.I.Sh.", "Qavat", "Xona", "Kirish", "Chiqish", "Holat"].map((h) => (
+                    {["F.I.Sh.", "Telefon", "ID raqami", "Qavat", "Xona", "Kirish", "Chiqish", "Holat"].map((h) => (
                       <th key={h} className="px-3 py-3">{h}</th>
                     ))}
                   </tr>
@@ -143,6 +143,8 @@ export default function AdminReportsPage() {
                   {customers.rows.map((r, i) => (
                     <tr key={i} className="border-t border-line">
                       <td className="px-3 py-3">{r.customer.fullName}</td>
+                      <td className="px-3 py-3">{displayUzPhone(r.customer.phone)}</td>
+                      <td className="px-3 py-3">{dash(r.customer.passportId)}</td>
                       <td className="px-3 py-3">{floorLabel(r.room.floor)}</td>
                       <td className="px-3 py-3">{r.bed ? roomBedLabel(r.room.number, r.bed.number) : r.room.number}</td>
                       <td className="px-3 py-3">{formatDate(r.startDate)}</td>

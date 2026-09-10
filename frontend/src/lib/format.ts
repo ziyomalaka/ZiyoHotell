@@ -59,6 +59,70 @@ export function formatMoney(value: number) {
   return `${n < 0 ? "-" : ""}${grouped} so‘m`;
 }
 
+export function dash(value?: string | number | null) {
+  const text = value == null ? "" : String(value).trim();
+  return text || "—";
+}
+
+/** ID: 2 ta lotin harf + 7 ta raqam, masalan AA1234567. */
+export const PASSPORT_ID_RE = /^[A-Z]{2}\d{7}$/;
+
+export function formatPassportId(raw: string) {
+  let letters = "";
+  let digits = "";
+  for (const ch of raw.toUpperCase()) {
+    if (letters.length < 2) {
+      if (/[A-Z]/.test(ch)) letters += ch;
+      continue;
+    }
+    if (digits.length < 7 && /\d/.test(ch)) digits += ch;
+  }
+  return letters + digits;
+}
+
+export function isValidPassportId(value: string) {
+  return PASSPORT_ID_RE.test(value.trim().toUpperCase());
+}
+
+export const UZ_PHONE_PREFIX = "+998";
+export const UZ_PHONE_LOCAL_LEN = 9;
+
+export function uzPhoneLocal(raw: string) {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("998")) digits = digits.slice(3);
+  return digits.slice(0, UZ_PHONE_LOCAL_LEN);
+}
+
+export function formatUzPhone(raw: string) {
+  const local = uzPhoneLocal(raw);
+  return local ? `${UZ_PHONE_PREFIX}${local}` : "";
+}
+
+/** +998 (50) 571-71-58 */
+export function maskUzPhone(raw: string) {
+  const d = uzPhoneLocal(raw);
+  if (!d) return `${UZ_PHONE_PREFIX} `;
+  let out = `${UZ_PHONE_PREFIX} (${d.slice(0, 2)}`;
+  if (d.length < 2) return out;
+  out += ")";
+  const rest = d.slice(2);
+  if (!rest) return out;
+  out += ` ${rest.slice(0, 3)}`;
+  if (rest.length <= 3) return out;
+  out += `-${rest.slice(3, 5)}`;
+  if (rest.length <= 5) return out;
+  return `${out}-${rest.slice(5, 7)}`;
+}
+
+export function displayUzPhone(value?: string | null) {
+  return uzPhoneLocal(value || "") ? maskUzPhone(value || "") : "—";
+}
+
+export function isValidUzPhone(value: string) {
+  const local = uzPhoneLocal(value);
+  return !local || local.length === UZ_PHONE_LOCAL_LEN;
+}
+
 export function todayISO(date: Date | string = new Date()) {
   const p = tashkentParts(date);
   if (!p) return "";

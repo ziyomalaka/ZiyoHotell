@@ -9,6 +9,8 @@ import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   checkoutDate,
+  dash,
+  displayUzPhone,
   floorLabel,
   formatDate,
   formatMoney,
@@ -26,7 +28,7 @@ type Pay = {
   method: string;
   status: string;
   paidAt: string;
-  customer: { fullName: string };
+  customer: { fullName: string; phone?: string; passportId?: string };
   coversTo?: string | null;
   stay: {
     totalAmount: number;
@@ -115,7 +117,7 @@ export default function ManagerPaymentsPage() {
         ))}
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mijoz / telefon / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mijoz / telefon / ID / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
         <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2">
           <option value="">Tur</option>
           <option value="DAILY">Kunlik</option>
@@ -144,7 +146,7 @@ export default function ManagerPaymentsPage() {
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["Mijoz", "Qavat", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Chiqish kuni", "Vaqt", "Holat", "Reception"].map((h) => (
+              {["Mijoz", "Telefon", "ID raqami", "Qavat", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Chiqish kuni", "Vaqt", "Holat", "Reception"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -155,6 +157,8 @@ export default function ManagerPaymentsPage() {
             {data.rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.customer.fullName}</td>
+                <td className="px-3 py-3">{displayUzPhone(r.customer.phone)}</td>
+                <td className="px-3 py-3">{dash(r.customer.passportId)}</td>
                 <td className="px-3 py-3">{floorLabel(r.stay.room.floor)}</td>
                 <td className="px-3 py-3">
                   {r.stay.room.number}/{r.stay.bed.number}

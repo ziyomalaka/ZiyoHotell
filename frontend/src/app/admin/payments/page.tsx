@@ -6,7 +6,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, payStatusLabel } from "@/lib/format";
 
 type Pay = {
   id: string;
@@ -16,7 +16,7 @@ type Pay = {
   method: string;
   status: string;
   paidAt: string;
-  customer: { fullName: string };
+  customer: { fullName: string; phone?: string; passportId?: string };
   coversTo?: string | null;
   stay: {
     totalAmount: number;
@@ -87,12 +87,14 @@ export default function AdminPaymentsPage() {
       <div className="mt-4 card overflow-x-auto">
         <table className="data-table">
           <thead className="bg-background text-left">
-            <tr>{["Mijoz","Qavat","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Chiqish kuni","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
+            <tr>{["Mijoz","Telefon","ID raqami","Qavat","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Chiqish kuni","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
           </thead>
           <tbody>
             {data.rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="px-3 py-3">{r.customer.fullName}</td>
+                <td className="px-3 py-3">{displayUzPhone(r.customer.phone)}</td>
+                <td className="px-3 py-3">{dash(r.customer.passportId)}</td>
                 <td className="px-3 py-3">{floorLabel(r.stay.room.floor)}</td>
                 <td className="px-3 py-3">{r.stay.room.number}/{r.stay.bed.number}</td>
                 <td className="px-3 py-3">{r.type === "DAILY" ? "Kunlik" : "Oylik"}</td>

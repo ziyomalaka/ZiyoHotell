@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
   IsIn,
@@ -7,10 +7,27 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
+
+const PASSPORT_ID_MSG = 'ID raqami 2 ta harf va 7 ta raqam bo‘lishi kerak. Masalan: AA1234567.';
+const PHONE_MSG = 'Telefon raqami +998 dan keyin 9 ta raqam bo‘lishi kerak.';
+
+function toPassportId(value: unknown) {
+  return typeof value === 'string' ? value.trim().toUpperCase() : value;
+}
+
+function toUzPhone(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return typeof value === 'string' ? '' : value;
+  let digits = value.replace(/\D/g, '');
+  if (digits.startsWith('998')) digits = digits.slice(3);
+  if (!digits) return '';
+  return `+998${digits}`;
+}
 
 export class RegisterDto {
   @ApiProperty()
@@ -18,10 +35,13 @@ export class RegisterDto {
   @MinLength(1)
   fullName!: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ example: '+998901234567' })
+  @Transform(({ value }) => toUzPhone(value))
+  @IsOptional()
+  @ValidateIf((_, v) => !!v)
   @IsString()
-  @MinLength(1)
-  phone!: string;
+  @Matches(/^\+998\d{9}$/, { message: PHONE_MSG })
+  phone?: string;
 
   @ApiPropertyOptional({ enum: ['MALE', 'FEMALE'] })
   @IsOptional()
@@ -33,10 +53,11 @@ export class RegisterDto {
   @IsString()
   birthDate?: string | null;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ example: 'AA1234567' })
+  @Transform(({ value }) => toPassportId(value))
   @IsString()
-  passportId?: string;
+  @Matches(/^[A-Z]{2}\d{7}$/, { message: PASSPORT_ID_MSG })
+  passportId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -99,6 +120,52 @@ export class RegisterDto {
   @IsOptional()
   @IsIn(['CASH', 'CARD', 'BANK', 'BANK_TRANSFER', 'OTHER'])
   paymentMethod?: 'CASH' | 'CARD' | 'BANK' | 'BANK_TRANSFER' | 'OTHER';
+}
+
+export class UpdateCustomerDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  fullName!: string;
+
+  @ApiPropertyOptional({ example: '+998901234567' })
+  @Transform(({ value }) => toUzPhone(value))
+  @IsOptional()
+  @ValidateIf((_, v) => !!v)
+  @IsString()
+  @Matches(/^\+998\d{9}$/, { message: PHONE_MSG })
+  phone?: string;
+
+  @ApiPropertyOptional({ enum: ['MALE', 'FEMALE'] })
+  @IsOptional()
+  @IsIn(['MALE', 'FEMALE'])
+  gender?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  birthDate?: string | null;
+
+  @ApiProperty({ example: 'AA1234567' })
+  @Transform(({ value }) => toPassportId(value))
+  @IsString()
+  @Matches(/^[A-Z]{2}\d{7}$/, { message: PASSPORT_ID_MSG })
+  passportId!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  address?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  extraPhone?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string | null;
 }
 
 export class CheckoutDto {

@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -16,7 +16,7 @@ type Stay = {
   paidDays?: number;
   paidDaysLabel?: string;
   daysLeft?: number | null;
-  customer: { fullName: string };
+  customer: { fullName: string; phone?: string; passportId?: string };
   room: { number: string; floor: number };
   bed: { number: number };
 };
@@ -30,7 +30,7 @@ type Payment = {
   status: string;
   method?: string;
   paidAt: string;
-  customer: { fullName: string };
+  customer: { fullName: string; phone?: string; passportId?: string };
   stay: {
     room: { number: string; floor: number };
     bed: { number: number };
@@ -159,6 +159,8 @@ export default function PaymentsPage() {
           <thead>
             <tr>
               <th>F.I.Sh.</th>
+              <th>Telefon</th>
+              <th>ID raqami</th>
               <th>Qavat</th>
               <th>Xona</th>
               <th>O‘rin</th>
@@ -175,6 +177,8 @@ export default function PaymentsPage() {
             {data.rows.map((row) => (
               <tr key={row.id}>
                 <td>{row.customer.fullName}</td>
+                <td>{displayUzPhone(row.customer.phone)}</td>
+                <td>{dash(row.customer.passportId)}</td>
                 <td>{floorLabel(row.stay.room.floor)}</td>
                 <td>{row.stay.room.number}</td>
                 <td>{row.stay.bed.number}</td>

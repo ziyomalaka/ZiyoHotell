@@ -68,6 +68,7 @@ export class ExcelService {
       '№',
       'F.I.Sh.',
       'Telefon',
+      'ID raqami',
       'Qavat',
       'Xona',
       'O‘rin',
@@ -83,6 +84,7 @@ export class ExcelService {
         i + 1,
         r.fullName,
         r.phone,
+        r.passportId,
         r.floor,
         r.room,
         r.bed,
@@ -131,6 +133,7 @@ export class ExcelService {
         '№',
         'F.I.Sh.',
         'Telefon',
+        'ID raqami',
         'Jins',
         'Qavat',
         'Xona',
@@ -146,6 +149,7 @@ export class ExcelService {
           i + 1,
           row.customer.fullName,
           row.customer.phone,
+          row.customer.passportId,
           genderLabel(row.customer.gender),
           row.room.floor,
           row.room.number,
@@ -236,11 +240,12 @@ export class ExcelService {
     const fx = this.floorSuffix(floor);
     if (type === 'customers') {
       const data = await this.reports.customersReport(from, to, undefined, undefined, floor);
-      sheet.addRow(['F.I.Sh.', 'Telefon', 'Jins', 'Qavat', 'Xona', 'Kirish', 'Chiqish', 'Holat']);
+      sheet.addRow(['F.I.Sh.', 'Telefon', 'ID raqami', 'Jins', 'Qavat', 'Xona', 'Kirish', 'Chiqish', 'Holat']);
       data.rows.forEach((row) =>
         sheet.addRow([
           row.customer.fullName,
           row.customer.phone,
+          row.customer.passportId,
           genderLabel(row.customer.gender),
           row.room.floor,
           row.room.number,
@@ -353,12 +358,13 @@ export class ExcelService {
     const fx = this.floorSuffix(floor);
     if (type === 'customers') {
       const data = await this.managerSvc.customersReport(opts.from, opts.to, floor);
-      sheet.addRow(['№', 'F.I.Sh.', 'Telefon', 'Jins', 'Qavat', 'Xona', 'O‘rin', 'Kirish', 'Chiqish', 'Tur', 'Holat']);
+      sheet.addRow(['№', 'F.I.Sh.', 'Telefon', 'ID raqami', 'Jins', 'Qavat', 'Xona', 'O‘rin', 'Kirish', 'Chiqish', 'Tur', 'Holat']);
       data.rows.forEach((row, i) =>
         sheet.addRow([
           i + 1,
           row.customer.fullName,
           row.customer.phone,
+          row.customer.passportId,
           genderLabel(row.customer.gender),
           row.room.floor,
           row.room.number,

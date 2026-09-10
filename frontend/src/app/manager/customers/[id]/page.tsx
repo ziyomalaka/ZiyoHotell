@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import {
   customerGenderLabel,
+  dash,
+  displayUzPhone,
   floorLabel,
   formatDate,
   formatMoney,
@@ -50,9 +52,9 @@ export default function ManagerCustomerProfile() {
     <div className="space-y-5">
       <h1 className="sr-only">{c.fullName}</h1>
       <section className="grid gap-3 card p-5 text-sm sm:grid-cols-2">
-        <p>Telefon: {c.phone}</p>
+        <p>Telefon: {displayUzPhone(c.phone)}</p>
         <p>Jins: {customerGenderLabel(c.gender)}</p>
-        <p>Pasport / ID: {c.passportId}</p>
+        <p>ID raqami: {dash(c.passportId)}</p>
         <p>Manzil: {c.address || "—"}</p>
         <p>Qavat: {stay ? floorLabel(stay.room.floor) : "—"}</p>
         <p>Xona / o‘rin: {stay ? `${stay.room.number}/${stay.bed.number}` : "—"}</p>
