@@ -23,17 +23,17 @@ export class ReportsService {
   }
 
   async customersReport(from?: string, to?: string, roomId?: string, status?: string, floor?: number) {
-    const createdAt = this.range(from, to);
+    const dates = this.range(from, to);
     const level = this.level(floor);
     const stays = await this.prisma.stay.findMany({
       where: {
-        ...(createdAt ? { startDate: createdAt } : {}),
+        ...(dates ? { startDate: dates } : {}),
         ...(roomId ? { roomId } : {}),
         ...(status ? { status } : {}),
         ...(level ? { room: { floor: level } } : {}),
       },
       include: { customer: true, room: true, bed: true },
-      orderBy: { startDate: 'desc' },
+      orderBy: { startDate: 'asc' },
     });
     const active = level
       ? await this.prisma.occupancy.count({ where: { bed: { room: { floor: level } } } })

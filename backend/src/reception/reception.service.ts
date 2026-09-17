@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
@@ -36,8 +36,69 @@ const stayInclude = {
 } as const;
 
 @Injectable()
-export class ReceptionService {
+export class ReceptionService implements OnModuleInit {
+  private readonly logger = new Logger(ReceptionService.name);
+
   constructor(private prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.realignRegisterPaidAt();
+  }
+
+  /**
+   * To‘lov sanalari, yopilgan davr va chiqish kuni kirish sanasidan qayta hisoblanadi.
+   * Birinchi to‘lov = kirish kuni. Keyingi to‘lovlar shu davr ustiga yoziladi.
+   */
+  private async realignRegisterPaidAt() {
+    const stays = await this.prisma.stay.findMany({
+      select: {
+        id: true,
+        startDate: true,
+        paidDays: true,
+        paidUntil: true,
+        payments: {
+          where: { status: { not: 'CANCELLED' } },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, paidAt: true, days: true, coversFrom: true, coversTo: true },
+        },
+      },
+    });
+    let paymentsFixed = 0;
+    let staysFixed = 0;
+    const sameDay = (a?: Date | null, b?: Date | null) => !!a && !!b && todayISO(a) === todayISO(b);
+    for (const stay of stays) {
+      const origin = stay.startDate;
+      let already = 0;
+      for (let i = 0; i < stay.payments.length; i++) {
+        const payment = stay.payments[i];
+        const from = addDays(origin, already);
+        const days = Math.max(0, payment.days || 0);
+        const to = days ? addDays(from, days) : from;
+        const data: { paidAt?: Date; coversFrom?: Date; coversTo?: Date } = {};
+        if (i === 0 && todayISO(payment.paidAt) !== todayISO(origin)) data.paidAt = origin;
+        if (days && (!sameDay(payment.coversFrom, from) || !sameDay(payment.coversTo, to))) {
+          data.coversFrom = from;
+          data.coversTo = to;
+        }
+        if (Object.keys(data).length) {
+          await this.prisma.payment.update({ where: { id: payment.id }, data });
+          paymentsFixed += 1;
+        }
+        already += days;
+      }
+      const paidUntil = already ? addDays(origin, already) : origin;
+      if (stay.paidDays !== already || !sameDay(stay.paidUntil, paidUntil)) {
+        await this.prisma.stay.update({
+          where: { id: stay.id },
+          data: { paidDays: already, paidUntil },
+        });
+        staysFixed += 1;
+      }
+    }
+    if (paymentsFixed || staysFixed) {
+      this.logger.log(`Hisobot kirish kunidan qayta hisoblandi: ${staysFixed} ta yozuv, ${paymentsFixed} ta to‘lov.`);
+    }
+  }
 
   private contains(q: string): Prisma.StringFilter {
     return { contains: q, mode: 'insensitive' };
@@ -165,7 +226,7 @@ export class ReceptionService {
         const paymentMonth = input.stayType === 'MONTHLY' ? input.paymentMonth || input.startDate.slice(0, 7) : null;
         const method = input.paymentMethod === 'BANK_TRANSFER' ? 'BANK' : input.paymentMethod || 'CASH';
 
-        const paidAt = parseDate(todayISO());
+        const paidAt = startDate;
         const period =
           paidAmount > 0
             ? paymentPeriod({
@@ -331,7 +392,7 @@ export class ReceptionService {
       });
       if (!stay) throw new AppError('Mijoz topilmadi.');
       const paidAmount = stay.paidAmount + amount;
-      const paidAt = input.paymentDate ? parseDate(input.paymentDate) : new Date();
+      const paidAt = parseDate(input.paymentDate || todayISO());
 
       // Oylik: 25 000/kun. Kunlik: 50 000/kun. Hisob kirish kunidan.
       const type = input.type || stay.type;
