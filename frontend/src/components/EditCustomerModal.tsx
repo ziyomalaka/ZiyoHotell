@@ -146,7 +146,10 @@ export function EditCustomerModal({
     [rooms, form.gender],
   );
   const floors = useMemo(
-    () => [...new Set(genderRooms.map((r) => r.floor).filter((n): n is number => Number.isInteger(n) && n >= 1))].sort((a, b) => a - b),
+    () =>
+      [...new Set(genderRooms.map((r) => r.floor).filter((n): n is number => typeof n === "number" && Number.isInteger(n) && n >= 1))].sort(
+        (a, b) => a - b,
+      ),
     [genderRooms],
   );
   const floorRooms = useMemo(
