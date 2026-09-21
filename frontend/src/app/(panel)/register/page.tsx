@@ -61,6 +61,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
+  const [idTaken, setIdTaken] = useState(false);
   const today = useTodayISO();
 
   function load() {
@@ -75,6 +76,27 @@ export default function RegisterPage() {
   useEffect(() => {
     if (today) setForm((prev) => (prev.startDate ? prev : { ...prev, startDate: today }));
   }, [today]);
+
+  useEffect(() => {
+    if (!isValidPassportId(form.passportId)) {
+      setIdTaken(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api<{ id?: string } | null>(`/api/v1/reception/customers/search?passport=${encodeURIComponent(form.passportId)}`)
+        .then((found) => {
+          if (!cancelled) setIdTaken(!!found?.id);
+        })
+        .catch(() => {
+          if (!cancelled) setIdTaken(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [form.passportId]);
 
   // Faqat mijoz jinsiga ajratilgan xonalar ko‘rsatiladi — aralash joylashtirish oldini oladi.
   const activeRooms = useMemo(
@@ -105,6 +127,10 @@ export default function RegisterPage() {
     }
     if (!isValidPassportId(form.passportId)) {
       setError("ID raqami 2 ta harf va 7 ta raqam bo‘lishi kerak. Masalan: AA1234567.");
+      return;
+    }
+    if (idTaken) {
+      setError("Bu mijoz kiritilgan.");
       return;
     }
     if (!isValidUzPhone(form.phone)) {
@@ -191,6 +217,7 @@ export default function RegisterPage() {
           </FormField>
           <FormField label="ID raqami" required>
             <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} />
+            {idTaken ? <p className="mt-1 text-xs text-danger">Bu mijoz kiritilgan.</p> : null}
           </FormField>
           <FormField label="Jinsi" required>
             <select
@@ -298,7 +325,7 @@ export default function RegisterPage() {
         </div>
         {success ? <p className="rounded-md bg-[#e8f4ec] px-4 py-3 text-sm text-[#2d6a45]">{success}</p> : null}
         {error ? <p className="rounded-md bg-[#f8ecec] px-4 py-3 text-sm text-[#9b3b3b]">{error}</p> : null}
-        <button className="btn-primary h-12 w-full text-base md:w-auto md:min-w-64" disabled={saving}>
+        <button className="btn-primary h-12 w-full text-base md:w-auto md:min-w-64" disabled={saving || idTaken}>
           {saving ? "Saqlanmoqda..." : "SAQLASH"}
         </button>
       </form>

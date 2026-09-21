@@ -47,7 +47,7 @@ export default function ManagerCustomerProfile() {
     api<Profile>(`/api/v1/manager/customers/${params.id}`).then(setC);
   }, [params.id]);
   if (!c) return <p>Yuklanmoqda...</p>;
-  const stay = c.occupancy?.stay;
+  const stay = c.occupancy?.stay || c.stays[0];
   return (
     <div className="space-y-5">
       <h1 className="sr-only">{c.fullName}</h1>

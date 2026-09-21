@@ -70,8 +70,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = 'Ushbu mijoz hozir yotoqxonada faol.';
         code = 'CUSTOMER_ALREADY_ACTIVE';
       } else if (target.includes('passportId')) {
-        message = 'Ushbu pasport / ID allaqachon mavjud.';
-        code = 'PASSPORT_TAKEN';
+        message = 'Bu mijoz kiritilgan.';
+        code = 'CUSTOMER_ALREADY_EXISTS';
       } else {
         message = 'Ma’lumotni saqlashda xatolik yuz berdi. Qayta urinib ko‘ring.';
         code = 'CONFLICT';

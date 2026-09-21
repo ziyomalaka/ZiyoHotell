@@ -166,6 +166,11 @@ export class UpdateCustomerDto {
   @IsOptional()
   @IsString()
   notes?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  bedId?: string;
 }
 
 export class CheckoutDto {

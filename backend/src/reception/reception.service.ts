@@ -120,11 +120,14 @@ export class ReceptionService implements OnModuleInit {
 
   async findCustomerByPassportOrPhone(passportId?: string, phone?: string) {
     if (passportId) {
-      const byPassport = await this.prisma.customer.findUnique({
-        where: { passportId: passportId.trim() },
-        include: { occupancy: { include: { stay: { include: stayInclude } } } },
-      });
-      if (byPassport) return byPassport;
+      const id = passportId.trim().toUpperCase();
+      if (/^[A-Z]{2}\d{7}$/.test(id)) {
+        const byPassport = await this.prisma.customer.findUnique({
+          where: { passportId: id },
+          include: { occupancy: { include: { stay: { include: stayInclude } } } },
+        });
+        if (byPassport) return byPassport;
+      }
     }
     if (phone) {
       return this.prisma.customer.findFirst({
@@ -187,40 +190,23 @@ export class ReceptionService implements OnModuleInit {
           );
         }
 
-        let customer = await tx.customer.findUnique({ where: { passportId } });
-        if (customer) {
-          const active = await tx.occupancy.findUnique({ where: { customerId: customer.id } });
-          if (active) {
-            throw new AppError('Ushbu mijoz hozir yotoqxonada faol.', 409, 'CUSTOMER_ALREADY_ACTIVE');
-          }
-          customer = await tx.customer.update({
-            where: { id: customer.id },
-            data: {
-              fullName: input.fullName.trim(),
-              phone: phone || customer.phone,
-              gender,
-              birthDate: input.birthDate ? parseDate(input.birthDate) : customer.birthDate,
-              passportId,
-              address: input.address?.trim() || customer.address,
-              extraPhone: normalizePhone(input.extraPhone) || customer.extraPhone,
-              notes: input.notes?.trim() || null,
-            },
-          });
-        } else {
-          customer = await tx.customer.create({
-            data: {
-              fullName: input.fullName.trim(),
-              phone,
-              gender,
-              birthDate: input.birthDate ? parseDate(input.birthDate) : null,
-              passportId,
-              address: input.address?.trim() || null,
-              extraPhone: normalizePhone(input.extraPhone) || null,
-              notes: input.notes?.trim() || null,
-              createdById: userId,
-            },
-          });
+        const existing = await tx.customer.findUnique({ where: { passportId } });
+        if (existing) {
+          throw new AppError('Bu mijoz kiritilgan.', 409, 'CUSTOMER_ALREADY_EXISTS');
         }
+        const customer = await tx.customer.create({
+          data: {
+            fullName: input.fullName.trim(),
+            phone,
+            gender,
+            birthDate: input.birthDate ? parseDate(input.birthDate) : null,
+            passportId,
+            address: input.address?.trim() || null,
+            extraPhone: normalizePhone(input.extraPhone) || null,
+            notes: input.notes?.trim() || null,
+            createdById: userId,
+          },
+        });
 
         const startDate = parseDate(input.startDate);
         const paymentMonth = input.stayType === 'MONTHLY' ? input.paymentMonth || input.startDate.slice(0, 7) : null;
@@ -542,52 +528,115 @@ export class ReceptionService implements OnModuleInit {
       address?: string | null;
       extraPhone?: string | null;
       notes?: string | null;
+      bedId?: string;
     },
     userId: string,
   ) {
     required({ fullName: input.fullName, passportId: input.passportId });
-    const customer = await this.prisma.customer.findUnique({
-      where: { id },
-      include: { occupancy: { include: { stay: { include: { room: true } } } } },
-    });
-    if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
-    const gender = input.gender === 'FEMALE' ? 'FEMALE' : input.gender === 'MALE' ? 'MALE' : customer.gender;
-    const room = customer.occupancy?.stay.room;
-    if (room && roomGender(room.gender) !== gender) {
-      throw new AppError(
-        `Yashayotgan xona ${genderWord(room.gender)} uchun. Jinsni o‘zgartirish uchun avval chiqaring.`,
-        409,
-        'GENDER_MISMATCH',
-      );
-    }
     const passportId = normalizePassportId(input.passportId);
-    if (passportId !== customer.passportId) {
-      const taken = await this.prisma.customer.findUnique({ where: { passportId } });
-      if (taken) throw new AppError('Ushbu ID raqami allaqachon mavjud.', 409, 'PASSPORT_TAKEN');
-    }
-    const row = await this.prisma.customer.update({
-      where: { id },
-      data: {
-        fullName: input.fullName.trim(),
-        phone: normalizePhone(input.phone),
-        gender,
-        notes: input.notes?.trim() || null,
-        extraPhone: normalizePhone(input.extraPhone) || null,
-        address: input.address?.trim() || null,
-        passportId,
-        birthDate: input.birthDate ? parseDate(input.birthDate) : input.birthDate === null || input.birthDate === '' ? null : customer.birthDate,
-      },
+
+    return this.prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id },
+        include: { occupancy: { include: { stay: { include: { room: true } } } } },
+      });
+      if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
+      const gender = input.gender === 'FEMALE' ? 'FEMALE' : input.gender === 'MALE' ? 'MALE' : customer.gender;
+      if (passportId !== customer.passportId) {
+        const taken = await tx.customer.findUnique({ where: { passportId } });
+        if (taken) throw new AppError('Bu mijoz kiritilgan.', 409, 'CUSTOMER_ALREADY_EXISTS');
+      }
+
+      let stayId = customer.occupancy?.stay.id;
+      let newBedId = customer.occupancy?.stay.bedId;
+      let newRoomId = customer.occupancy?.stay.roomId;
+      if (input.bedId) {
+        await tx.$queryRaw`SELECT id FROM "Bed" WHERE id = ${input.bedId} FOR UPDATE`;
+        const bed = await tx.bed.findUnique({
+          where: { id: input.bedId },
+          include: { room: true, occupancy: true },
+        });
+        if (!bed || bed.status !== 'ACTIVE' || bed.room.status !== 'ACTIVE') {
+          throw new AppError('Ushbu o‘rin band. Boshqa o‘rin tanlang.', 409, 'BED_ALREADY_OCCUPIED');
+        }
+        if (bed.occupancy && bed.occupancy.customerId !== id) {
+          throw new AppError('Ushbu o‘rin band. Boshqa o‘rin tanlang.', 409, 'BED_ALREADY_OCCUPIED');
+        }
+        if (bed.room.gender !== gender) {
+          throw new AppError(
+            `${bed.room.floor}-qavat ${bed.room.number}-xona ${genderWord(bed.room.gender)} uchun ajratilgan. ${genderWord(gender)} uchun boshqa xona tanlang.`,
+            409,
+            'ROOM_GENDER_MISMATCH',
+          );
+        }
+        const stay =
+          customer.occupancy?.stay ||
+          (await tx.stay.findFirst({
+            where: { customerId: id },
+            orderBy: { createdAt: 'desc' },
+          }));
+        if (!stay) {
+          throw new AppError('Mijozda yashash yozuvi yo‘q. Avval ro‘yxatga oling.', 409, 'NO_STAY');
+        }
+        if (input.bedId !== stay.bedId) {
+          if (customer.occupancy) {
+            await tx.occupancy.delete({ where: { customerId: id } });
+          }
+          await tx.stay.update({
+            where: { id: stay.id },
+            data: { roomId: bed.roomId, bedId: bed.id },
+          });
+          if (customer.occupancy || stay.status === 'ACTIVE') {
+            await tx.occupancy.create({
+              data: { bedId: bed.id, stayId: stay.id, customerId: id },
+            });
+          }
+        }
+        stayId = stay.id;
+        newBedId = bed.id;
+        newRoomId = bed.roomId;
+      } else if (customer.occupancy) {
+        const room = customer.occupancy.stay.room;
+        if (roomGender(room.gender) !== gender) {
+          throw new AppError(
+            `Yashayotgan xona ${genderWord(room.gender)} uchun. Jinsni o‘zgartirish uchun avval boshqa xonaga o‘tkazing.`,
+            409,
+            'GENDER_MISMATCH',
+          );
+        }
+      }
+
+      const row = await tx.customer.update({
+        where: { id },
+        data: {
+          fullName: input.fullName.trim(),
+          phone: normalizePhone(input.phone),
+          gender,
+          notes: input.notes?.trim() || null,
+          extraPhone: normalizePhone(input.extraPhone) || null,
+          address: input.address?.trim() || null,
+          passportId,
+          birthDate: input.birthDate ? parseDate(input.birthDate) : input.birthDate === null || input.birthDate === '' ? null : customer.birthDate,
+        },
+        include: { occupancy: { include: { stay: { include: { room: true, bed: true } } } } },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'CUSTOMER_UPDATE',
+          entity: 'Customer',
+          entityId: id,
+          meta: JSON.stringify({
+            fullName: row.fullName,
+            phone: row.phone,
+            stayId,
+            bedId: newBedId,
+            roomId: newRoomId,
+          }),
+        },
+      });
+      return row;
     });
-    await this.prisma.auditLog.create({
-      data: {
-        userId,
-        action: 'CUSTOMER_UPDATE',
-        entity: 'Customer',
-        entityId: id,
-        meta: JSON.stringify({ fullName: row.fullName, phone: row.phone }),
-      },
-    });
-    return row;
   }
 
   async deleteCustomer(id: string, userId: string) {
@@ -597,6 +646,7 @@ export class ReceptionService implements OnModuleInit {
       throw new AppError('Mijoz hozir yashayapti. Avval chiqaring.', 409, 'CUSTOMER_ALREADY_ACTIVE');
     }
     await this.prisma.$transaction(async (tx) => {
+      await tx.reminder.deleteMany({ where: { customerId: id } });
       await tx.payment.deleteMany({ where: { customerId: id } });
       await tx.checkLog.deleteMany({ where: { customerId: id } });
       await tx.stay.deleteMany({ where: { customerId: id } });

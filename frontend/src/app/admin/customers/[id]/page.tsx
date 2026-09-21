@@ -33,6 +33,7 @@ export default function CustomerProfilePage() {
     api<Profile>(`/api/v1/admin/customers/${params.id}`).then(setC);
   }, [params.id]);
   if (!c) return <p>Yuklanmoqda...</p>;
+  const place = c.occupancy?.stay || c.stays[0];
   return (
     <div className="space-y-5">
       <h1 className="sr-only">{c.fullName}</h1>
@@ -43,9 +44,7 @@ export default function CustomerProfilePage() {
         <p>Manzil: {c.address || "—"}</p>
         <p>
           Qavat / xona / o‘rin:{" "}
-          {c.occupancy
-            ? `${floorLabel(c.occupancy.stay.room.floor)} · ${c.occupancy.stay.room.number}/${c.occupancy.stay.bed.number}`
-            : "—"}
+          {place ? `${floorLabel(place.room.floor)} · ${place.room.number}/${place.bed.number}` : "—"}
         </p>
         <p>Qarzdorlik: {formatMoney(c.debt)}</p>
       </section>
