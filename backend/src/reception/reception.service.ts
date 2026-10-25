@@ -363,6 +363,8 @@ export class ReceptionService implements OnModuleInit {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Bir stay'ga parallel to'lovlar navbat bilan yozilsin: aks holda paidAmount/paidDays yo'qoladi.
+      await tx.$queryRaw`SELECT id FROM "Stay" WHERE id = ${input.stayId} FOR UPDATE`;
       if (input.idempotencyKey) {
         const dup = await tx.payment.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
         if (dup) {
@@ -423,15 +425,24 @@ export class ReceptionService implements OnModuleInit {
   async cancelPayment(paymentId: string, reason: string, userId: string) {
     required({ paymentId, reason });
     return this.prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.findUnique({ where: { id: paymentId } });
-      if (!payment || payment.status === 'CANCELLED') throw new AppError('To‘lov topilmadi.');
+      const target = await tx.payment.findUnique({ where: { id: paymentId }, select: { stayId: true } });
+      if (!target) throw new AppError('To‘lov topilmadi.');
+      // addPayment bilan bir xil qulf: parallel bekor qilish summani ikki marta ayirmasin.
+      await tx.$queryRaw`SELECT id FROM "Stay" WHERE id = ${target.stayId} FOR UPDATE`;
+      const payment = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+      if (payment.status === 'CANCELLED') {
+        throw new AppError('To‘lov allaqachon bekor qilingan.', 409, 'PAYMENT_ALREADY_CANCELLED');
+      }
       await tx.payment.update({
         where: { id: paymentId },
         data: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: reason.trim(), cancelledById: userId },
       });
-      const stay = await tx.stay.findUniqueOrThrow({ where: { id: payment.stayId } });
-      // Bekor qilingan to'lov bergan kunlar ham muddatdan qaytarib olinadi.
-      await tx.stay.update({ where: { id: stay.id }, data: revertPeriod(stay, payment) });
+      // UNPAID qator stay hisobiga hech narsa qo'shmagan, shuning uchun faqat PAID qaytariladi.
+      if (payment.status === 'PAID') {
+        const stay = await tx.stay.findUniqueOrThrow({ where: { id: payment.stayId } });
+        // Bekor qilingan to'lov bergan kunlar ham muddatdan qaytarib olinadi.
+        await tx.stay.update({ where: { id: stay.id }, data: revertPeriod(stay, payment) });
+      }
       await tx.auditLog.create({
         data: { userId, action: 'PAYMENT_CANCEL', entity: 'Payment', entityId: paymentId, meta: JSON.stringify({ reason }) },
       });

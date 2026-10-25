@@ -364,7 +364,7 @@ export class ManagerService {
       },
     });
     if (!customer) return null;
-    const paid = customer.payments.filter((p) => p.status !== 'CANCELLED').reduce((a, p) => a + p.amount, 0);
+    const paid = customer.payments.filter((p) => p.status === 'PAID').reduce((a, p) => a + p.amount, 0);
     const debt = customer.stays.reduce((acc, s) => acc + stayDebt(s.totalAmount, s.paidAmount), 0);
     return { ...customer, paid, debt };
   }
@@ -491,10 +491,10 @@ export class ManagerService {
         OR: [
           { startDate: { gte: dayStart(from), lte: dayEnd(to) } },
           { status: 'ACTIVE' },
-          { payments: { some: { paidAt: { gte: dayStart(from), lte: dayEnd(end) }, status: { not: 'CANCELLED' } } } },
+          { payments: { some: { paidAt: { gte: dayStart(from), lte: dayEnd(end) }, status: 'PAID' } } },
         ],
       },
-      include: { customer: true, room: true, bed: true, payments: { where: { status: { not: 'CANCELLED' } }, orderBy: { paidAt: 'desc' } } },
+      include: { customer: true, room: true, bed: true, payments: { where: { status: 'PAID' }, orderBy: { paidAt: 'desc' } } },
     });
     const stayRows = stays.map((s) => ({
       customer: s.customer.fullName,

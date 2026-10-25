@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { api } from "@/lib/api";
+import { api, newIdempotencyKey } from "@/lib/api";
 import {
   DAILY_STAY_PRICE,
   DEFAULT_MONTHLY_PRICE,
@@ -40,6 +40,7 @@ export function AddPaymentModal({
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [idempotencyKey] = useState(newIdempotencyKey);
 
   const price = stay.monthlyPrice || DEFAULT_MONTHLY_PRICE;
   const days = daysForAmount(Number(amount || 0), price, type);
@@ -63,6 +64,7 @@ export function AddPaymentModal({
           method,
           paymentDate,
           note: note.trim() || undefined,
+          idempotencyKey,
         }),
       });
       onSaved();

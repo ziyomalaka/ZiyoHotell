@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, newIdempotencyKey } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
@@ -71,6 +71,7 @@ export default function PaymentsPage() {
     note: "",
   });
   const [error, setError] = useState("");
+  const [payKey, setPayKey] = useState(newIdempotencyKey);
 
   async function load(nextPage = page) {
     const params = new URLSearchParams({ page: String(nextPage), q, type, status, from: date, to: date });
@@ -101,8 +102,10 @@ export default function PaymentsPage() {
           method: form.method,
           paymentDate: form.paymentDate,
           note: form.note || undefined,
+          idempotencyKey: payKey,
         }),
       });
+      setPayKey(newIdempotencyKey());
       setOpen(false);
       setForm({ stayId: "", amount: String(DEFAULT_MONTHLY_PRICE), type: "MONTHLY", method: "CASH", paymentDate: todayISO(), note: "" });
       load();

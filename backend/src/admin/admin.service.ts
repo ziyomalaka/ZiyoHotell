@@ -69,11 +69,11 @@ export class AdminService {
         this.prisma.checkLog.count({ where: { type: 'CHECK_OUT', at: { gte: dayStart(today), lte: dayEnd(today) } } }),
         this.prisma.payment.aggregate({
           _sum: { amount: true },
-          where: { status: { not: 'CANCELLED' }, paidAt: { gte: dayStart(today), lte: dayEnd(today) } },
+          where: { status: 'PAID', paidAt: { gte: dayStart(today), lte: dayEnd(today) } },
         }),
         this.prisma.payment.aggregate({
           _sum: { amount: true },
-          where: { status: { not: 'CANCELLED' }, paidAt: { gte: dayStart(monthStart) } },
+          where: { status: 'PAID', paidAt: { gte: dayStart(monthStart) } },
         }),
         this.prisma.stay.findMany({ select: { totalAmount: true, paidAmount: true } }),
       ]);
@@ -94,7 +94,7 @@ export class AdminService {
       const [inc, cin, cout] = await Promise.all([
         this.prisma.payment.aggregate({
           _sum: { amount: true },
-          where: { status: { not: 'CANCELLED' }, paidAt: { gte: dayStart(day), lte: dayEnd(day) } },
+          where: { status: 'PAID', paidAt: { gte: dayStart(day), lte: dayEnd(day) } },
         }),
         this.prisma.checkLog.count({ where: { type: 'CHECK_IN', at: { gte: dayStart(day), lte: dayEnd(day) } } }),
         this.prisma.checkLog.count({ where: { type: 'CHECK_OUT', at: { gte: dayStart(day), lte: dayEnd(day) } } }),
@@ -434,7 +434,8 @@ export class AdminService {
       data: unblock ? { workStatus: 'ACTIVE', isActive: true } : { workStatus: 'BLOCKED', isActive: false },
     });
     await this.audit({ userId, action: 'STAFF_BLOCK', entity: 'User', entityId: id, ip });
-    return row;
+    const { passwordHash: _, ...safe } = row;
+    return safe;
   }
 
   async deleteStaff(id: string, actorId: string, ip?: string) {

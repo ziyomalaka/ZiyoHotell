@@ -19,6 +19,13 @@ function refreshSession() {
   return refreshInFlight;
 }
 
+/** Takroriy bosish yoki qayta yuborishda bitta to‘lov yaratilishi uchun kalit. randomUUID faqat HTTPS/localhost’da bor. */
+export function newIdempotencyKey() {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function goLogin() {
   if (typeof window === "undefined") return;
   if (window.location.pathname === "/login") return;

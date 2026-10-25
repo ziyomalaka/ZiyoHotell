@@ -105,7 +105,7 @@ export class ReportsService {
         ...(level ? { stay: { room: { floor: level } } } : {}),
         NOT: { status: 'CANCELLED' },
       },
-      include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: true },
+      include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: { select: { id: true, fullName: true } } },
       orderBy: { paidAt: 'desc' },
     });
     const sum = (status?: string, type?: string) =>
@@ -184,7 +184,7 @@ export class ReportsService {
         ...(at ? { at } : {}),
         ...(level ? { stay: { room: { floor: level } } } : {}),
       },
-      include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: true },
+      include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: { select: { id: true, fullName: true } } },
       orderBy: { at: 'desc' },
     });
   }
