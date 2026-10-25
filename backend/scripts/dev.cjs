@@ -2,7 +2,22 @@ const net = require("net");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const PORT = Number(process.env.PGPORT || 5432);
+// Port backend/.env dagi DATABASE_URL dan olinadi: 5432 boshqa Postgres bilan band bo‘lishi mumkin.
+try {
+  process.loadEnvFile(path.join(__dirname, "..", ".env"));
+} catch {
+  /* .env yo‘q yoki Node eski — PGPORT yoki 5432 ishlatiladi */
+}
+
+function databaseUrlPort() {
+  try {
+    return Number(new URL(process.env.DATABASE_URL || "").port) || null;
+  } catch {
+    return null;
+  }
+}
+
+const PORT = Number(process.env.PGPORT || databaseUrlPort() || 5432);
 const USER = "ziyohotel";
 const PASSWORD = "ziyohotel";
 const DATABASE = "ziyohotel";
