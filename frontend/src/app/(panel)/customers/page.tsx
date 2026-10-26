@@ -12,7 +12,6 @@ import { floorLabel } from "@/lib/format";
 type Row = {
   id: string;
   fullName: string;
-  living?: boolean;
   occupancy?: {
     stay: { room: { number: string; floor: number } };
   } | null;
@@ -20,7 +19,7 @@ type Row = {
 
 export default function ReceptionCustomersPage() {
   const router = useRouter();
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useState("living");
   const [q, setQ] = useState("");
   const [floor, setFloor] = useState("");
   const [page, setPage] = useState(1);
@@ -42,7 +41,6 @@ export default function ReceptionCustomersPage() {
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
         {[
-          ["all", "Barchasi"],
           ["living", "Hozir yashaydi"],
           ["left", "Chiqib ketgan"],
         ].map(([id, l]) => (
@@ -71,7 +69,6 @@ export default function ReceptionCustomersPage() {
                     <Link href={`/customers/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-navy hover:underline">
                       {r.fullName}
                     </Link>
-                    {!r.living ? <span className="ml-2 text-xs text-muted">chiqib ketgan</span> : null}
                   </td>
                   <td>
                     {room ? (
