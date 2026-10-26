@@ -703,13 +703,26 @@ export class ReceptionService implements OnModuleInit {
     const customer = await this.prisma.customer.findUnique({
       where: { id },
       include: {
+        createdBy: { select: { fullName: true } },
         occupancy: { include: { stay: { include: { room: true, bed: true } } } },
-        stays: { include: { room: true, bed: true }, orderBy: { createdAt: 'desc' } },
-        payments: { orderBy: { paidAt: 'desc' } },
+        stays: {
+          include: { room: true, bed: true, checkLogs: { orderBy: { at: 'asc' } } },
+          orderBy: { createdAt: 'desc' },
+        },
+        payments: {
+          include: { createdBy: { select: { fullName: true } }, stay: { include: { room: true, bed: true } } },
+          orderBy: { paidAt: 'desc' },
+        },
       },
     });
     if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
-    return customer;
+    const current = customer.occupancy?.stay;
+    return {
+      ...customer,
+      paid: customer.payments.filter((p) => p.status === 'PAID').reduce((acc, p) => acc + p.amount, 0),
+      // Profil sahifasi uchun: joriy yashashning to'lov muddati va qolgan kunlari.
+      current: current ? { ...current, ...periodInfo(current) } : null,
+    };
   }
 
   async roomBeds(id: string) {

@@ -1,50 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { AddPaymentModal } from "@/components/AddPaymentModal";
-import { ConfirmModal } from "@/components/ConfirmModal";
-import { EditCustomerModal } from "@/components/EditCustomerModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
-import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, customerGenderLabel, dash, displayUzPhone, floorLabel, formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { floorLabel } from "@/lib/format";
 
 type Row = {
   id: string;
   fullName: string;
-  phone: string;
-  passportId?: string; birthDate?: string | null;
-  gender: string;
-  payStatus: string;
   living?: boolean;
   occupancy?: {
-    stay: {
-      id: string;
-      startDate: string;
-      endDate?: string | null;
-      paidUntil?: string | null;
-      paidDays?: number | null;
-      monthlyPrice?: number;
-      checkoutDate?: string | null;
-      type: string;
-      room: { number: string; floor: number };
-      bed: { number: number };
-    };
+    stay: { room: { number: string; floor: number } };
   } | null;
 };
 
 export default function ReceptionCustomersPage() {
+  const router = useRouter();
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
   const [floor, setFloor] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ total: number; rows: Row[] }>({ total: 0, rows: [] });
-  const [drop, setDrop] = useState<Row | null>(null);
-  const [pay, setPay] = useState<Row | null>(null);
-  const [edit, setEdit] = useState<Row | null>(null);
-  const [error, setError] = useState("");
 
   async function load(nextPage = page) {
     const p = new URLSearchParams({ tab, q, page: String(nextPage) });
@@ -57,18 +37,6 @@ export default function ReceptionCustomersPage() {
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, q, floor]);
-
-  async function remove() {
-    if (!drop) return;
-    setError("");
-    try {
-      await api(`/api/v1/reception/customers/${drop.id}`, { method: "DELETE" });
-      setDrop(null);
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Mijozni o‘chirib bo‘lmadi.");
-    }
-  }
 
   return (
     <div>
@@ -85,119 +53,44 @@ export default function ReceptionCustomersPage() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / ID / xona" className="min-w-[200px] flex-1" />
         <FloorFilter scope="reception" value={floor} onChange={setFloor} />
       </div>
-      {error ? <p className="mb-3 rounded-md bg-[#f8ecec] px-4 py-3 text-sm text-[#9b3b3b]">{error}</p> : null}
       <div className="overflow-x-auto">
         <table className="data-table">
           <thead>
             <tr>
               <th>F.I.Sh.</th>
-              <th>Telefon</th>
-              <th>ID raqami</th>
-              <th>Tug‘ilgan sana</th>
-              <th>Jins</th>
-              <th>Qavat</th>
               <th>Xona</th>
-              <th>O‘rin</th>
-              <th>Kirish</th>
-              <th>Chiqish</th>
-              <th>Turi</th>
-              <th>To‘lov</th>
-              <th>Holati</th>
-              <th>Amal</th>
             </tr>
           </thead>
           <tbody>
-            {data.rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.fullName}</td>
-                <td>{displayUzPhone(r.phone)}</td>
-                <td>{dash(r.passportId)}</td>
-                <td>{formatDate(r.birthDate)}</td>
-                <td>{customerGenderLabel(r.gender)}</td>
-                <td>{r.occupancy ? floorLabel(r.occupancy.stay.room.floor) : "—"}</td>
-                <td>{r.occupancy?.stay.room.number || "—"}</td>
-                <td>{r.occupancy?.stay.bed.number ?? "—"}</td>
-                <td>{r.occupancy ? formatDate(r.occupancy.stay.startDate) : "—"}</td>
-                <td>{r.occupancy ? formatDate(checkoutDate(r.occupancy.stay)) : "—"}</td>
-                <td>{r.occupancy ? stayTypeLabel(r.occupancy.stay.type) : "—"}</td>
-                <td>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge value={r.payStatus === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.payStatus)} />
-                    {r.living && r.occupancy?.stay.id ? (
-                      <button type="button" className="text-sm font-semibold text-royal" onClick={() => setPay(r)}>
-                        To‘lov
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
-                <td>
-                  <StatusBadge
-                    value={r.living ? "ACTIVE" : "COMPLETED"}
-                    label={r.living ? "Yashaydi" : "Chiqib ketgan"}
-                  />
-                </td>
-                <td>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      title="Tahrirlash"
-                      aria-label="Tahrirlash"
-                      onClick={() => setEdit(r)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-royal hover:bg-white"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                      </svg>
-                    </button>
-                    <button className="text-sm font-medium text-danger" onClick={() => setDrop(r)}>
-                      O‘chirish
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {data.rows.map((r) => {
+              const room = r.occupancy?.stay.room;
+              return (
+                // Butun qator bosiladi: mijozning alohida profil sahifasi ochiladi.
+                <tr key={r.id} onClick={() => router.push(`/customers/${r.id}`)} className="cursor-pointer hover:bg-white">
+                  <td>
+                    <Link href={`/customers/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-navy hover:underline">
+                      {r.fullName}
+                    </Link>
+                    {!r.living ? <span className="ml-2 text-xs text-muted">chiqib ketgan</span> : null}
+                  </td>
+                  <td>
+                    {room ? (
+                      <>
+                        <span className="font-medium text-navy">{room.number}-xona</span>
+                        <span className="ml-2 text-xs text-muted">{floorLabel(room.floor)}</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
       {!data.rows.length ? <EmptyState className="mt-4" text="Hozircha mijozlar mavjud emas." /> : null}
       <PaginationBar page={page} pageSize={20} total={data.total} onPage={(p) => { setPage(p); load(p); }} />
-      {pay?.occupancy?.stay.id ? (
-        <AddPaymentModal
-          stay={{
-            id: pay.occupancy.stay.id,
-            type: pay.occupancy.stay.type,
-            monthlyPrice: pay.occupancy.stay.monthlyPrice,
-            paidDays: pay.occupancy.stay.paidDays,
-            startDate: pay.occupancy.stay.startDate,
-            customerName: pay.fullName,
-          }}
-          onClose={() => setPay(null)}
-          onSaved={() => {
-            setPay(null);
-            load();
-          }}
-        />
-      ) : null}
-      {edit ? (
-        <EditCustomerModal
-          customer={{ id: edit.id, fullName: edit.fullName, phone: edit.phone, gender: edit.gender }}
-          onClose={() => setEdit(null)}
-          onSaved={() => {
-            setEdit(null);
-            load();
-          }}
-        />
-      ) : null}
-      {drop ? (
-        <ConfirmModal
-          danger
-          title="Mijozni o‘chirish"
-          text={`${drop.fullName} ni o‘chirishni tasdiqlaysizmi?${drop.living ? "\nHozir yashayotgan mijozni avval chiqaring." : ""}`}
-          confirmLabel="O‘chirish"
-          onClose={() => setDrop(null)}
-          onConfirm={remove}
-        />
-      ) : null}
     </div>
   );
 }
