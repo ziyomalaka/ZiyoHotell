@@ -235,9 +235,9 @@ export class ExcelService {
       sheet.addRow(['Ta’mirdagi o‘rinlar', data.repair]);
       sheet.addRow(['Bandlik foizi', `${data.percent}%`]);
       sheet.addRow([]);
-      sheet.addRow(['Qavat', 'Xonalar', 'O‘rinlar', 'Band', 'Bo‘sh', 'Bandlik %']);
-      data.floors.forEach((f) =>
-        sheet.addRow([`${f.floor}-qavat`, f.rooms, f.beds, f.occupied, f.free, `${f.percent}%`]),
+      sheet.addRow(['Sektor', 'Xonalar', 'O‘rinlar', 'Band', 'Bo‘sh', 'Bandlik %']);
+      data.sectors.forEach((s) =>
+        sheet.addRow([s.name, s.rooms, s.beds, s.occupied, s.free, `${s.percent}%`]),
       );
       this.genderRows(sheet, data.genders);
       return this.file(wb, `Yotoqxona_Xonalar${fx}_${day}.xlsx`);
@@ -329,9 +329,9 @@ export class ExcelService {
       sheet.addRow(['Bo‘sh xonalar', data.empty]);
       sheet.addRow(['Bandlik foizi', `${data.percent}%`]);
       sheet.addRow([]);
-      sheet.addRow(['Qavat', 'Xonalar', 'O‘rinlar', 'Band', 'Bo‘sh', 'Bandlik %']);
-      data.floors.forEach((f) =>
-        sheet.addRow([`${f.floor}-qavat`, f.rooms, f.beds, f.occupied, f.free, `${f.percent}%`]),
+      sheet.addRow(['Sektor', 'Xonalar', 'O‘rinlar', 'Band', 'Bo‘sh', 'Bandlik %']);
+      data.sectors.forEach((s) =>
+        sheet.addRow([s.name, s.rooms, s.beds, s.occupied, s.free, `${s.percent}%`]),
       );
       this.genderRows(sheet, data.genders);
       return this.file(wb, `Yotoqxona_Xonalar${fx}_${day.slice(0, 7)}.xlsx`);
@@ -344,9 +344,9 @@ export class ExcelService {
     }
     if (type === 'debt') {
       const data = await this.prisma.stay.findMany({
-        where: floor ? { room: { floor } } : {},
+        where: floor ? { room: { sector: { number: floor } } } : {},
         include: { customer: true, room: true, bed: true },
-        orderBy: [{ room: { floor: 'asc' } }, { room: { number: 'asc' } }],
+        orderBy: [{ room: { sector: { number: 'asc' } } }, { room: { floor: 'asc' } }, { room: { number: 'asc' } }],
       });
       const rows = data
         .map((s) => ({
@@ -530,9 +530,9 @@ export class ExcelService {
       sheet.addRow(['To‘liq band xonalar', data.full]);
       sheet.addRow(['Bandlik foizi', `${data.percent}%`]);
       sheet.addRow([]);
-      sheet.addRow(['Qavat', 'Xonalar', 'O‘rinlar', 'Band', 'Bo‘sh', 'Bandlik %']);
-      data.floors.forEach((f) =>
-        sheet.addRow([`${f.floor}-qavat`, f.rooms, f.beds, f.occupied, f.free, `${f.percent}%`]),
+      sheet.addRow(['Sektor', 'Xonalar', 'O‘rinlar', 'Band', 'Bo‘sh', 'Bandlik %']);
+      data.sectors.forEach((s) =>
+        sheet.addRow([s.name, s.rooms, s.beds, s.occupied, s.free, `${s.percent}%`]),
       );
       this.genderRows(sheet, data.genders);
       return this.file(wb, `Yotoqxona_Xonalar${fx}_${date.slice(0, 7)}.xlsx`);

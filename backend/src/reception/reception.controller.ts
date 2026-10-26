@@ -40,6 +40,12 @@ export class ReceptionController {
     return this.reception.home();
   }
 
+  @Get('sectors')
+  @ApiOperation({ summary: 'Sektorlar ro‘yxati (filtrlar uchun)' })
+  sectors() {
+    return this.reception.sectorOptions();
+  }
+
   @Get('floors')
   @ApiOperation({ summary: 'Qavatlar ro‘yxati (filtrlar uchun)' })
   floors() {

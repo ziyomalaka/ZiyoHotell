@@ -280,7 +280,13 @@ export function floorOf(value: unknown): number | null {
 /** "2-qavat" ko‘rinishidagi yorliq. Qavat topilmasa "—". */
 export function floorLabel(value: unknown) {
   const floor = floorOf(value);
-  return floor == null ? "—" : `${floor}-qavat`;
+  if (floor == null) return "—";
+  return floor < 0 ? "Podval" : `${floor}-qavat`;
+}
+
+/** Sektor nomi ro‘yxat va hisobotlar uchun: "1-sektor · Bollar yotoqxonasi". */
+export function sectorLabel(sector?: { number: number; name: string } | null) {
+  return sector ? `${sector.number}-sektor · ${sector.name}` : "Sektorsiz";
 }
 
 export function daysInMonth(year: number, month1to12: number) {

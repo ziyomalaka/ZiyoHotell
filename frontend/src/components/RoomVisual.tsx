@@ -1,5 +1,5 @@
 import { StatusBadge } from "./StatusBadge";
-import { genderLabel, occupancyLabel } from "@/lib/format";
+import { floorLabel, genderLabel, occupancyLabel } from "@/lib/format";
 
 export function BedIndicator({
   beds,
@@ -57,7 +57,7 @@ export function RoomCard({
         <div>
           <p className="text-xl font-semibold tracking-wide text-navy">{number}</p>
           <p className="mt-0.5 text-xs text-muted">
-            {floor ? `${floor}-qavat` : null}
+            {floor ? floorLabel(floor) : null}
             {floor && gender ? " · " : null}
             {gender ? genderLabel(gender) : null}
           </p>

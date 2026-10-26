@@ -14,6 +14,7 @@ import {
 } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
 import { cashCardTotals, checkoutDate } from '../common/billing';
+import { sectorBreakdown } from '../common/sector';
 import { ReportsService } from '../reports/reports.service';
 
 const stayInclude = {
@@ -40,7 +41,7 @@ export class ManagerService {
     return { contains: q, mode: 'insensitive' };
   }
 
-  /** Qavat filtri: faqat 1 dan katta butun son qabul qilinadi. */
+  /** Sektor filtri: `floor` so‘rov parametri endi sektor raqamini bildiradi (1 va undan katta). */
   private level(floor?: number | string | null) {
     const value = Number(floor);
     return Number.isInteger(value) && value >= 1 ? value : null;
@@ -50,15 +51,16 @@ export class ManagerService {
   async listRooms(floorNumber?: number) {
     const floor = this.level(floorNumber);
     const rooms = await this.prisma.room.findMany({
-      where: { status: 'ACTIVE', ...(floor ? { floor } : {}) },
+      where: { status: 'ACTIVE', ...(floor ? { sector: { number: floor } } : {}) },
       include: {
         level: true,
+        sector: true,
         beds: {
           include: { occupancy: { include: { customer: true } } },
           orderBy: { number: 'asc' },
         },
       },
-      orderBy: [{ floor: 'asc' }, { number: 'asc' }],
+      orderBy: [{ sector: { number: 'asc' } }, { floor: 'asc' }, { number: 'asc' }],
     });
     return rooms.map((room) => {
       const occupied = room.beds.filter((bed) => bed.occupancy).length;
@@ -70,6 +72,23 @@ export class ManagerService {
         kind: occupied <= 0 ? 'empty' : occupied >= room.capacity ? 'full' : 'partial',
       };
     });
+  }
+
+  /** Sektorlar ro‘yxati (filtrlar uchun): raqam, nom, qavat, jins va xonalar soni. */
+  async sectorOptions() {
+    const sectors = await this.prisma.sector.findMany({
+      orderBy: { number: 'asc' },
+      include: { _count: { select: { rooms: true } } },
+    });
+    return sectors.map((s) => ({
+      id: s.id,
+      number: s.number,
+      name: s.name,
+      gender: s.gender,
+      floor: s.floor,
+      status: s.status,
+      rooms: s._count.rooms,
+    }));
   }
 
   async floorOptions() {
@@ -165,7 +184,7 @@ export class ManagerService {
       this.incomeSum(dayStart(today), dayEnd(today)),
       this.incomeSum(dayStart(monthStart), dayEnd(today)),
       this.prisma.stay.findMany({ select: { totalAmount: true, paidAmount: true, customerId: true } }),
-      this.prisma.room.findMany({ include: { beds: { include: { occupancy: true } } } }),
+      this.prisma.room.findMany({ include: { sector: true, beds: { include: { occupancy: true } } } }),
       this.prisma.payment.findMany({
         where: { status: { not: 'CANCELLED' } },
         include: { customer: true },
@@ -188,7 +207,6 @@ export class ManagerService {
       else payStatus.unpaid += 1;
     }
     const occupancy = { full: 0, partial: 0, empty: 0, repair: 0 };
-    const byFloor = new Map<number, { floor: number; rooms: number; beds: number; occupied: number }>();
     for (const room of roomsList) {
       if (room.status === 'REPAIR' || room.status === 'INACTIVE') occupancy.repair += 1;
       else {
@@ -197,19 +215,8 @@ export class ManagerService {
         else if (occ >= room.capacity) occupancy.full += 1;
         else occupancy.partial += 1;
       }
-      const entry = byFloor.get(room.floor) || { floor: room.floor, rooms: 0, beds: 0, occupied: 0 };
-      entry.rooms += 1;
-      entry.beds += room.beds.filter((b) => b.status === 'ACTIVE').length;
-      entry.occupied += room.beds.filter((b) => b.occupancy).length;
-      byFloor.set(room.floor, entry);
     }
-    const floors = [...byFloor.values()]
-      .sort((a, b) => a.floor - b.floor)
-      .map((f) => ({
-        ...f,
-        free: Math.max(0, f.beds - f.occupied),
-        percent: f.beds ? Math.round((f.occupied / f.beds) * 100) : 0,
-      }));
+    const sectors = sectorBreakdown(roomsList);
     const genders = GENDERS.map((gender) => {
       const list = roomsList.filter((r) => roomGender(r.gender) === gender);
       const beds = list.reduce((acc, r) => acc + r.beds.filter((b) => b.status === 'ACTIVE').length, 0);
@@ -279,7 +286,7 @@ export class ManagerService {
       debtorCount: debtors.size,
       occupancyPercent: beds ? Math.round((occupied / beds) * 100) : 0,
       occupancy,
-      floors,
+      sectors,
       genders,
       payStatus,
       monthChart,
@@ -316,8 +323,8 @@ export class ManagerService {
       where.AND = [
         {
           OR: [
-            { occupancy: { stay: { room: { floor } } } },
-            { AND: [{ occupancy: null }, { stays: { some: { room: { floor } } } }] },
+            { occupancy: { stay: { room: { sector: { number: floor } } } } },
+            { AND: [{ occupancy: null }, { stays: { some: { room: { sector: { number: floor } } } } }] },
           ],
         },
       ];
@@ -399,7 +406,7 @@ export class ManagerService {
     if (opts.status) where.status = opts.status;
     if (opts.method) where.method = opts.method;
     const floor = this.level(opts.floor);
-    if (floor) where.stay = { room: { floor } };
+    if (floor) where.stay = { room: { sector: { number: floor } } };
     const paidAt = this.paidAtFromRange(opts.range || '', opts.from, opts.to);
     if (paidAt) where.paidAt = paidAt;
     const [total, rows, todayInc, monthInc, allInc, stays] = await Promise.all([
@@ -409,7 +416,7 @@ export class ManagerService {
       this.incomeSum(dayStart(monthStartISO()), dayEnd(todayISO())),
       this.incomeSum(),
       this.prisma.stay.findMany({
-        where: floor ? { room: { floor } } : {},
+        where: floor ? { room: { sector: { number: floor } } } : {},
         select: { totalAmount: true, paidAmount: true, customerId: true },
       }),
     ]);
@@ -446,7 +453,7 @@ export class ManagerService {
 
   async dailyPayments(date = todayISO(), floorNumber?: number) {
     const floor = this.level(floorNumber);
-    const floorWhere = floor ? { stay: { room: { floor } } } : {};
+    const floorWhere = floor ? { stay: { room: { sector: { number: floor } } } } : {};
     const where = { ...this.incomeWhere(dayStart(date), dayEnd(date)), ...floorWhere };
     const [rows, unpaid] = await Promise.all([
       this.prisma.payment.findMany({ where, include: paymentInclude, orderBy: { paidAt: 'asc' } }),
@@ -473,7 +480,7 @@ export class ManagerService {
 
   async monthlyPayments(year: number, month: number, floorNumber?: number) {
     const floor = this.level(floorNumber);
-    const floorWhere = floor ? { stay: { room: { floor } } } : {};
+    const floorWhere = floor ? { stay: { room: { sector: { number: floor } } } } : {};
     const last = daysInMonth(year, month);
     const from = isoDay(year, month, 1);
     const to = isoDay(year, month, last);
@@ -493,7 +500,7 @@ export class ManagerService {
     }
     const stays = await this.prisma.stay.findMany({
       where: {
-        ...(floor ? { room: { floor } } : {}),
+        ...(floor ? { room: { sector: { number: floor } } } : {}),
         OR: [
           { startDate: { gte: dayStart(from), lte: dayEnd(to) } },
           { status: 'ACTIVE' },
@@ -539,7 +546,7 @@ export class ManagerService {
     const today = todayISO();
     const floor = this.level(opts.floor);
     const stays = await this.prisma.stay.findMany({
-      where: floor ? { room: { floor } } : {},
+      where: floor ? { room: { sector: { number: floor } } } : {},
       include: { customer: true, room: true, bed: true, payments: { where: { status: { not: 'CANCELLED' } }, orderBy: { paidAt: 'asc' } } },
     });
     let rows = stays
@@ -637,7 +644,7 @@ export class ManagerService {
     if (opts.room || floor) {
       where.room = {
         ...(opts.room ? { number: this.contains(opts.room) } : {}),
-        ...(floor ? { floor } : {}),
+        ...(floor ? { sector: { number: floor } } : {}),
       };
     }
     if (opts.staffId) where.createdById = opts.staffId;

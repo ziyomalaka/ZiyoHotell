@@ -29,22 +29,57 @@ export class FloorDto {
   status?: string;
 }
 
+export class SectorDto {
+  @ApiProperty({ example: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  number!: number;
+
+  @ApiProperty({ example: 'Bollar yotoqxonasi' })
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @ApiPropertyOptional({ enum: ['MALE', 'FEMALE'], description: 'Bo‘sh — jins har bir xonada belgilanadi (masalan, fitnes).' })
+  @IsOptional()
+  @IsIn(['MALE', 'FEMALE'])
+  gender?: string | null;
+
+  @ApiPropertyOptional({ example: 2, description: 'Qavat, podval = -1. Bo‘sh — ko‘rsatilmagan.' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(-9)
+  floor?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
 export class RoomDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
   id?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Sektor. Yangi xona uchun majburiy; qavat va jins sektordan olinadi.' })
   @IsOptional()
   @IsUUID()
-  floorId?: string;
+  sectorId?: string;
 
-  @ApiPropertyOptional({ description: 'Qavat raqami. Qavat mavjud bo‘lmasa avtomatik yaratiladi.' })
+  @ApiPropertyOptional({ description: 'Faqat qavati belgilanmagan sektor uchun: qavat raqami, podval = -1.' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1)
+  @Min(-9)
   floorNumber?: number;
 
   @ApiProperty()

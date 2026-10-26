@@ -22,7 +22,7 @@ export class AdminService {
     private auth: AuthService,
   ) {}
 
-  /** Qavat filtri: faqat 1 dan katta butun son qabul qilinadi. */
+  /** Sektor filtri: `floor` so‘rov parametri endi sektor raqamini bildiradi (1 va undan katta). */
   private level(floor?: number | string | null) {
     const value = Number(floor);
     return Number.isInteger(value) && value >= 1 ? value : null;
@@ -146,10 +146,90 @@ export class AdminService {
     return row;
   }
 
+  /** Qavat yozuvini topadi yoki yaratadi: podval = -1. */
+  private floorRecord(level: number) {
+    if (!Number.isInteger(level) || level < -9 || level === 0) {
+      throw new AppError('Qavat noto‘g‘ri. Podval uchun -1, qolganlari 1 dan boshlanadi.');
+    }
+    return this.prisma.floor.upsert({
+      where: { number: level },
+      update: {},
+      create: { number: level, name: level < 0 ? 'Podval' : `${level}-qavat`, status: 'ACTIVE' },
+    });
+  }
+
+  async listSectors() {
+    const sectors = await this.prisma.sector.findMany({
+      orderBy: { number: 'asc' },
+      include: { _count: { select: { rooms: true } } },
+    });
+    return sectors.map((s) => ({ ...s, rooms: s._count.rooms }));
+  }
+
+  async saveSector(
+    input: { id?: string; number: number; name: string; gender?: string | null; floor?: number | null; status?: string; notes?: string },
+    userId: string,
+    ip?: string,
+  ) {
+    required({ number: input.number, name: input.name });
+    const gender = input.gender ? roomGender(input.gender) : null;
+    const floor = input.floor == null ? null : Number(input.floor);
+    if (floor != null) await this.floorRecord(floor);
+    const data = {
+      number: Number(input.number),
+      name: input.name.trim(),
+      gender,
+      floor,
+      status: input.status || 'ACTIVE',
+      notes: input.notes?.trim() || null,
+    };
+    if (!input.id) {
+      const row = await this.prisma.sector.create({ data });
+      await this.audit({ userId, action: 'ROOM_CREATE', entity: 'Sector', entityId: row.id, section: 'Xonalar', ip, newValue: row });
+      return row;
+    }
+    const old = await this.prisma.sector.findUnique({ where: { id: input.id } });
+    if (!old) throw new AppError('Sektor topilmadi.', 404, 'SECTOR_NOT_FOUND');
+    // Sektor jinsi o‘zgarsa, unda boshqa jinsdagi mijoz yashamasligi kerak.
+    if (gender && gender !== old.gender) {
+      const conflicting = await this.prisma.occupancy.count({
+        where: { bed: { room: { sectorId: old.id } }, customer: { gender: { not: gender } } },
+      });
+      if (conflicting > 0) {
+        throw new AppError('Sektorda boshqa jinsdagi mijozlar yashamoqda, jinsni o‘zgartirib bo‘lmaydi.', 409, 'SECTOR_GENDER_CONFLICT');
+      }
+    }
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.sector.update({ where: { id: old.id }, data });
+      // Xonalar sektorning qavati va jinsini meros qilib oladi.
+      if (floor != null && floor !== old.floor) {
+        const level = await tx.floor.findUniqueOrThrow({ where: { number: floor } });
+        await tx.room.updateMany({ where: { sectorId: old.id }, data: { floor, floorId: level.id } });
+      }
+      if (gender && gender !== old.gender) {
+        await tx.room.updateMany({ where: { sectorId: old.id }, data: { gender } });
+      }
+      return updated;
+    });
+    await this.audit({ userId, action: 'ROOM_UPDATE', entity: 'Sector', entityId: row.id, section: 'Xonalar', ip, oldValue: old, newValue: row });
+    return row;
+  }
+
+  async deleteSector(id: string, userId: string, ip?: string) {
+    const sector = await this.prisma.sector.findUnique({ where: { id }, include: { _count: { select: { rooms: true } } } });
+    if (!sector) throw new AppError('Sektor topilmadi.', 404, 'SECTOR_NOT_FOUND');
+    if (sector._count.rooms > 0) {
+      throw new AppError('Sektorda xonalar bor. Avval xonalarni boshqa sektorga o‘tkazing yoki o‘chiring.', 409, 'SECTOR_HAS_ROOMS');
+    }
+    await this.prisma.sector.delete({ where: { id } });
+    await this.audit({ userId, action: 'ROOM_DELETE', entity: 'Sector', entityId: id, section: 'Xonalar', ip, oldValue: sector });
+    return { id, deleted: true };
+  }
+
   async saveRoom(
     input: {
       id?: string;
-      floorId?: string;
+      sectorId?: string;
       floorNumber?: number;
       number: string;
       roomType?: string;
@@ -164,38 +244,21 @@ export class AdminService {
     ip?: string,
   ) {
     required({ number: input.number, capacity: input.capacity });
-    let floor = input.floorId ? await this.prisma.floor.findUnique({ where: { id: input.floorId } }) : null;
-    if (!floor && input.floorNumber != null) {
-      const level = Number(input.floorNumber);
-      if (!Number.isInteger(level) || level < 1) throw new AppError('Qavat raqami 1 dan kichik bo‘lmasin.');
-      floor = await this.prisma.floor.upsert({
-        where: { number: level },
-        update: {},
-        create: { number: level, name: `${level}-qavat`, status: 'ACTIVE' },
-      });
-    }
-    if (!floor) {
-      floor = await this.prisma.floor.findFirst({ orderBy: { number: 'asc' } });
-    }
-    if (!floor) {
-      floor = await this.prisma.floor.create({ data: { number: 1, name: '1-qavat' } });
-    }
     const old = input.id ? await this.prisma.room.findUnique({ where: { id: input.id } }) : null;
     if (input.id && !old) throw new AppError('Xona topilmadi.', 404);
-    const gender = roomGender(input.gender, old?.gender);
-    // Qizlar va bollar bloklari alohida raqamlanadi: yakkalik qavat + jins ichida tekshiriladi.
+    // Xona doim sektor ichida: qavat va jins sektordan olinadi (fitnes kabi aralash sektorda jins xonaga beriladi).
+    const sectorId = input.sectorId || old?.sectorId;
+    if (!sectorId) throw new AppError('Sektorni tanlang.', 400, 'SECTOR_REQUIRED');
+    const sector = await this.prisma.sector.findUnique({ where: { id: sectorId } });
+    if (!sector) throw new AppError('Sektor topilmadi.', 404, 'SECTOR_NOT_FOUND');
+    const floor = await this.floorRecord(sector.floor ?? input.floorNumber ?? old?.floor ?? 1);
+    const gender = sector.gender ? roomGender(sector.gender) : roomGender(input.gender, old?.gender);
+    const number = String(input.number).trim();
     const dup = await this.prisma.room.findFirst({
-      where: {
-        floorId: floor.id,
-        gender,
-        number: String(input.number).trim(),
-        NOT: input.id ? { id: input.id } : undefined,
-      },
+      where: { sectorId: sector.id, number, NOT: input.id ? { id: input.id } : undefined },
     });
     if (dup) {
-      throw new AppError(
-        `${floor.number}-qavatda ${genderWord(gender)} uchun ${dup.number} xonasi allaqachon mavjud.`,
-      );
+      throw new AppError(`${sector.number}-sektorda ${dup.number} xonasi allaqachon mavjud.`, 409, 'ROOM_NUMBER_TAKEN');
     }
     if (old) {
       if (input.status && input.status !== 'ACTIVE' && (await this.prisma.occupancy.count({ where: { bed: { roomId: old.id } } })) > 0) {
@@ -217,10 +280,11 @@ export class AdminService {
       const row = await this.prisma.room.update({
         where: { id: old.id },
         data: {
+          sectorId: sector.id,
           floorId: floor.id,
           floor: floor.number,
-          number: String(input.number).trim(),
-          roomType: input.roomType || 'ODDIY',
+          number,
+          roomType: input.roomType || old.roomType,
           gender,
           capacity: Number(input.capacity),
           dailyPrice: input.dailyPrice != null ? Number(input.dailyPrice) : old.dailyPrice,
@@ -243,9 +307,10 @@ export class AdminService {
     const capacity = Number(input.capacity);
     const row = await this.prisma.room.create({
       data: {
+        sectorId: sector.id,
         floorId: floor.id,
         floor: floor.number,
-        number: String(input.number).trim(),
+        number,
         roomType: input.roomType || 'ODDIY',
         gender,
         capacity,
@@ -255,7 +320,7 @@ export class AdminService {
         notes: input.notes || null,
         beds: { create: Array.from({ length: capacity }, (_, i) => ({ number: i + 1, status: 'ACTIVE' })) },
       },
-      include: { beds: true, level: true },
+      include: { beds: true, level: true, sector: true },
     });
     await this.audit({
       userId,
@@ -582,9 +647,9 @@ export class AdminService {
   async listRooms(floorNumber?: number) {
     const floor = this.level(floorNumber);
     const rooms = await this.prisma.room.findMany({
-      where: floor ? { floor } : {},
-      include: { level: true, beds: { include: { occupancy: { include: { customer: true } } }, orderBy: { number: 'asc' } } },
-      orderBy: [{ floor: 'asc' }, { number: 'asc' }],
+      where: floor ? { sector: { number: floor } } : {},
+      include: { level: true, sector: true, beds: { include: { occupancy: { include: { customer: true } } }, orderBy: { number: 'asc' } } },
+      orderBy: [{ sector: { number: 'asc' } }, { floor: 'asc' }, { number: 'asc' }],
     });
     return rooms.map((room) => ({
       ...room,
@@ -597,7 +662,7 @@ export class AdminService {
   async listBeds() {
     return this.prisma.bed.findMany({
       include: { room: { include: { level: true } }, occupancy: true },
-      orderBy: [{ room: { floor: 'asc' } }, { room: { number: 'asc' } }, { number: 'asc' }],
+      orderBy: [{ room: { sector: { number: 'asc' } } }, { room: { floor: 'asc' } }, { room: { number: 'asc' } }, { number: 'asc' }],
     });
   }
 
@@ -658,8 +723,8 @@ export class AdminService {
       where.AND = [
         {
           OR: [
-            { occupancy: { stay: { room: { floor } } } },
-            { AND: [{ occupancy: null }, { stays: { some: { room: { floor } } } }] },
+            { occupancy: { stay: { room: { sector: { number: floor } } } } },
+            { AND: [{ occupancy: null }, { stays: { some: { room: { sector: { number: floor } } } } }] },
           ],
         },
       ];
@@ -750,7 +815,7 @@ export class AdminService {
     }
     if (opts.staffId) where.createdById = opts.staffId;
     const stayFloor = this.level(opts.floor);
-    if (stayFloor) where.room = { floor: stayFloor };
+    if (stayFloor) where.room = { sector: { number: stayFloor } };
     const [total, rows] = await Promise.all([
       this.prisma.stay.count({ where }),
       this.prisma.stay.findMany({
@@ -790,7 +855,7 @@ export class AdminService {
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
     const payFloor = this.level(opts.floor);
-    if (payFloor) where.stay = { room: { floor: payFloor } };
+    if (payFloor) where.stay = { room: { sector: { number: payFloor } } };
     const paidAt: { gte?: Date; lte?: Date } = {};
     if (opts.range === 'today') {
       paidAt.gte = dayStart(today);
@@ -876,9 +941,9 @@ export class AdminService {
   async debtReport(floorNumber?: number) {
     const floor = this.level(floorNumber);
     const stays = await this.prisma.stay.findMany({
-      where: floor ? { room: { floor } } : {},
+      where: floor ? { room: { sector: { number: floor } } } : {},
       include: { customer: true, room: true, bed: true },
-      orderBy: [{ room: { floor: 'asc' } }, { room: { number: 'asc' } }],
+      orderBy: [{ room: { sector: { number: 'asc' } } }, { room: { floor: 'asc' } }, { room: { number: 'asc' } }],
     });
     const rows = stays
       .map((s) => ({

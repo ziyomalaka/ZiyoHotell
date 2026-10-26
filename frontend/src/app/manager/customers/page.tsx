@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
@@ -84,7 +84,7 @@ export default function ManagerCustomersPage() {
           placeholder="F.I.Sh. / telefon / ID / xona"
           className="w-full lg:max-w-md"
         />
-        <FloorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
+        <SectorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
       </div>
       {data.rows.length ? (
       <>

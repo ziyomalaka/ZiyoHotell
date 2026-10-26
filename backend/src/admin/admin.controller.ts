@@ -9,7 +9,7 @@ import { ReportsService } from '../reports/reports.service';
 import { ReceptionService } from '../reception/reception.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminService } from './admin.service';
-import { AdminCancelPaymentDto, BedDto, FloorDto, RestoreDto, RolePermissionsDto, RoomDto, SettingsDto, StaffDto } from './dto';
+import { AdminCancelPaymentDto, BedDto, FloorDto, RestoreDto, RolePermissionsDto, RoomDto, SectorDto, SettingsDto, StaffDto } from './dto';
 
 @ApiTags('admin')
 @ApiCookieAuth('zh_access')
@@ -47,6 +47,30 @@ export class AdminController {
   @Permissions('rooms.manage')
   updateFloor(@Param('id') id: string, @Body() body: FloorDto, @CurrentUser() user: { id: string }, @Ip() ip: string) {
     return this.admin.saveFloor({ ...body, id }, user.id, ip);
+  }
+
+  @Get('sectors')
+  sectors() {
+    return this.admin.listSectors();
+  }
+
+  @Post('sectors')
+  @HttpCode(201)
+  @Permissions('rooms.manage')
+  createSector(@Body() body: SectorDto, @CurrentUser() user: { id: string }, @Ip() ip: string) {
+    return this.admin.saveSector(body, user.id, ip);
+  }
+
+  @Put('sectors/:id')
+  @Permissions('rooms.manage')
+  updateSector(@Param('id') id: string, @Body() body: SectorDto, @CurrentUser() user: { id: string }, @Ip() ip: string) {
+    return this.admin.saveSector({ ...body, id }, user.id, ip);
+  }
+
+  @Delete('sectors/:id')
+  @Permissions('rooms.manage')
+  deleteSector(@Param('id') id: string, @CurrentUser() user: { id: string }, @Ip() ip: string) {
+    return this.admin.deleteSector(id, user.id, ip);
   }
 
   @Get('rooms')

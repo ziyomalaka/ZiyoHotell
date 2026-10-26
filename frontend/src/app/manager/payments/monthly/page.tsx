@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel, roomBedLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
@@ -74,7 +74,7 @@ export default function ManagerMonthlyPaymentsPage() {
             </option>
           ))}
         </select>
-        <FloorFilter scope="manager" value={floor} onChange={setFloor} className="col-span-2 w-full lg:col-auto lg:w-auto" />
+        <SectorFilter scope="manager" value={floor} onChange={setFloor} className="col-span-2 w-full lg:col-auto lg:w-auto" />
       </div>
       <p className="mt-4 text-lg font-medium text-navy">
         {months[month - 1]} {year}

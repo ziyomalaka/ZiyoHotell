@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { api, downloadExcel } from "@/lib/api";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
 import { StatCard } from "@/components/StatCard";
 import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, roomBedLabel } from "@/lib/format";
 
-type FloorStat = { floor: number; rooms: number; beds: number; occupied: number; free: number; percent: number };
+type SectorStat = { sector: number; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number };
 type GenderStat = { gender: string; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number };
 
 export default function AdminReportsPage() {
@@ -62,7 +62,7 @@ export default function AdminReportsPage() {
     full?: number;
     partial?: number;
     empty?: number;
-    floors?: FloorStat[];
+    sectors?: SectorStat[];
     genders?: GenderStat[];
   } | null;
   const staff = data as { rows?: { fullName: string; login: string; role: string; workStatus: string }[] } | null;
@@ -112,7 +112,7 @@ export default function AdminReportsPage() {
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
         <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2" />
         {type === "staff" ? null : (
-          <FloorFilter
+          <SectorFilter
             scope="admin"
             value={floor}
             onChange={setFloor}
@@ -180,20 +180,20 @@ export default function AdminReportsPage() {
             <StatCard label="To‘liq band" value={occupancy.full || 0} />
             <StatCard label="Bandlik foizi" value={`${occupancy.percent || 0}%`} />
           </div>
-          {occupancy.floors?.length ? (
+          {occupancy.sectors?.length ? (
             <div className="mt-4 card overflow-x-auto">
               <table className="data-table">
                 <thead className="bg-background text-left">
                   <tr>
-                    {["Qavat", "Xonalar", "O‘rinlar", "Band", "Bo‘sh", "Bandlik"].map((h) => (
+                    {["Sektor", "Xonalar", "O‘rinlar", "Band", "Bo‘sh", "Bandlik"].map((h) => (
                       <th key={h} className="px-3 py-3">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {occupancy.floors.map((f) => (
-                    <tr key={f.floor} className="border-t border-line">
-                      <td className="px-3 py-3">{floorLabel(f.floor)}</td>
+                  {occupancy.sectors.map((f) => (
+                    <tr key={f.sector} className="border-t border-line">
+                      <td className="px-3 py-3">{f.name}</td>
                       <td className="px-3 py-3">{f.rooms}</td>
                       <td className="px-3 py-3">{f.beds}</td>
                       <td className="px-3 py-3">{f.occupied}</td>

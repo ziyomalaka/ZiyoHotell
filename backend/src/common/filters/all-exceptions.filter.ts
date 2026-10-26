@@ -60,8 +60,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (target.includes('login')) {
         message = 'Ushbu login band.';
         code = 'LOGIN_TAKEN';
-      } else if (target.includes('floorId') && target.includes('number')) {
-        message = 'Ushbu qavatda bunday xona raqami mavjud.';
+      } else if ((target.includes('sectorId') || target.includes('floorId')) && target.includes('number')) {
+        message = 'Ushbu sektorda bunday xona raqami mavjud.';
         code = 'ROOM_NUMBER_TAKEN';
       } else if (target.includes('bedId') || target.includes('Occupancy')) {
         message = 'Ushbu o‘rin band. Boshqa o‘rin tanlang.';

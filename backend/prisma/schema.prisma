@@ -87,11 +87,29 @@ model Customer {
   @@index([fullName])
 }
 
+/// Sektor: yotoqxona bloki (masalan, "Bollar yotoqxonasi, 2-qavat" yoki "Fitnes"). Xonalar sektor ichida, o'rinlar xona ichida.
+model Sector {
+  id        String   @id @default(uuid())
+  number    Int      @unique
+  name      String
+  /// MALE | FEMALE — sektor kimlar uchun. null bo'lsa jins har bir xonada belgilanadi (masalan, fitnes).
+  gender    String?
+  /// Qavat: 2, 1, -1 (podval). null — qavat ko'rsatilmagan.
+  floor     Int?
+  status    String   @default("ACTIVE")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rooms     Room[]
+}
+
 model Room {
   id           String   @id @default(uuid())
   number       String
+  /// Haqiqiy qavat (podval = -1). Sektorli xonalarda sektordan olinadi.
   floor        Int      @default(1)
   floorId      String?
+  sectorId     String?
   roomType     String   @default("ODDIY")
   /// Xona kimga ajratilgan: MALE (bollar) | FEMALE (qizlar). Mijoz jinsi shu bilan mos bo'lishi shart.
   gender       String   @default("MALE")
@@ -106,11 +124,14 @@ model Room {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   level        Floor?   @relation(fields: [floorId], references: [id])
+  sector       Sector?  @relation(fields: [sectorId], references: [id], onDelete: SetNull)
   beds         Bed[]
   stays        Stay[]
 
-  @@unique([floorId, gender, number])
+  /// Xona raqami sektor ichida yagona: 1-sektorning ham, 2-sektorning ham "1" xonasi bo'lishi mumkin.
+  @@unique([sectorId, number])
   @@index([floorId])
+  @@index([sectorId])
 }
 
 model Bed {

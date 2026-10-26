@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
 import { FilterBar } from "@/components/FilterBar";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { BedCard, RoomCard } from "@/components/RoomVisual";
-import { compareRoomNumbers, dash, displayUzPhone, formatDate, formatMoney, genderLabel } from "@/lib/format";
+import { compareRoomNumbers, dash, displayUzPhone, floorLabel, formatDate, formatMoney, genderLabel, sectorLabel } from "@/lib/format";
 
 type Stay = { startDate: string; type: string; paidAmount: number; totalAmount: number };
 type Bed = {
@@ -19,6 +19,7 @@ type Room = {
   id: string;
   number: string;
   floor: number;
+  sector?: { number: number; name: string } | null;
   gender: string;
   capacity: number;
   occupied: number;
@@ -45,7 +46,7 @@ export default function RoomsPage() {
     return rooms.filter((r) => {
       const text = `${r.number} ${r.beds.map((b) => b.occupancy?.customer.fullName || "").join(" ")}`.toLowerCase();
       if (q && !text.includes(q.toLowerCase())) return false;
-      if (floor && String(r.floor) !== floor) return false;
+      if (floor && String(r.sector?.number) !== floor) return false;
       if (gender && r.gender !== gender) return false;
       if (filter === "empty" && r.kind !== "empty") return false;
       if (filter === "partial" && r.kind !== "partial") return false;
@@ -56,30 +57,32 @@ export default function RoomsPage() {
 
   const freeBeds = shown.reduce((acc, r) => acc + r.free, 0);
 
-  // Har bir qavatning bollar va qizlar bloki alohida bo‘lim:
-  // raqamlar bloklar orasida takrorlanishi mumkin, shuning uchun jins sarlavhada ko‘rsatiladi.
+  // Xonalar sektorlar bo‘yicha bo‘limlarga ajratiladi; aralash sektorda (fitnes) bollar va qizlar alohida.
   const roomGroups = useMemo(() => {
     const groups = new Map<string, Room[]>();
     for (const room of shown) {
-      const key = `${room.floor || 0}|${room.gender}`;
+      const key = `${room.sector?.number ?? 0}|${room.gender}`;
       groups.set(key, [...(groups.get(key) || []), room]);
     }
     return [...groups.entries()]
       .map(([key, list]) => ({
         key,
-        level: Number(key.split("|")[0]),
+        sector: list[0].sector || null,
         gender: key.split("|")[1],
         list: [...list].sort((a, b) => compareRoomNumbers(a.number, b.number)),
         free: list.reduce((acc, r) => acc + r.free, 0),
       }))
-      .sort((a, b) => a.level - b.level || (a.gender === b.gender ? 0 : a.gender === "MALE" ? -1 : 1));
+      .sort(
+        (a, b) =>
+          (a.sector?.number ?? 999) - (b.sector?.number ?? 999) || (a.gender === b.gender ? 0 : a.gender === "MALE" ? -1 : 1),
+      );
   }, [shown]);
 
   return (
     <div>
       <FilterBar>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Xona yoki mijoz" className="min-w-[180px] flex-1" />
-        <FloorFilter scope="reception" value={floor} onChange={setFloor} />
+        <SectorFilter scope="reception" value={floor} onChange={setFloor} />
         <select value={gender} onChange={(e) => setGender(e.target.value)}>
           <option value="">Bollar va qizlar</option>
           <option value="MALE">Bollar xonalari</option>
@@ -100,7 +103,7 @@ export default function RoomsPage() {
           {roomGroups.map((group) => (
             <section key={group.key}>
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted">
-                {group.level ? `${group.level}-qavat` : "Qavat belgilanmagan"} · {genderLabel(group.gender)} ·{" "}
+                {sectorLabel(group.sector)} · {genderLabel(group.gender)} ·{" "}
                 {group.list.length} xona · {group.free} bo‘sh o‘rin
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -140,7 +143,7 @@ export default function RoomsPage() {
           <div className="surface max-h-[90vh] w-full max-w-lg overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-semibold text-navy">{open.number}-xona</h2>
             <p className="mt-1 text-sm text-muted">
-              {open.floor ? `${open.floor}-qavat · ` : ""}
+              {sectorLabel(open.sector)} · {floorLabel(open.floor)} ·{" "}
               {genderLabel(open.gender)} · {open.capacity} ta o‘rin · {open.occupied} band · {open.free} bo‘sh
             </p>
             <div className="mt-4 space-y-2">

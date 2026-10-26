@@ -15,6 +15,7 @@ type Room = {
   gender: string;
   status: string;
   monthlyPrice?: number;
+  sector?: { number: number; name: string } | null;
   beds: { id: string; number: number; status: string; occupancy: unknown }[];
 };
 
@@ -61,7 +62,7 @@ function freeCount(r: Room) {
 }
 
 function roomName(r: Room) {
-  return r.floor ? `${r.floor}-qavat · ${r.number}-xona` : `${r.number}-xona`;
+  return r.sector ? `${r.sector.number}-sektor · ${r.number}-xona` : `${floorLabel(r.floor)} · ${r.number}-xona`;
 }
 
 export default function RegisterPage() {
@@ -109,11 +110,11 @@ export default function RegisterPage() {
   }, [form.passportId]);
 
   // Faqat mijoz jinsiga ajratilgan xonalar ko‘rsatiladi — aralash joylashtirish oldini oladi.
-  // Tartib: qavat va xona raqami bo‘yicha, joyi qolmagan xonalar oxirida.
+  // Tartib: sektor va xona raqami bo‘yicha, joyi qolmagan xonalar oxirida.
   const activeRooms = useMemo(() => {
     const list = rooms
       .filter((r) => r.status === "ACTIVE" && r.gender === form.gender)
-      .sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0) || compareRoomNumbers(a.number, b.number));
+      .sort((a, b) => (a.sector?.number ?? 999) - (b.sector?.number ?? 999) || compareRoomNumbers(a.number, b.number));
     return [...list.filter((r) => freeCount(r) > 0), ...list.filter((r) => freeCount(r) === 0)];
   }, [rooms, form.gender]);
   // Xona tanlanmagan yoki tanlangani to‘lib qolgan bo‘lsa, joyi bor birinchi xona taklif qilinadi.

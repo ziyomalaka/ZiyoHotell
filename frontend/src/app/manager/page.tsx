@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/EmptyState";
-import { floorLabel, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
 
 type Dash = {
   living: number;
@@ -17,7 +17,7 @@ type Dash = {
   monthCard?: number;
   monthTerminal?: number;
   monthChart: { day: string; value: number }[];
-  floors: { floor: number; rooms: number; beds: number; occupied: number; free: number; percent: number }[];
+  sectors: { sector: number; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number }[];
   genders: { gender: string; name: string; rooms: number; beds: number; occupied: number; free: number; percent: number }[];
   recent: { at: string; text: string }[];
 };
@@ -114,14 +114,14 @@ export default function ManagerHome() {
         </section>
       </div>
 
-      {data.floors?.length ? (
+      {data.sectors?.length ? (
         <section className="mt-8">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted">Qavatlar bo‘yicha bandlik</h3>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-muted">Sektorlar bo‘yicha bandlik</h3>
           <div className="hidden overflow-x-auto lg:block">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Qavat</th>
+                  <th>Sektor</th>
                   <th>Xonalar</th>
                   <th>O‘rinlar</th>
                   <th>Band</th>
@@ -130,9 +130,9 @@ export default function ManagerHome() {
                 </tr>
               </thead>
               <tbody>
-                {data.floors.map((f) => (
-                  <tr key={f.floor}>
-                    <td>{floorLabel(f.floor)}</td>
+                {data.sectors.map((f) => (
+                  <tr key={f.sector}>
+                    <td>{f.name}</td>
                     <td>{f.rooms}</td>
                     <td>{f.beds}</td>
                     <td>{f.occupied}</td>
@@ -144,9 +144,9 @@ export default function ManagerHome() {
             </table>
           </div>
           <div className="space-y-3 lg:hidden">
-            {data.floors.map((f) => (
-              <article key={f.floor} className="mgr-list-card">
-                <p className="mb-2 font-semibold text-navy">{floorLabel(f.floor)}</p>
+            {data.sectors.map((f) => (
+              <article key={f.sector} className="mgr-list-card">
+                <p className="mb-2 font-semibold text-navy">{f.name}</p>
                 <div className="mgr-kv">
                   <span>Xonalar</span>
                   <span>{f.rooms}</span>

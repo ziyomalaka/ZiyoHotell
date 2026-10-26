@@ -20,6 +20,7 @@ import {
   formatMoney,
   methodLabel,
   payStatusLabel,
+  sectorLabel,
   stayTypeLabel,
 } from "@/lib/format";
 
@@ -33,7 +34,7 @@ type Stay = {
   paidDays?: number | null;
   monthlyPrice?: number;
   paidAmount: number;
-  room: { number: string; floor: number };
+  room: { number: string; floor: number; sector?: { number: number; name: string } | null };
   bed: { number: number };
   checkLogs?: { id: string; type: string; at: string; note?: string | null }[];
 };
@@ -136,7 +137,7 @@ export default function ReceptionCustomerProfile() {
             <StatusBadge value={stay ? "ACTIVE" : "COMPLETED"} label={stay ? "Yashaydi" : "Chiqib ketgan"} />
             {stay ? (
               <span>
-                {floorLabel(stay.room.floor)} · {stay.room.number}-xona · {stay.bed.number}-o‘rin
+                {sectorLabel(stay.room.sector)} · {stay.room.number}-xona · {stay.bed.number}-o‘rin
               </span>
             ) : null}
           </div>
@@ -200,6 +201,7 @@ export default function ReceptionCustomerProfile() {
         <section className="card p-5">
           <h3 className="mb-4 font-semibold text-navy">Hozirgi yashash</h3>
           <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Sektor">{sectorLabel(stay.room.sector)}</Field>
             <Field label="Qavat">{floorLabel(stay.room.floor)}</Field>
             <Field label="Xona / o‘rin">
               {stay.room.number}-xona · {stay.bed.number}-o‘rin
@@ -264,7 +266,7 @@ export default function ReceptionCustomerProfile() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Qavat</th>
+                  <th>Sektor</th>
                   <th>Xona / o‘rin</th>
                   <th>Turi</th>
                   <th>Kirish</th>
@@ -279,7 +281,7 @@ export default function ReceptionCustomerProfile() {
                   const checkOut = s.checkLogs?.find((l) => l.type === "CHECK_OUT");
                   return (
                     <tr key={s.id}>
-                      <td>{floorLabel(s.room.floor)}</td>
+                      <td>{sectorLabel(s.room.sector)}</td>
                       <td>
                         {s.room.number}/{s.bed.number}
                       </td>

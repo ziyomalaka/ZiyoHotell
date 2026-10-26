@@ -29,6 +29,12 @@ export class ManagerController {
     return this.manager.dashboard();
   }
 
+  @Get('sectors')
+  @ApiOperation({ summary: 'Sektorlar ro‘yxati (filtrlar uchun)' })
+  sectors() {
+    return this.manager.sectorOptions();
+  }
+
   @Get('floors')
   @ApiOperation({ summary: 'Qavatlar ro‘yxati (filtrlar uchun)' })
   floors() {

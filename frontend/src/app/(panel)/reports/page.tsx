@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api, downloadExcel } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
 import { ExportExcelButton } from "@/components/ExportExcelButton";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
 import {
@@ -161,7 +161,7 @@ export default function ReportsPage() {
               </button>
             ))
           : null}
-        <FloorFilter scope="reception" value={floor} onChange={setFloor} />
+        <SectorFilter scope="reception" value={floor} onChange={setFloor} />
         <ExportExcelButton
           onClick={() => downloadExcel(`/api/v1/reception/reports/export/excel?${excelQs}`, `Yotoqxona_${excelType}.xlsx`)}
         />

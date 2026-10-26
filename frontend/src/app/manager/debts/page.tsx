@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -81,7 +81,7 @@ export default function ManagerDebtsPage() {
           <option value="DAILY">Kunlik</option>
           <option value="MONTHLY">Oylik</option>
         </select>
-        <FloorFilter
+        <SectorFilter
           scope="manager"
           value={floor}
           onChange={setFloor}

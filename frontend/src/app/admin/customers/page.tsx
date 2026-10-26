@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { AddPaymentModal } from "@/components/AddPaymentModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EditCustomerModal } from "@/components/EditCustomerModal";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { checkoutDate, customerGenderLabel, dash, displayUzPhone, floorLabel, formatDate, payStatusLabel, stayTypeLabel } from "@/lib/format";
 
@@ -86,7 +86,7 @@ export default function AdminCustomersPage() {
           To‘lamadi
         </button>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / ID / xona" className="min-w-[200px] flex-1" />
-        <FloorFilter scope="admin" value={floor} onChange={setFloor} />
+        <SectorFilter scope="admin" value={floor} onChange={setFloor} />
       </div>
       {error ? <p className="mt-3 rounded-md bg-[#f8ecec] px-4 py-3 text-sm text-[#9b3b3b]">{error}</p> : null}
       <div className="mt-4 overflow-x-auto">

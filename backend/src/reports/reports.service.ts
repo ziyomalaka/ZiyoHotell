@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UZ_MONTHS, addDays, dayEnd, dayStart, todayISO } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
 import { cashCardTotals, methodSplit, periodInfo } from '../common/billing';
+import { sectorBreakdown } from '../common/sector';
 
 @Injectable()
 export class ReportsService {
@@ -16,7 +17,7 @@ export class ReportsService {
     return Object.keys(where).length ? where : undefined;
   }
 
-  /** Qavat filtri: faqat 1 dan katta butun son qabul qilinadi. */
+  /** Sektor filtri: `floor` so‘rov parametri endi sektor raqamini bildiradi (1 va undan katta). */
   private level(floor?: number | string | null) {
     const value = Number(floor);
     return Number.isInteger(value) && value >= 1 ? value : null;
@@ -30,13 +31,13 @@ export class ReportsService {
         ...(dates ? { startDate: dates } : {}),
         ...(roomId ? { roomId } : {}),
         ...(status ? { status } : {}),
-        ...(level ? { room: { floor: level } } : {}),
+        ...(level ? { room: { sector: { number: level } } } : {}),
       },
       include: { customer: true, room: true, bed: true },
       orderBy: { startDate: 'asc' },
     });
     const active = level
-      ? await this.prisma.occupancy.count({ where: { bed: { room: { floor: level } } } })
+      ? await this.prisma.occupancy.count({ where: { bed: { room: { sector: { number: level } } } } })
       : await this.prisma.occupancy.count();
     return {
       floor: level,
@@ -55,7 +56,7 @@ export class ReportsService {
   async paymentDueReport(floor?: number) {
     const level = this.level(floor);
     const stays = await this.prisma.stay.findMany({
-      where: { status: 'ACTIVE', occupancy: { isNot: null }, ...(level ? { room: { floor: level } } : {}) },
+      where: { status: 'ACTIVE', occupancy: { isNot: null }, ...(level ? { room: { sector: { number: level } } } : {}) },
       include: { customer: true, room: true, bed: true },
     });
     const rows = stays
@@ -103,7 +104,7 @@ export class ReportsService {
     const payments = await this.prisma.payment.findMany({
       where: {
         ...(paidAt ? { paidAt } : {}),
-        ...(level ? { stay: { room: { floor: level } } } : {}),
+        ...(level ? { stay: { room: { sector: { number: level } } } } : {}),
         NOT: { status: 'CANCELLED' },
       },
       include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: { select: { id: true, fullName: true } } },
@@ -114,7 +115,7 @@ export class ReportsService {
         .filter((p) => (status ? p.status === status : true) && (type ? p.type === type : true))
         .reduce((acc, p) => acc + p.amount, 0);
     const unpaidDebt = await this.prisma.stay.findMany({
-      where: level ? { room: { floor: level } } : {},
+      where: level ? { room: { sector: { number: level } } } : {},
       select: { totalAmount: true, paidAmount: true, status: true },
     });
     const unpaidStays = unpaidDebt.filter((s) => s.paidAmount < s.totalAmount);
@@ -139,9 +140,9 @@ export class ReportsService {
   async occupancyReport(floor?: number) {
     const level = this.level(floor);
     const rooms = await this.prisma.room.findMany({
-      where: level ? { floor: level } : {},
-      include: { level: true, beds: { include: { occupancy: true } } },
-      orderBy: [{ floor: 'asc' }, { number: 'asc' }],
+      where: level ? { sector: { number: level } } : {},
+      include: { level: true, sector: true, beds: { include: { occupancy: true } } },
+      orderBy: [{ sector: { number: 'asc' } }, { floor: 'asc' }, { number: 'asc' }],
     });
     const allBeds = rooms.flatMap((r) => r.beds);
     const activeBeds = allBeds.filter((b) => b.status === 'ACTIVE' && rooms.find((r) => r.id === b.roomId)?.status === 'ACTIVE');
@@ -163,7 +164,7 @@ export class ReportsService {
     }
     return {
       floor: level,
-      floors: this.floorBreakdown(rooms),
+      sectors: sectorBreakdown(rooms),
       genders: this.genderBreakdown(rooms),
       rooms: rooms.length,
       beds: allBeds.length,
@@ -184,46 +185,11 @@ export class ReportsService {
     return this.prisma.checkLog.findMany({
       where: {
         ...(at ? { at } : {}),
-        ...(level ? { stay: { room: { floor: level } } } : {}),
+        ...(level ? { stay: { room: { sector: { number: level } } } } : {}),
       },
       include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: { select: { id: true, fullName: true } } },
       orderBy: { at: 'desc' },
     });
-  }
-
-  /** Qavatlar kesimida bandlik: har bir qavat uchun xona/o‘rin va foiz. */
-  private floorBreakdown(
-    rooms: {
-      status: string;
-      capacity: number;
-      floor: number;
-      level?: { number: number; name: string } | null;
-      beds: { status: string; occupancy: unknown }[];
-    }[],
-  ) {
-    const map = new Map<number, { floor: number; name: string; rooms: number; beds: number; occupied: number; repair: number }>();
-    for (const room of rooms) {
-      const key = room.level?.number ?? room.floor;
-      const entry = map.get(key) || {
-        floor: key,
-        name: room.level?.name || `${key}-qavat`,
-        rooms: 0,
-        beds: 0,
-        occupied: 0,
-        repair: 0,
-      };
-      const inactive = room.status !== 'ACTIVE';
-      entry.rooms += 1;
-      if (inactive) entry.repair += 1;
-      for (const bed of room.beds) {
-        if (bed.status === 'ACTIVE' && !inactive) entry.beds += 1;
-        if (bed.occupancy) entry.occupied += 1;
-      }
-      map.set(key, entry);
-    }
-    return Array.from(map.values())
-      .sort((a, b) => a.floor - b.floor)
-      .map((f) => ({ ...f, free: Math.max(0, f.beds - f.occupied), percent: f.beds ? Math.round((f.occupied / f.beds) * 100) : 0 }));
   }
 
   /** Jinslar kesimida bandlik: bollar va qizlar xonalari alohida. */
@@ -265,14 +231,14 @@ export class ReportsService {
 
     const [logs, payments] = await Promise.all([
       this.prisma.checkLog.findMany({
-        where: { at: { gte: since }, ...(level ? { stay: { room: { floor: level } } } : {}) },
+        where: { at: { gte: since }, ...(level ? { stay: { room: { sector: { number: level } } } } : {}) },
         select: { type: true, at: true },
       }),
       this.prisma.payment.findMany({
         where: {
           paidAt: { gte: since },
           NOT: { status: 'CANCELLED' },
-          ...(level ? { stay: { room: { floor: level } } } : {}),
+          ...(level ? { stay: { room: { sector: { number: level } } } } : {}),
         },
         select: { amount: true, paidAt: true, method: true, status: true },
       }),
@@ -300,7 +266,7 @@ export class ReportsService {
       .map(({ start, ...row }) => ({ ...row, net: row.in - row.out }))
       .reverse();
     const living = await this.prisma.occupancy.count({
-      where: level ? { bed: { room: { floor: level } } } : {},
+      where: level ? { bed: { room: { sector: { number: level } } } } : {},
     });
     const split = cashCardTotals(paid);
 

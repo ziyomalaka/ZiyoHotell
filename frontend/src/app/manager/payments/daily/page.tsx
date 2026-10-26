@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
@@ -58,7 +58,7 @@ export default function ManagerDailyPaymentsPage() {
     <div>
       <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full lg:w-auto" />
-        <FloorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
+        <SectorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:gap-3">
         <div className="stat-quiet px-2 py-3 sm:px-4">

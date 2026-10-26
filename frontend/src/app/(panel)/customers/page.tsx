@@ -5,16 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
-import { daysLeftLabel, floorLabel } from "@/lib/format";
+import { daysLeftLabel, sectorLabel } from "@/lib/format";
 
 type Row = {
   id: string;
   fullName: string;
   daysLeft?: number | null;
   occupancy?: {
-    stay: { room: { number: string; floor: number } };
+    stay: { room: { number: string; floor: number; sector?: { number: number; name: string } | null } };
   } | null;
 };
 
@@ -58,7 +58,7 @@ export default function ReceptionCustomersPage() {
           </button>
         ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / ID / xona" className="min-w-[200px] flex-1" />
-        <FloorFilter scope="reception" value={floor} onChange={setFloor} />
+        <SectorFilter scope="reception" value={floor} onChange={setFloor} />
       </div>
       <div className="overflow-x-auto">
         <table className="data-table">
@@ -85,7 +85,7 @@ export default function ReceptionCustomersPage() {
                     {room ? (
                       <>
                         <span className="font-medium text-navy">{room.number}-xona</span>
-                        <span className="ml-2 text-xs text-muted">{floorLabel(room.floor)}</span>
+                        <span className="ml-2 text-xs text-muted">{sectorLabel(room.sector)}</span>
                       </>
                     ) : (
                       "—"

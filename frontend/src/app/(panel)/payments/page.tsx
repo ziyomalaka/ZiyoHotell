@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, newIdempotencyKey } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, PAYMENT_METHOD_OPTIONS, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
@@ -148,7 +148,7 @@ export default function PaymentsPage() {
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Qidiruv" className="min-w-[180px] flex-1" />
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        <FloorFilter scope="reception" value={floor} onChange={setFloor} />
+        <SectorFilter scope="reception" value={floor} onChange={setFloor} />
         <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">Kunlik / Oylik</option>
           <option value="DAILY">Kunlik</option>
@@ -235,7 +235,7 @@ export default function PaymentsPage() {
                 <option value="">Tanlang</option>
                 {stays.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.customer.fullName} — {s.room.floor}-qavat {s.room.number}/{s.bed.number}
+                    {s.customer.fullName} — {floorLabel(s.room.floor)} {s.room.number}/{s.bed.number}
                     {s.paidDaysLabel ? ` · ${s.paidDaysLabel}` : ""}
                     {s.daysLeft != null ? ` · ${s.daysLeft} kun` : ""}
                   </option>

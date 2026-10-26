@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { floorLabel, formatDate } from "@/lib/format";
@@ -47,7 +47,7 @@ export default function AdminStaysPage() {
           </button>
         ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mijoz / xona" className="rounded-lg border border-line bg-white px-3 py-2" />
-        <FloorFilter
+        <SectorFilter
           scope="admin"
           value={floor}
           onChange={setFloor}

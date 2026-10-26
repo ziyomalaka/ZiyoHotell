@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { FilterBar } from "@/components/FilterBar";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel } from "@/lib/format";
@@ -71,7 +71,7 @@ export default function AdminPaymentsPage() {
           <button key={v} onClick={() => setRange(v)} className={`chip ${range===v ? "chip-active" : ""}`}>{l}</button>
         ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Qidiruv..." className="min-w-[180px] flex-1" />
-        <FloorFilter scope="admin" value={floor} onChange={setFloor} />
+        <SectorFilter scope="admin" value={floor} onChange={setFloor} />
         <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">Tur</option>
           <option value="DAILY">Kunlik</option>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -145,7 +145,7 @@ export default function ManagerPaymentsPage() {
           <option value="PARTIAL">Qisman</option>
           <option value="UNPAID">To‘lamagan</option>
         </select>
-        <FloorFilter
+        <SectorFilter
           scope="manager"
           value={floor}
           onChange={setFloor}

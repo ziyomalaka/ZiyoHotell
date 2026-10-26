@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { IdNumberInput } from "@/components/IdNumberInput";
 import { PhoneInput } from "@/components/PhoneInput";
-import { floorLabel, formatPassportId, formatUzPhone, isValidPassportId, isValidUzPhone, todayISO } from "@/lib/format";
+import { compareRoomNumbers, formatPassportId, formatUzPhone, isValidPassportId, isValidUzPhone, todayISO } from "@/lib/format";
 
 export type EditCustomerSeed = {
   id: string;
@@ -34,13 +34,14 @@ type StayPlace = {
   bedId: string;
   roomId: string;
   bed: { id: string; number: number };
-  room: { id: string; number: string; floor: number; gender: string };
+  room: { id: string; number: string; floor: number; gender: string; sector?: { number: number; name: string } | null };
 };
 
 type Room = {
   id: string;
   number: string;
   floor?: number | null;
+  sector?: { number: number; name: string } | null;
   gender: string;
   status: string;
   beds: { id: string; number: number; status: string; occupancy?: { customerId?: string; customer?: { id?: string } } | null }[];
@@ -88,7 +89,8 @@ export function EditCustomerModal({
           bed.status === "ACTIVE" && (!bed.occupancy || ownerOf(bed) === customer.id);
         const bedId = stay?.bedId || stay?.bed.id || "";
         const roomId = stay?.roomId || stay?.room.id || "";
-        const floor = stay?.room.floor ? String(stay.room.floor) : "";
+        // `floor` maydoni endi sektor raqamini saqlaydi: xona sektor ichidan tanlanadi.
+        const floor = stay?.room.sector ? String(stay.room.sector.number) : "";
         const room = list.find((r) => r.id === roomId);
         const bed = room?.beds.find((b) => b.id === bedId);
         const roomOk =
@@ -96,7 +98,7 @@ export function EditCustomerModal({
         const floorOk =
           !!floor &&
           list.some(
-            (r) => r.status === "ACTIVE" && r.gender === gender && String(r.floor) === floor && r.beds.some(isFree),
+            (r) => r.status === "ACTIVE" && r.gender === gender && String(r.sector?.number) === floor && r.beds.some(isFree),
           );
         setLiving(!!row.occupancy?.stay);
         setCurrentBedId(bed && isFree(bed) ? bedId : "");
@@ -145,19 +147,17 @@ export function EditCustomerModal({
     () => rooms.filter((r) => r.status === "ACTIVE" && r.gender === form.gender),
     [rooms, form.gender],
   );
-  const floors = useMemo(
-    () =>
-      [...new Set(genderRooms.map((r) => r.floor).filter((n): n is number => typeof n === "number" && Number.isInteger(n) && n >= 1))].sort(
-        (a, b) => a - b,
-      ),
-    [genderRooms],
-  );
+  const sectors = useMemo(() => {
+    const byNumber = new Map<number, { number: number; name: string }>();
+    for (const r of genderRooms) if (r.sector) byNumber.set(r.sector.number, r.sector);
+    return [...byNumber.values()].sort((a, b) => a.number - b.number);
+  }, [genderRooms]);
   const floorRooms = useMemo(
     () =>
       genderRooms.filter((r) => {
-        if (!form.floor || String(r.floor) !== form.floor) return false;
+        if (!form.floor || String(r.sector?.number) !== form.floor) return false;
         return r.beds.some((b) => bedFree(b));
-      }),
+      }).sort((a, b) => compareRoomNumbers(a.number, b.number)),
     [genderRooms, form.floor, customer.id],
   );
   const room = floorRooms.find((r) => r.id === form.roomId);
@@ -226,12 +226,12 @@ export function EditCustomerModal({
           </select>
         </label>
         <label className="mt-3 block text-sm font-medium">
-          Qavat
+          Sektor
           <select value={form.floor} onChange={(e) => patch("floor", e.target.value)} className="mt-2 w-full">
             <option value="">Tanlang</option>
-            {floors.map((n) => (
-              <option key={n} value={String(n)}>
-                {floorLabel(n)}
+            {sectors.map((sector) => (
+              <option key={sector.number} value={String(sector.number)}>
+                {sector.number}-sektor · {sector.name}
               </option>
             ))}
           </select>
@@ -239,7 +239,7 @@ export function EditCustomerModal({
         <label className="mt-3 block text-sm font-medium">
           Xona
           <select value={form.roomId} onChange={(e) => patch("roomId", e.target.value)} className="mt-2 w-full">
-            <option value="">{form.floor ? "Tanlang" : "Avval qavat tanlang"}</option>
+            <option value="">{form.floor ? "Tanlang" : "Avval sektor tanlang"}</option>
             {floorRooms.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.number}-xona

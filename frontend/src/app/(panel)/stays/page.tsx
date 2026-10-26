@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EmptyState } from "@/components/EmptyState";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { checkoutDate, dash, displayUzPhone, daysLeftLabel, floorLabel, formatDate, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
@@ -69,7 +69,7 @@ export default function StaysPage() {
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="F.I.Sh. / telefon / ID / xona" className="min-w-[220px] flex-1" />
-        <FloorFilter scope="reception" value={floor} onChange={setFloor} />
+        <SectorFilter scope="reception" value={floor} onChange={setFloor} />
       </div>
       <div className="overflow-x-auto">
         <table className="data-table">

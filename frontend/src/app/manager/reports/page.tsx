@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api, downloadExcel } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
 import { ExportExcelButton } from "@/components/ExportExcelButton";
-import { FloorFilter } from "@/components/FloorFilter";
+import { SectorFilter } from "@/components/SectorFilter";
 import { MovementTable, MOVEMENT_VIEWS, type MovementData, type MovementView } from "@/components/MovementTable";
 import { PaymentDueTable, type PaymentDueData } from "@/components/PaymentDueTable";
 import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, payStatusLabel, stayTypeLabel } from "@/lib/format";
@@ -104,7 +104,7 @@ export default function ManagerReportsPage() {
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full lg:w-auto" />
             </>
           ) : null}
-          <FloorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
+          <SectorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
           <ExportExcelButton
             onClick={() => downloadExcel(`/api/v1/manager/reports/export/excel?${excelQs}`, `Yotoqxona_${tab}.xlsx`)}
           />

@@ -106,10 +106,27 @@ export class ReceptionService implements OnModuleInit {
     return { contains: q, mode: 'insensitive' };
   }
 
-  /** Qavat filtri: faqat 1 dan katta butun son qabul qilinadi, aks holda filtr qo‘llanmaydi. */
+  /** Sektor filtri: `floor` so‘rov parametri endi sektor raqamini bildiradi; noto‘g‘ri bo‘lsa filtr qo‘llanmaydi. */
   private floorFilter(floor?: number | string | null) {
     const level = Number(floor);
     return Number.isInteger(level) && level >= 1 ? level : null;
+  }
+
+  /** Sektorlar ro‘yxati (filtrlar uchun): raqam, nom, qavat, jins va xonalar soni. */
+  async sectorOptions() {
+    const sectors = await this.prisma.sector.findMany({
+      orderBy: { number: 'asc' },
+      include: { _count: { select: { rooms: true } } },
+    });
+    return sectors.map((s) => ({
+      id: s.id,
+      number: s.number,
+      name: s.name,
+      gender: s.gender,
+      floor: s.floor,
+      status: s.status,
+      rooms: s._count.rooms,
+    }));
   }
 
   async floorOptions() {
@@ -501,8 +518,8 @@ export class ReceptionService implements OnModuleInit {
       where.AND = [
         {
           OR: [
-            { occupancy: { stay: { room: { floor } } } },
-            { AND: [{ occupancy: null }, { stays: { some: { room: { floor } } } }] },
+            { occupancy: { stay: { room: { sector: { number: floor } } } } },
+            { AND: [{ occupancy: null }, { stays: { some: { room: { sector: { number: floor } } } } }] },
           ],
         },
       ];
@@ -515,8 +532,8 @@ export class ReceptionService implements OnModuleInit {
         take: opts.pageSize,
         orderBy: { createdAt: 'desc' },
         include: {
-          occupancy: { include: { stay: { include: { room: true, bed: true } } } },
-          stays: { include: { room: true, bed: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+          occupancy: { include: { stay: { include: { room: { include: { sector: true } }, bed: true } } } },
+          stays: { include: { room: { include: { sector: true } }, bed: true }, orderBy: { createdAt: 'desc' }, take: 1 },
         },
       }),
     ]);
@@ -706,9 +723,9 @@ export class ReceptionService implements OnModuleInit {
       where: { id },
       include: {
         createdBy: { select: { fullName: true } },
-        occupancy: { include: { stay: { include: { room: true, bed: true } } } },
+        occupancy: { include: { stay: { include: { room: { include: { sector: true } }, bed: true } } } },
         stays: {
-          include: { room: true, bed: true, checkLogs: { orderBy: { at: 'asc' } } },
+          include: { room: { include: { sector: true } }, bed: true, checkLogs: { orderBy: { at: 'asc' } } },
           orderBy: { createdAt: 'desc' },
         },
         payments: {
@@ -763,7 +780,7 @@ export class ReceptionService implements OnModuleInit {
       ];
     }
     const floor = this.floorFilter(opts.floor);
-    if (floor) where.room = { floor };
+    if (floor) where.room = { sector: { number: floor } };
     if (opts.tab === 'living') where.status = 'ACTIVE';
     if (opts.tab === 'left') where.status = 'COMPLETED';
     if (opts.tab === 'in-today') {
@@ -823,7 +840,7 @@ export class ReceptionService implements OnModuleInit {
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
     const floor = this.floorFilter(opts.floor);
-    if (floor) where.stay = { room: { floor } };
+    if (floor) where.stay = { room: { sector: { number: floor } } };
     const paidAt: { gte?: Date; lte?: Date } = {};
     if (opts.range === 'today') {
       paidAt.gte = dayStart(today);
@@ -938,15 +955,16 @@ export class ReceptionService implements OnModuleInit {
   async roomsOverview(floorNumber?: number) {
     const floor = this.floorFilter(floorNumber);
     const rooms = await this.prisma.room.findMany({
-      where: { status: 'ACTIVE', ...(floor ? { floor } : {}) },
+      where: { status: 'ACTIVE', ...(floor ? { sector: { number: floor } } : {}) },
       include: {
         level: true,
+        sector: true,
         beds: {
           include: { occupancy: { include: { customer: true, stay: true } } },
           orderBy: { number: 'asc' },
         },
       },
-      orderBy: [{ floor: 'asc' }, { number: 'asc' }],
+      orderBy: [{ sector: { number: 'asc' } }, { floor: 'asc' }, { number: 'asc' }],
     });
     return rooms.map((room) => {
       const occupied = room.beds.filter((bed) => bed.occupancy).length;
