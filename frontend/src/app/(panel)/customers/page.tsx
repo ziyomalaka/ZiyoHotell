@@ -7,15 +7,24 @@ import { api } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
-import { floorLabel } from "@/lib/format";
+import { daysLeftLabel, floorLabel } from "@/lib/format";
 
 type Row = {
   id: string;
   fullName: string;
+  daysLeft?: number | null;
   occupancy?: {
     stay: { room: { number: string; floor: number } };
   } | null;
 };
+
+/** To‘lovgacha 1 kun qolsa yoki muddat o‘tgan bo‘lsa qizil, 3 kungacha qolsa sariq. */
+function dueTone(daysLeft?: number | null) {
+  if (daysLeft == null) return null;
+  if (daysLeft <= 1) return { cell: "bg-[#f7cfcf]", text: "text-[#8a2f2f]" };
+  if (daysLeft <= 3) return { cell: "bg-[#fdecb0]", text: "text-[#7a5a00]" };
+  return null;
+}
 
 export default function ReceptionCustomersPage() {
   const router = useRouter();
@@ -62,13 +71,15 @@ export default function ReceptionCustomersPage() {
           <tbody>
             {data.rows.map((r) => {
               const room = r.occupancy?.stay.room;
+              const tone = dueTone(r.daysLeft);
               return (
                 // Butun qator bosiladi: mijozning alohida profil sahifasi ochiladi.
                 <tr key={r.id} onClick={() => router.push(`/customers/${r.id}`)} className="cursor-pointer hover:bg-white">
-                  <td>
+                  <td className={tone?.cell}>
                     <Link href={`/customers/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-navy hover:underline">
                       {r.fullName}
                     </Link>
+                    {tone ? <span className={`ml-2 text-xs font-semibold ${tone.text}`}>{daysLeftLabel(r.daysLeft)}</span> : null}
                   </td>
                   <td>
                     {room ? (

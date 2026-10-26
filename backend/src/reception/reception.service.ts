@@ -535,6 +535,8 @@ export class ReceptionService implements OnModuleInit {
           birthDate: c.birthDate,
           gender: c.gender,
           living: Boolean(live),
+          // Ro'yxatda muddati yaqin (sariq) va o'tgan (qizil) mijozlarni ajratish uchun.
+          daysLeft: live ? periodInfo(live).daysLeft : null,
           payStatus: !stay ? 'UNPAID' : stay.paidAmount > 0 ? 'PAID' : 'UNPAID',
           occupancy: stay
             ? {

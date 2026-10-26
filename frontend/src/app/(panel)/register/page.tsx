@@ -6,7 +6,7 @@ import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
 import { IdNumberInput } from "@/components/IdNumberInput";
 import { PhoneInput } from "@/components/PhoneInput";
-import { checkoutDate, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
+import { checkoutDate, compareRoomNumbers, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
@@ -55,6 +55,15 @@ const emptyForm = {
   notes: "",
 };
 
+// O‘rin so‘ralmaydi: backend tanlangan xonadagi bo‘sh o‘rinni o‘zi beradi.
+function freeCount(r: Room) {
+  return r.beds.filter((b) => !b.occupancy && b.status === "ACTIVE").length;
+}
+
+function roomName(r: Room) {
+  return r.floor ? `${r.floor}-qavat · ${r.number}-xona` : `${r.number}-xona`;
+}
+
 export default function RegisterPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [home, setHome] = useState<Home | null>(null);
@@ -100,13 +109,18 @@ export default function RegisterPage() {
   }, [form.passportId]);
 
   // Faqat mijoz jinsiga ajratilgan xonalar ko‘rsatiladi — aralash joylashtirish oldini oladi.
-  const activeRooms = useMemo(
-    () => rooms.filter((r) => r.status === "ACTIVE" && r.gender === form.gender),
-    [rooms, form.gender],
-  );
-  const room = activeRooms.find((r) => r.id === form.roomId);
-  // O‘rin so‘ralmaydi: backend tanlangan xonadagi bo‘sh o‘rinni o‘zi beradi.
-  const freeCount = (r: Room) => r.beds.filter((b) => !b.occupancy && b.status === "ACTIVE").length;
+  // Tartib: qavat va xona raqami bo‘yicha, joyi qolmagan xonalar oxirida.
+  const activeRooms = useMemo(() => {
+    const list = rooms
+      .filter((r) => r.status === "ACTIVE" && r.gender === form.gender)
+      .sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0) || compareRoomNumbers(a.number, b.number));
+    return [...list.filter((r) => freeCount(r) > 0), ...list.filter((r) => freeCount(r) === 0)];
+  }, [rooms, form.gender]);
+  // Xona tanlanmagan yoki tanlangani to‘lib qolgan bo‘lsa, joyi bor birinchi xona taklif qilinadi.
+  const suggested = activeRooms.find((r) => freeCount(r) > 0);
+  const chosen = activeRooms.find((r) => r.id === form.roomId && freeCount(r) > 0);
+  const room = chosen || suggested;
+  const chosenFull = Boolean(form.roomId) && !chosen;
   const monthlyPrice = room?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
   const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(form.amount || 0)) : 0;
   const coveredDays = daysForAmount(paidPreview, monthlyPrice, form.stayType);
@@ -123,7 +137,7 @@ export default function RegisterPage() {
     event.preventDefault();
     setError("");
     setSuccess("");
-    if (!form.fullName.trim() || !form.birthDate || !form.roomId || !form.startDate) {
+    if (!form.fullName.trim() || !form.birthDate || !room || !form.startDate) {
       setError("Majburiy maydonlarni to‘ldiring.");
       return;
     }
@@ -155,7 +169,7 @@ export default function RegisterPage() {
           birthDate: form.birthDate,
           gender: form.gender,
           notes: form.notes.trim() || null,
-          roomId: form.roomId,
+          roomId: room.id,
           stayType: form.stayType,
           startDate: form.startDate,
           amount,
@@ -169,7 +183,13 @@ export default function RegisterPage() {
       setForm({ ...emptyForm, startDate: todayISO() });
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Xatolik");
+      if ((err as { code?: string }).code === "ROOM_FULL") {
+        // Saqlash paytida oxirgi o‘rinni boshqa xodim olgan: xonalar yangilanadi va keyingisi taklif qilinadi.
+        setError(`${roomName(room)} da joy qolmadi. Keyingi bo‘sh xona taklif qilindi — qayta SAQLASH ni bosing.`);
+        load();
+      } else {
+        setError(err instanceof Error ? err.message : "Xatolik");
+      }
     } finally {
       setSaving(false);
     }
@@ -250,22 +270,26 @@ export default function RegisterPage() {
             </select>
           </FormField>
           <FormField label="Xona" required>
-            <select value={form.roomId} onChange={(e) => patch("roomId", e.target.value)} className="w-full">
-              <option value="">
-                {activeRooms.length
-                  ? "Tanlang"
-                  : `${form.gender === "FEMALE" ? "Qizlar" : "Bollar"} uchun xona yo‘q`}
-              </option>
+            <select value={room?.id || ""} onChange={(e) => patch("roomId", e.target.value)} className="w-full">
+              {!room ? (
+                <option value="">
+                  {activeRooms.length ? "Bo‘sh joy yo‘q" : `${form.gender === "FEMALE" ? "Qizlar" : "Bollar"} uchun xona yo‘q`}
+                </option>
+              ) : null}
               {activeRooms.map((r) => {
                 const free = freeCount(r);
                 return (
                   <option key={r.id} value={r.id} disabled={!free}>
-                    {r.floor ? `${r.floor}-qavat · ${r.number}-xona` : `${r.number}-xona`} —{" "}
-                    {free ? `${free} ta bo‘sh o‘rin` : "to‘la"}
+                    {roomName(r)} — {free ? `${free} ta bo‘sh o‘rin` : "joy yo‘q"}
                   </option>
                 );
               })}
             </select>
+            {chosenFull && room ? (
+              <p className="mt-1 text-xs font-medium text-[#7a5a00]">Tanlangan xonada joy qolmadi — {roomName(room)} taklif qilindi.</p>
+            ) : !form.roomId && room ? (
+              <p className="mt-1 text-xs text-muted">Joyi bor birinchi xona avtomatik tanlandi.</p>
+            ) : null}
           </FormField>
           <FormField label="Yashash turi" required>
             <select

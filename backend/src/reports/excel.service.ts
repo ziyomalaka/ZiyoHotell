@@ -135,11 +135,54 @@ export class ExcelService {
     return data;
   }
 
+  /** Kunlik tushum varag‘i: bir kunda qancha tushdi, qaysi to‘lov turida va kim kiritdi. */
+  private async dailyIncomeSheet(sheet: ExcelJS.Worksheet, day: string, floor?: number) {
+    const data = await this.reports.paymentsReport(day, day, floor);
+    const paid = data.rows.filter((r) => r.status === 'PAID');
+    const sum = (rows: typeof paid) => rows.reduce((acc, r) => acc + r.amount, 0);
+    const known = ['CASH', 'CARD', 'TERMINAL', 'MIXED'];
+    sheet.addRow([`KUNLIK TUSHUM — ${formatDate(day)}`]);
+    sheet.addRow([]);
+    sheet.addRow(['To‘lov turi', 'Soni', 'Summa']);
+    for (const method of known) {
+      const rows = paid.filter((r) => r.method === method);
+      sheet.addRow([methodLabel(method), rows.length, formatMoney(sum(rows))]);
+    }
+    const other = paid.filter((r) => !known.includes(r.method));
+    if (other.length) sheet.addRow(['Boshqa', other.length, formatMoney(sum(other))]);
+    sheet.addRow(['JAMI', paid.length, formatMoney(data.total)]);
+    sheet.addRow([]);
+    sheet.addRow(['Naqd (50/50 bilan)', formatMoney(data.cash)]);
+    sheet.addRow(['Karta (50/50 bilan)', formatMoney(data.card)]);
+    sheet.addRow(['Terminal', formatMoney(data.terminal)]);
+    sheet.addRow([]);
+    sheet.addRow(['№', 'Mijoz', 'Qavat', 'Xona/O‘rin', 'Summa', 'To‘lov turi', 'Holat', 'Kim kiritgan']);
+    data.rows.forEach((r, i) =>
+      sheet.addRow([
+        i + 1,
+        r.customer.fullName,
+        r.stay.room.floor,
+        `${r.stay.room.number}/${r.stay.bed.number}`,
+        formatMoney(r.amount),
+        // To‘lanmagan qatorda usul hali tanlanmagan, shuning uchun ko‘rsatilmaydi.
+        r.status === 'PAID' ? methodLabel(r.method) : '—',
+        payStatusLabel(r.status),
+        r.createdBy.fullName,
+      ]),
+    );
+    return data;
+  }
+
   async reception(type: string, from?: string, to?: string, floor?: number, range?: string) {
     const wb = new ExcelJS.Workbook();
     const sheet = wb.addWorksheet('Hisobot');
     const day = todayISO();
     const fx = this.floorSuffix(floor);
+    if (type === 'daily-income') {
+      const date = from || day;
+      await this.dailyIncomeSheet(sheet, date, floor);
+      return this.file(wb, `Yotoqxona_KunlikTushum${fx}_${date}.xlsx`);
+    }
     if (type === 'customers') {
       const data = await this.reports.customersReport(from, to, undefined, undefined, floor);
       const pays = await this.reports.paymentsReport(from, to, floor);

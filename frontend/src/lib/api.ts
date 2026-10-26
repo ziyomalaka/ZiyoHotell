@@ -57,7 +57,12 @@ export async function api<T>(path: string, init?: RequestInit, retry = true): Pr
   }
   if (!res.ok || json.ok === false) {
     if (res.status === 401 && path !== AUTH_LOGIN) goLogin();
-    throw new Error(json.error || json.message || "Ma’lumotni saqlashda xatolik yuz berdi. Qayta urinib ko‘ring.");
+    // Backend kodi (masalan ROOM_FULL) sahifalar xatoga qarab harakat qilishi uchun saqlanadi.
+    const err = new Error(json.error || json.message || "Ma’lumotni saqlashda xatolik yuz berdi. Qayta urinib ko‘ring.") as Error & {
+      code?: string;
+    };
+    err.code = json.code;
+    throw err;
   }
   return json.data as T;
 }
