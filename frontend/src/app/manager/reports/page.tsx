@@ -27,7 +27,7 @@ type CustomerRep = {
     endDate?: string | null;
     startDate: string;
     status: string;
-    customer: { fullName: string; phone: string; passportId?: string };
+    customer: { fullName: string; phone: string; passportId?: string; birthDate?: string | null };
     room: { number: string; floor: number };
     bed: { number: number };
   }[];
@@ -147,6 +147,7 @@ export default function ManagerReportsPage() {
                   <th>F.I.Sh.</th>
                   <th>Telefon</th>
                   <th>ID raqami</th>
+                  <th>Tug‘ilgan sana</th>
                   <th>Qavat</th>
                   <th>Xona</th>
                   <th>Turi</th>
@@ -164,6 +165,7 @@ export default function ManagerReportsPage() {
                     <td>{row.customer.fullName}</td>
                     <td>{displayUzPhone(row.customer.phone)}</td>
                     <td>{dash(row.customer.passportId)}</td>
+                    <td>{formatDate(row.customer.birthDate)}</td>
                     <td>{floorLabel(row.room.floor)}</td>
                     <td>
                       {row.room.number}/{row.bed.number}
@@ -191,6 +193,10 @@ export default function ManagerReportsPage() {
                 <div className="mgr-kv">
                   <span>ID raqami</span>
                   <span>{dash(row.customer.passportId)}</span>
+                </div>
+                <div className="mgr-kv">
+                  <span>Tug‘ilgan sana</span>
+                  <span>{formatDate(row.customer.birthDate)}</span>
                 </div>
                 <div className="mgr-kv">
                   <span>Qavat</span>

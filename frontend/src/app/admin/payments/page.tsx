@@ -6,7 +6,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { FloorFilter } from "@/components/FloorFilter";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, payStatusLabel } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel } from "@/lib/format";
 
 type Pay = {
   id: string;
@@ -16,7 +16,7 @@ type Pay = {
   method: string;
   status: string;
   paidAt: string;
-  customer: { fullName: string; phone?: string; passportId?: string };
+  customer: { fullName: string; phone?: string; passportId?: string; birthDate?: string | null };
   coversTo?: string | null;
   stay: {
     totalAmount: number;
@@ -87,7 +87,7 @@ export default function AdminPaymentsPage() {
       <div className="mt-4 card overflow-x-auto">
         <table className="data-table">
           <thead className="bg-background text-left">
-            <tr>{["Mijoz","Telefon","ID raqami","Qavat","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Chiqish kuni","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
+            <tr>{["Mijoz","Telefon","ID raqami", "Tug‘ilgan sana","Qavat","Xona","Tur","Davr","Kutilgan","To‘langan","Qarz","Usul","Sana","Chiqish kuni","Holat","Kim",""].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
           </thead>
           <tbody>
             {data.rows.map((r) => (
@@ -95,6 +95,7 @@ export default function AdminPaymentsPage() {
                 <td className="px-3 py-3">{r.customer.fullName}</td>
                 <td className="px-3 py-3">{displayUzPhone(r.customer.phone)}</td>
                 <td className="px-3 py-3">{dash(r.customer.passportId)}</td>
+                <td className="px-3 py-3">{formatDate(r.customer.birthDate)}</td>
                 <td className="px-3 py-3">{floorLabel(r.stay.room.floor)}</td>
                 <td className="px-3 py-3">{r.stay.room.number}/{r.stay.bed.number}</td>
                 <td className="px-3 py-3">{r.type === "DAILY" ? "Kunlik" : "Oylik"}</td>
@@ -102,7 +103,7 @@ export default function AdminPaymentsPage() {
                 <td className="px-3 py-3">{formatMoney(r.stay.totalAmount)}</td>
                 <td className="px-3 py-3">{formatMoney(r.stay.paidAmount)}</td>
                 <td className="px-3 py-3">{formatMoney(Math.max(0, r.stay.totalAmount - r.stay.paidAmount))}</td>
-                <td className="px-3 py-3">{r.method}</td>
+                <td className="px-3 py-3">{methodLabel(r.method)}</td>
                 <td className="px-3 py-3">{formatDate(r.paidAt)}</td>
                 <td className="px-3 py-3">{formatDate(r.coversTo || checkoutDate(r.stay))}</td>
                 <td className="px-3 py-3"><StatusBadge value={r.status} label={payStatusLabel(r.status)} /></td>

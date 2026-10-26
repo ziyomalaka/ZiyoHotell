@@ -18,7 +18,7 @@ type Profile = {
   fullName: string;
   phone: string;
   gender: string;
-  passportId: string;
+  passportId: string; birthDate?: string | null;
   address?: string | null;
   paid: number;
   debt: number;
@@ -55,6 +55,7 @@ export default function ManagerCustomerProfile() {
         <p>Telefon: {displayUzPhone(c.phone)}</p>
         <p>Jins: {customerGenderLabel(c.gender)}</p>
         <p>ID raqami: {dash(c.passportId)}</p>
+        <p>Tug‘ilgan sana: {formatDate(c.birthDate)}</p>
         <p>Manzil: {c.address || "—"}</p>
         <p>Qavat: {stay ? floorLabel(stay.room.floor) : "—"}</p>
         <p>Xona / o‘rin: {stay ? `${stay.room.number}/${stay.bed.number}` : "—"}</p>

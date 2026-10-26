@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, paymentPeriod, periodInfo, revertPeriod } from '../common/billing';
+import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, paymentPeriod, PaymentMethod, periodInfo, revertPeriod } from '../common/billing';
 import { normalizePassportId } from '../common/passport';
 import { normalizePhone } from '../common/phone';
 
@@ -17,7 +17,9 @@ export type RegisterInput = {
   address?: string | null;
   extraPhone?: string | null;
   notes?: string | null;
-  bedId: string;
+  bedId?: string;
+  /** bedId berilmasa shu xonadagi bo‘sh o‘rin olinadi. */
+  roomId?: string;
   stayType: 'DAILY' | 'MONTHLY';
   startDate: string;
   daysCount?: number;
@@ -25,7 +27,7 @@ export type RegisterInput = {
   amount?: number;
   paidAmount?: number;
   paymentStatus: 'PAID' | 'PARTIAL' | 'UNPAID';
-  paymentMethod?: 'CASH' | 'CARD' | 'BANK' | 'BANK_TRANSFER' | 'OTHER';
+  paymentMethod?: PaymentMethod;
 };
 
 const stayInclude = {
@@ -156,7 +158,8 @@ export class ReceptionService implements OnModuleInit {
     required({
       fullName: input.fullName,
       passportId: input.passportId,
-      bedId: input.bedId,
+      birthDate: input.birthDate,
+      bedOrRoom: input.bedId || input.roomId,
       startDate: input.startDate,
       stayType: input.stayType,
     });
@@ -171,11 +174,12 @@ export class ReceptionService implements OnModuleInit {
     const phone = normalizePhone(input.phone);
     const passportId = normalizePassportId(input.passportId);
 
-    return this.prisma.$transaction(
+    return this.retrySerializable(() => this.prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT id FROM "Bed" WHERE id = ${input.bedId} FOR UPDATE`;
+        const bedId = input.bedId || (await this.pickFreeBed(tx, input.roomId!));
+        await tx.$queryRaw`SELECT id FROM "Bed" WHERE id = ${bedId} FOR UPDATE`;
         const bed = await tx.bed.findUnique({
-          where: { id: input.bedId },
+          where: { id: bedId },
           include: { room: true, occupancy: true },
         });
         if (!bed || bed.status !== 'ACTIVE' || bed.room.status !== 'ACTIVE' || bed.occupancy) {
@@ -293,7 +297,32 @@ export class ReceptionService implements OnModuleInit {
         return { ...row, ...periodInfo(row) };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+    ));
+  }
+
+  /** Xonadagi eng kichik raqamli bo‘sh o‘rinni qulflab oladi: parallel ro‘yxatlar bir o‘rinni olmaydi. */
+  private async pickFreeBed(tx: Prisma.TransactionClient, roomId: string) {
+    const [free] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT b.id FROM "Bed" b
+      LEFT JOIN "Occupancy" o ON o."bedId" = b.id
+      WHERE b."roomId" = ${roomId} AND b.status = 'ACTIVE' AND o."bedId" IS NULL
+      ORDER BY b.number
+      LIMIT 1
+      FOR UPDATE OF b SKIP LOCKED`;
+    if (!free) throw new AppError('Bu xonada bo‘sh o‘rin qolmadi. Boshqa xona tanlang.', 409, 'ROOM_FULL');
+    return free.id;
+  }
+
+  /** Serializable tranzaksiya parallel yozuvda P2034 bilan qaytsa, qayta uriniladi. */
+  private async retrySerializable<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await run();
+      } catch (error) {
+        const conflict = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+        if (!conflict || attempt >= attempts) throw error;
+      }
+    }
   }
 
   async checkoutStay(input: { stayId: string; at?: string; note?: string }, userId: string) {
@@ -340,7 +369,7 @@ export class ReceptionService implements OnModuleInit {
     input: {
       stayId: string;
       amount: number;
-      method?: 'CASH' | 'CARD' | 'BANK' | 'BANK_TRANSFER' | 'OTHER';
+      method?: PaymentMethod;
       type?: 'DAILY' | 'MONTHLY';
       period?: string;
       note?: string;
@@ -503,6 +532,7 @@ export class ReceptionService implements OnModuleInit {
           fullName: c.fullName,
           phone: c.phone,
           passportId: c.passportId,
+          birthDate: c.birthDate,
           gender: c.gender,
           living: Boolean(live),
           payStatus: !stay ? 'UNPAID' : stay.paidAmount > 0 ? 'PAID' : 'UNPAID',
@@ -819,8 +849,10 @@ export class ReceptionService implements OnModuleInit {
       monthIncome: summary.monthIncome,
       todayCash: summary.todayCash,
       todayCard: summary.todayCard,
+      todayTerminal: summary.todayTerminal,
       monthCash: summary.monthCash,
       monthCard: summary.monthCard,
+      monthTerminal: summary.monthTerminal,
       meta: { page: opts.page, limit: opts.pageSize, total, totalPages: Math.ceil(total / opts.pageSize) || 1 },
     };
   }
@@ -845,8 +877,10 @@ export class ReceptionService implements OnModuleInit {
       monthIncome: monthRows.reduce((acc, p) => acc + p.amount, 0),
       todayCash: todaySplit.cash,
       todayCard: todaySplit.card,
+      todayTerminal: todaySplit.terminal,
       monthCash: monthSplit.cash,
       monthCard: monthSplit.card,
+      monthTerminal: monthSplit.terminal,
     };
   }
 
@@ -872,6 +906,7 @@ export class ReceptionService implements OnModuleInit {
       todayIncome: income.todayIncome,
       todayCash: income.todayCash,
       todayCard: income.todayCard,
+      todayTerminal: income.todayTerminal,
       recent: recent.map((s) => ({ ...s, ...periodInfo(s) })),
     };
   }

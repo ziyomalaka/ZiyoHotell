@@ -12,7 +12,18 @@ export type MovementData = {
   totalIncome: number;
   cash?: number;
   card?: number;
-  rows: { key: string; label: string; in: number; out: number; net: number; income: number; cash?: number; card?: number }[];
+  terminal?: number;
+  rows: {
+    key: string;
+    label: string;
+    in: number;
+    out: number;
+    net: number;
+    income: number;
+    cash?: number;
+    card?: number;
+    terminal?: number;
+  }[];
 };
 
 export const MOVEMENT_VIEWS: { id: MovementView; label: string }[] = [
@@ -26,7 +37,7 @@ export function MovementTable({ data }: { data: MovementData | null }) {
   if (!data) return null;
   return (
     <div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="stat-quiet">
           <p>Kirdi</p>
           <strong>{data.totalIn}</strong>
@@ -51,6 +62,10 @@ export function MovementTable({ data }: { data: MovementData | null }) {
           <p>Karta</p>
           <strong className="text-lg">{formatMoney(data.card || 0)}</strong>
         </div>
+        <div className="stat-quiet">
+          <p>Terminal</p>
+          <strong className="text-lg">{formatMoney(data.terminal || 0)}</strong>
+        </div>
       </div>
       <div className="mt-4 hidden overflow-x-auto lg:block">
         <table className="data-table">
@@ -63,6 +78,7 @@ export function MovementTable({ data }: { data: MovementData | null }) {
               <th>To‘lov</th>
               <th>Naqd</th>
               <th>Karta</th>
+              <th>Terminal</th>
             </tr>
           </thead>
           <tbody>
@@ -75,6 +91,7 @@ export function MovementTable({ data }: { data: MovementData | null }) {
                 <td className="tabular">{formatMoney(r.income)}</td>
                 <td className="tabular">{formatMoney(r.cash || 0)}</td>
                 <td className="tabular">{formatMoney(r.card || 0)}</td>
+                <td className="tabular">{formatMoney(r.terminal || 0)}</td>
               </tr>
             ))}
           </tbody>
@@ -107,6 +124,10 @@ export function MovementTable({ data }: { data: MovementData | null }) {
             <div className="mgr-kv">
               <span>Karta</span>
               <span className="tabular">{formatMoney(r.card || 0)}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>Terminal</span>
+              <span className="tabular">{formatMoney(r.terminal || 0)}</span>
             </div>
           </article>
         ))}

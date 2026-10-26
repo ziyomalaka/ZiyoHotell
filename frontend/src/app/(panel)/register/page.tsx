@@ -6,7 +6,7 @@ import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
 import { IdNumberInput } from "@/components/IdNumberInput";
 import { PhoneInput } from "@/components/PhoneInput";
-import { checkoutDate, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
+import { checkoutDate, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
@@ -26,6 +26,7 @@ type Home = {
   todayIncome: number;
   todayCash?: number;
   todayCard?: number;
+  todayTerminal?: number;
   recent: {
     id: string;
     startDate?: string;
@@ -33,7 +34,7 @@ type Home = {
     paidUntil?: string | null;
     endDate?: string | null;
     status?: string;
-    customer: { fullName: string; phone: string; passportId?: string; gender: string };
+    customer: { fullName: string; phone: string; passportId?: string; birthDate?: string | null; gender: string };
     room: { number: string; floor: number };
     bed: { number: number };
   }[];
@@ -43,13 +44,13 @@ const emptyForm = {
   fullName: "",
   phone: "",
   passportId: "",
+  birthDate: "",
   gender: "MALE" as "MALE" | "FEMALE",
   roomId: "",
-  bedId: "",
   stayType: "MONTHLY" as "DAILY" | "MONTHLY",
   amount: String(DEFAULT_REGISTER_AMOUNT),
   paymentStatus: "PAID" as "PAID" | "UNPAID",
-  paymentMethod: "CASH" as "CASH" | "CARD",
+  paymentMethod: "CASH" as PaymentMethod,
   startDate: "",
   notes: "",
 };
@@ -104,7 +105,8 @@ export default function RegisterPage() {
     [rooms, form.gender],
   );
   const room = activeRooms.find((r) => r.id === form.roomId);
-  const freeBeds = (room?.beds || []).filter((b) => !b.occupancy && b.status === "ACTIVE");
+  // O‘rin so‘ralmaydi: backend tanlangan xonadagi bo‘sh o‘rinni o‘zi beradi.
+  const freeCount = (r: Room) => r.beds.filter((b) => !b.occupancy && b.status === "ACTIVE").length;
   const monthlyPrice = room?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
   const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(form.amount || 0)) : 0;
   const coveredDays = daysForAmount(paidPreview, monthlyPrice, form.stayType);
@@ -121,8 +123,12 @@ export default function RegisterPage() {
     event.preventDefault();
     setError("");
     setSuccess("");
-    if (!form.fullName.trim() || !form.bedId || !form.startDate) {
+    if (!form.fullName.trim() || !form.birthDate || !form.roomId || !form.startDate) {
       setError("Majburiy maydonlarni to‘ldiring.");
+      return;
+    }
+    if (form.birthDate > todayISO()) {
+      setError("Tug‘ilgan sana bugundan keyin bo‘lishi mumkin emas.");
       return;
     }
     if (!isValidPassportId(form.passportId)) {
@@ -146,9 +152,10 @@ export default function RegisterPage() {
           fullName: form.fullName.trim(),
           phone: form.phone.trim(),
           passportId: form.passportId.trim(),
+          birthDate: form.birthDate,
           gender: form.gender,
           notes: form.notes.trim() || null,
-          bedId: form.bedId,
+          roomId: form.roomId,
           stayType: form.stayType,
           startDate: form.startDate,
           amount,
@@ -201,7 +208,8 @@ export default function RegisterPage() {
             <p>Bugun tushum</p>
             <strong className="text-base">{formatMoney(home?.todayIncome || 0)}</strong>
             <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
-              Naqd {formatMoney(home?.todayCash || 0)} · Karta {formatMoney(home?.todayCard || 0)}
+              Naqd {formatMoney(home?.todayCash || 0)} · Karta {formatMoney(home?.todayCard || 0)} · Terminal{" "}
+              {formatMoney(home?.todayTerminal || 0)}
             </p>
           </div>
         </div>
@@ -212,19 +220,28 @@ export default function RegisterPage() {
           <FormField label="F.I.Sh." required>
             <input value={form.fullName} onChange={(e) => patch("fullName", e.target.value)} className="w-full" />
           </FormField>
-          <FormField label="Telefon">
-            <PhoneInput value={form.phone} onChange={(value) => patch("phone", value)} />
+          <FormField label="Tug‘ilgan sana" required>
+            <input
+              type="date"
+              value={form.birthDate}
+              max={today || undefined}
+              onChange={(e) => patch("birthDate", e.target.value)}
+              className="w-full"
+            />
           </FormField>
           <FormField label="ID raqami" required>
             <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} />
             {idTaken ? <p className="mt-1 text-xs text-danger">Bu mijoz kiritilgan.</p> : null}
           </FormField>
+          <FormField label="Telefon">
+            <PhoneInput value={form.phone} onChange={(value) => patch("phone", value)} />
+          </FormField>
           <FormField label="Jinsi" required>
             <select
               value={form.gender}
               onChange={(e) =>
-                // Jins o‘zgarsa tanlangan xona/o‘rin boshqa jinsga tegishli bo‘lib qolmasligi uchun tozalanadi.
-                setForm((prev) => ({ ...prev, gender: e.target.value as "MALE" | "FEMALE", roomId: "", bedId: "" }))
+                // Jins o‘zgarsa tanlangan xona boshqa jinsga tegishli bo‘lib qolmasligi uchun tozalanadi.
+                setForm((prev) => ({ ...prev, gender: e.target.value as "MALE" | "FEMALE", roomId: "" }))
               }
               className="w-full"
             >
@@ -233,31 +250,21 @@ export default function RegisterPage() {
             </select>
           </FormField>
           <FormField label="Xona" required>
-            <select
-              value={form.roomId}
-              onChange={(e) => setForm((prev) => ({ ...prev, roomId: e.target.value, bedId: "" }))}
-              className="w-full"
-            >
+            <select value={form.roomId} onChange={(e) => patch("roomId", e.target.value)} className="w-full">
               <option value="">
                 {activeRooms.length
                   ? "Tanlang"
                   : `${form.gender === "FEMALE" ? "Qizlar" : "Bollar"} uchun xona yo‘q`}
               </option>
-              {activeRooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.floor ? `${r.floor}-qavat · ${r.number}-xona` : `${r.number}-xona`}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="O‘rin" required>
-            <select value={form.bedId} onChange={(e) => patch("bedId", e.target.value)} className="w-full">
-              <option value="">{form.roomId ? "Bo‘sh o‘rin" : "Avval xona tanlang"}</option>
-              {freeBeds.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.number}-o‘rin — BO‘SH
-                </option>
-              ))}
+              {activeRooms.map((r) => {
+                const free = freeCount(r);
+                return (
+                  <option key={r.id} value={r.id} disabled={!free}>
+                    {r.floor ? `${r.floor}-qavat · ${r.number}-xona` : `${r.number}-xona`} —{" "}
+                    {free ? `${free} ta bo‘sh o‘rin` : "to‘la"}
+                  </option>
+                );
+              })}
             </select>
           </FormField>
           <FormField label="Yashash turi" required>
@@ -275,6 +282,15 @@ export default function RegisterPage() {
             >
               <option value="MONTHLY">Oylik</option>
               <option value="DAILY">Kunlik</option>
+            </select>
+          </FormField>
+          <FormField label="Kirish sanasi" required>
+            <input type="date" value={form.startDate} onChange={(e) => patch("startDate", e.target.value)} className="w-full" />
+          </FormField>
+          <FormField label="To‘lov holati" required>
+            <select value={form.paymentStatus} onChange={(e) => patch("paymentStatus", e.target.value as "PAID" | "UNPAID")} className="w-full">
+              <option value="PAID">To‘ladi</option>
+              <option value="UNPAID">To‘lamadi</option>
             </select>
           </FormField>
           <FormField label="To‘lov summasi">
@@ -296,27 +312,21 @@ export default function RegisterPage() {
               </p>
             )}
           </FormField>
-          <FormField label="To‘lov holati" required>
-            <select value={form.paymentStatus} onChange={(e) => patch("paymentStatus", e.target.value as "PAID" | "UNPAID")} className="w-full">
-              <option value="PAID">To‘ladi</option>
-              <option value="UNPAID">To‘lamadi</option>
-            </select>
-          </FormField>
           {form.paymentStatus === "PAID" ? (
             <FormField label="To‘lov turini tanlang" required>
               <select
                 value={form.paymentMethod}
-                onChange={(e) => patch("paymentMethod", e.target.value as "CASH" | "CARD")}
+                onChange={(e) => patch("paymentMethod", e.target.value as PaymentMethod)}
                 className="w-full"
               >
-                <option value="CASH">Naqd</option>
-                <option value="CARD">Karta</option>
+                {PAYMENT_METHOD_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
             </FormField>
           ) : null}
-          <FormField label="Kirish sanasi" required>
-            <input type="date" value={form.startDate} onChange={(e) => patch("startDate", e.target.value)} className="w-full" />
-          </FormField>
           <div className="md:col-span-2">
             <FormField label="Izoh">
               <textarea value={form.notes} onChange={(e) => patch("notes", e.target.value)} className="w-full" />
@@ -340,6 +350,7 @@ export default function RegisterPage() {
                   <th>F.I.Sh.</th>
                   <th>Telefon</th>
                   <th>ID raqami</th>
+                  <th>Tug‘ilgan sana</th>
                   <th>Jins</th>
                   <th>Qavat</th>
                   <th>Xona</th>
@@ -354,6 +365,7 @@ export default function RegisterPage() {
                     <td>{row.customer.fullName}</td>
                     <td>{displayUzPhone(row.customer.phone)}</td>
                     <td>{dash(row.customer.passportId)}</td>
+                    <td>{formatDate(row.customer.birthDate)}</td>
                     <td>{customerGenderLabel(row.customer.gender)}</td>
                     <td>{floorLabel(row.room.floor)}</td>
                     <td>{row.room.number}</td>

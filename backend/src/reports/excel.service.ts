@@ -22,6 +22,8 @@ function payStatusLabel(status: string) {
 function methodLabel(method: string) {
   if (method === 'CASH') return 'Naqd';
   if (method === 'CARD') return 'Karta';
+  if (method === 'TERMINAL') return 'Terminal';
+  if (method === 'MIXED') return '50/50 (naqd + karta)';
   if (method === 'BANK') return 'Bank';
   if (method === 'OTHER') return 'Boshqa';
   return method;
@@ -69,6 +71,7 @@ export class ExcelService {
       'F.I.Sh.',
       'Telefon',
       'ID raqami',
+      'Tug‘ilgan sana',
       'Qavat',
       'Xona',
       'O‘rin',
@@ -85,6 +88,7 @@ export class ExcelService {
         r.fullName,
         r.phone,
         r.passportId,
+        formatDate(r.birthDate),
         r.floor,
         r.room,
         r.bed,
@@ -107,9 +111,18 @@ export class ExcelService {
   /** Kirim-chiqim varag‘i: davr kesimida kelgan, ketgan va to‘lov summasi. */
   private async movementSheet(sheet: ExcelJS.Worksheet, range?: string, floor?: number) {
     const data = await this.reports.movementReport(range, floor);
-    sheet.addRow(['Davr', 'Kirdi', 'Chiqdi', 'Farq', 'To‘lov', 'Naqd', 'Karta']);
+    sheet.addRow(['Davr', 'Kirdi', 'Chiqdi', 'Farq', 'To‘lov', 'Naqd', 'Karta', 'Terminal']);
     data.rows.forEach((r) =>
-      sheet.addRow([r.label, r.in, r.out, r.net, formatMoney(r.income), formatMoney(r.cash), formatMoney(r.card)]),
+      sheet.addRow([
+        r.label,
+        r.in,
+        r.out,
+        r.net,
+        formatMoney(r.income),
+        formatMoney(r.cash),
+        formatMoney(r.card),
+        formatMoney(r.terminal),
+      ]),
     );
     sheet.addRow([]);
     sheet.addRow(['Jami kirdi', data.totalIn]);
@@ -118,6 +131,7 @@ export class ExcelService {
     sheet.addRow(['Jami to‘lov', formatMoney(data.totalIncome)]);
     sheet.addRow(['Naqd', formatMoney(data.cash)]);
     sheet.addRow(['Karta', formatMoney(data.card)]);
+    sheet.addRow(['Terminal', formatMoney(data.terminal)]);
     return data;
   }
 
@@ -134,6 +148,7 @@ export class ExcelService {
         'F.I.Sh.',
         'Telefon',
         'ID raqami',
+        'Tug‘ilgan sana',
         'Jins',
         'Qavat',
         'Xona',
@@ -150,6 +165,7 @@ export class ExcelService {
           row.customer.fullName,
           row.customer.phone,
           row.customer.passportId,
+          formatDate(row.customer.birthDate),
           genderLabel(row.customer.gender),
           row.room.floor,
           row.room.number,
@@ -229,6 +245,7 @@ export class ExcelService {
     sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
     sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
     sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
+    sheet.addRow([`TERMINAL: ${formatMoney(data.terminal)}`]);
     sheet.addRow([`JAMI QARZDORLIK: ${formatMoney(data.unpaid)}`]);
     return this.file(wb, `Yotoqxona_Tolovlar${fx}_${day}.xlsx`);
   }
@@ -240,12 +257,13 @@ export class ExcelService {
     const fx = this.floorSuffix(floor);
     if (type === 'customers') {
       const data = await this.reports.customersReport(from, to, undefined, undefined, floor);
-      sheet.addRow(['F.I.Sh.', 'Telefon', 'ID raqami', 'Jins', 'Qavat', 'Xona', 'Kirish', 'Chiqish', 'Holat']);
+      sheet.addRow(['F.I.Sh.', 'Telefon', 'ID raqami', 'Tug‘ilgan sana', 'Jins', 'Qavat', 'Xona', 'Kirish', 'Chiqish', 'Holat']);
       data.rows.forEach((row) =>
         sheet.addRow([
           row.customer.fullName,
           row.customer.phone,
           row.customer.passportId,
+          formatDate(row.customer.birthDate),
           genderLabel(row.customer.gender),
           row.room.floor,
           row.room.number,
@@ -358,13 +376,14 @@ export class ExcelService {
     const fx = this.floorSuffix(floor);
     if (type === 'customers') {
       const data = await this.managerSvc.customersReport(opts.from, opts.to, floor);
-      sheet.addRow(['№', 'F.I.Sh.', 'Telefon', 'ID raqami', 'Jins', 'Qavat', 'Xona', 'O‘rin', 'Kirish', 'Chiqish', 'Tur', 'Holat']);
+      sheet.addRow(['№', 'F.I.Sh.', 'Telefon', 'ID raqami', 'Tug‘ilgan sana', 'Jins', 'Qavat', 'Xona', 'O‘rin', 'Kirish', 'Chiqish', 'Tur', 'Holat']);
       data.rows.forEach((row, i) =>
         sheet.addRow([
           i + 1,
           row.customer.fullName,
           row.customer.phone,
           row.customer.passportId,
+          formatDate(row.customer.birthDate),
           genderLabel(row.customer.gender),
           row.room.floor,
           row.room.number,
@@ -406,6 +425,7 @@ export class ExcelService {
       sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
       sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
       sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
+      sheet.addRow([`TERMINAL: ${formatMoney(data.terminal)}`]);
       return this.file(wb, `Yotoqxona_Kunlik_Tolovlar${fx}_${date}.xlsx`);
     }
     if (type === 'monthly') {
@@ -430,6 +450,7 @@ export class ExcelService {
       sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
       sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
       sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
+      sheet.addRow([`TERMINAL: ${formatMoney(data.terminal)}`]);
       sheet.addRow([`JAMI TO‘LOVLAR: ${data.count}`]);
       sheet.addRow([`JAMI QARZDORLIK: ${formatMoney(data.debt)}`]);
       return this.file(wb, `Yotoqxona_Oylik_Tolovlar${fx}_${date.slice(0, 7)}.xlsx`);
@@ -549,6 +570,7 @@ export class ExcelService {
     sheet.addRow([`JAMI TUSHUM: ${formatMoney(data.total)}`]);
     sheet.addRow([`NAQD: ${formatMoney(data.cash)}`]);
     sheet.addRow([`KARTA: ${formatMoney(data.card)}`]);
+    sheet.addRow([`TERMINAL: ${formatMoney(data.terminal)}`]);
     sheet.addRow([`JAMI QARZDORLIK: ${formatMoney(data.unpaid)}`]);
     return this.file(wb, `Yotoqxona_Tolovlar${fx}_${date.slice(0, 7)}.xlsx`);
   }

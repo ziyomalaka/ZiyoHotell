@@ -196,9 +196,19 @@ export function longDateLabel(iso?: string, withYear = false) {
   return formatLongDate(iso || null, withYear);
 }
 
+/** To‘lov usulini tanlash ro‘yxati. 50/50 summasi yarmi naqdga, yarmi kartaga yoziladi. */
+export const PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH", label: "Naqd" },
+  { value: "CARD", label: "Karta" },
+  { value: "TERMINAL", label: "Terminal" },
+  { value: "MIXED", label: "50/50 (naqd + karta)" },
+] as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHOD_OPTIONS)[number]["value"];
+
 export function methodLabel(method: string) {
-  if (method === "CASH") return "Naqd";
-  if (method === "CARD") return "Karta";
+  const option = PAYMENT_METHOD_OPTIONS.find((o) => o.value === method);
+  if (option) return option.label;
   if (method === "BANK") return "Bank";
   if (method === "OTHER") return "Boshqa";
   return method;

@@ -26,15 +26,34 @@ export const REMIND_BEFORE_DAYS = 3;
 /** Eslatmalar har kuni Toshkent vaqti bilan shu soatda yoziladi. */
 export const REMIND_AT_HOUR = 11;
 
-/** To‘langan summalarni naqd va karta bo‘yicha ajratadi. */
+/** To‘lov usullari. MIXED = 50/50: yarmi naqd, yarmi karta. BANK/OTHER eski yozuvlar uchun qoldirilgan. */
+export const PAYMENT_METHODS = ['CASH', 'CARD', 'TERMINAL', 'MIXED', 'BANK', 'BANK_TRANSFER', 'OTHER'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** Bitta to‘lov summasini naqd, karta va terminalga ajratadi. */
+export function methodSplit(method: string | null | undefined, amount: number) {
+  if (method === 'CASH') return { cash: amount, card: 0, terminal: 0 };
+  if (method === 'CARD') return { cash: 0, card: amount, terminal: 0 };
+  if (method === 'TERMINAL') return { cash: 0, card: 0, terminal: amount };
+  if (method === 'MIXED') {
+    const cash = Math.floor(amount / 2);
+    return { cash, card: amount - cash, terminal: 0 };
+  }
+  return { cash: 0, card: 0, terminal: 0 };
+}
+
+/** To‘langan summalarni naqd, karta va terminal bo‘yicha ajratadi. */
 export function cashCardTotals(rows: { method?: string | null; amount: number }[]) {
   let cash = 0;
   let card = 0;
+  let terminal = 0;
   for (const row of rows) {
-    if (row.method === 'CASH') cash += row.amount;
-    else if (row.method === 'CARD') card += row.amount;
+    const part = methodSplit(row.method, row.amount);
+    cash += part.cash;
+    card += part.card;
+    terminal += part.terminal;
   }
-  return { cash, card };
+  return { cash, card, terminal };
 }
 
 /** Oylik narxdan kunlik tarif: 750 000 / 30 = 25 000. */

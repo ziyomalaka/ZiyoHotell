@@ -16,7 +16,7 @@ type Row = {
   status: string;
   paidAt: string;
   coversTo?: string | null;
-  customer: { fullName: string; phone?: string; passportId?: string };
+  customer: { fullName: string; phone?: string; passportId?: string; birthDate?: string | null };
   stay: {
     paidUntil?: string | null;
     endDate?: string | null;
@@ -33,6 +33,7 @@ type Data = {
   total: number;
   cash?: number;
   card?: number;
+  terminal?: number;
   rows: Row[];
 };
 
@@ -59,7 +60,7 @@ export default function ManagerDailyPaymentsPage() {
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full lg:w-auto" />
         <FloorFilter scope="manager" value={floor} onChange={setFloor} className="w-full lg:w-auto" />
       </div>
-      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:gap-3">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:gap-3">
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Bugungi tushum</p>
           <strong className="text-base sm:text-2xl">{formatMoney(data.total)}</strong>
@@ -71,6 +72,10 @@ export default function ManagerDailyPaymentsPage() {
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Karta</p>
           <strong className="text-base sm:text-2xl">{formatMoney(data.card || 0)}</strong>
+        </div>
+        <div className="stat-quiet px-2 py-3 sm:px-4">
+          <p className="leading-tight">Terminal</p>
+          <strong className="text-base sm:text-2xl">{formatMoney(data.terminal || 0)}</strong>
         </div>
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Bugun to‘lagan</p>
@@ -88,6 +93,7 @@ export default function ManagerDailyPaymentsPage() {
               <th>F.I.Sh.</th>
               <th>Telefon</th>
               <th>ID raqami</th>
+              <th>Tug‘ilgan sana</th>
               <th>Qavat</th>
               <th>Xona</th>
               <th>Summa</th>
@@ -104,6 +110,7 @@ export default function ManagerDailyPaymentsPage() {
                 <td>{r.customer.fullName}</td>
                 <td>{displayUzPhone(r.customer.phone)}</td>
                 <td>{dash(r.customer.passportId)}</td>
+                <td>{formatDate(r.customer.birthDate)}</td>
                 <td>{floorLabel(r.stay.room.floor)}</td>
                 <td>{r.stay.room.number}</td>
                 <td className="tabular">{formatMoney(r.amount)}</td>
@@ -142,6 +149,10 @@ export default function ManagerDailyPaymentsPage() {
               <div className="mgr-kv">
                 <span>ID raqami</span>
                 <span>{dash(r.customer.passportId)}</span>
+              </div>
+              <div className="mgr-kv">
+                <span>Tug‘ilgan sana</span>
+                <span>{formatDate(r.customer.birthDate)}</span>
               </div>
               <div className="mgr-kv">
                 <span>Qavat</span>

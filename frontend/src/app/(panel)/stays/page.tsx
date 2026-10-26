@@ -24,7 +24,7 @@ type Stay = {
   daysLeft?: number | null;
   overdue?: boolean;
   dueSoon?: boolean;
-  customer: { fullName: string; phone: string; passportId?: string };
+  customer: { fullName: string; phone: string; passportId?: string; birthDate?: string | null };
   room: { number: string; floor: number };
   bed: { number: number };
 };
@@ -78,6 +78,7 @@ export default function StaysPage() {
               <th>F.I.Sh.</th>
               <th>Telefon</th>
               <th>ID raqami</th>
+              <th>Tug‘ilgan sana</th>
               <th>Qavat</th>
               <th>Xona</th>
               <th>O‘rin</th>
@@ -95,6 +96,7 @@ export default function StaysPage() {
                 <td>{row.customer.fullName}</td>
                 <td>{displayUzPhone(row.customer.phone)}</td>
                 <td>{dash(row.customer.passportId)}</td>
+                <td>{formatDate(row.customer.birthDate)}</td>
                 <td>{floorLabel(row.room.floor)}</td>
                 <td>{row.room.number}</td>
                 <td>{row.bed.number}</td>

@@ -9,7 +9,7 @@ type Profile = {
   fullName: string;
   phone: string;
   gender: string;
-  passportId: string;
+  passportId: string; birthDate?: string | null;
   address?: string | null;
   debt: number;
   occupancy?: { stay: { room: { number: string; floor: number }; bed: { number: number } } } | null;
@@ -41,6 +41,7 @@ export default function CustomerProfilePage() {
         <p>Telefon: {displayUzPhone(c.phone)}</p>
         <p>Jins: {customerGenderLabel(c.gender)}</p>
         <p>ID raqami: {dash(c.passportId)}</p>
+        <p>Tug‘ilgan sana: {formatDate(c.birthDate)}</p>
         <p>Manzil: {c.address || "—"}</p>
         <p>
           Qavat / xona / o‘rin:{" "}

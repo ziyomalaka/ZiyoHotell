@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
+import { PAYMENT_METHODS, PaymentMethod } from '../common/billing';
 import {
   IsDateString,
   IsIn,
@@ -48,9 +49,11 @@ export class RegisterDto {
   @IsIn(['MALE', 'FEMALE'])
   gender?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: '2004-05-17' })
   @IsOptional()
+  @ValidateIf((_, v) => !!v)
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Tug‘ilgan sana noto‘g‘ri.' })
   birthDate?: string | null;
 
   @ApiProperty({ example: 'AA1234567' })
@@ -74,9 +77,15 @@ export class RegisterDto {
   @IsString()
   notes?: string | null;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'Berilmasa roomId dagi bo‘sh o‘rin avtomatik tanlanadi.' })
+  @ValidateIf((o: RegisterDto) => !o.roomId)
   @IsUUID()
-  bedId!: string;
+  bedId?: string;
+
+  @ApiPropertyOptional()
+  @ValidateIf((o: RegisterDto) => !o.bedId)
+  @IsUUID()
+  roomId?: string;
 
   @ApiProperty({ enum: ['DAILY', 'MONTHLY'] })
   @IsIn(['DAILY', 'MONTHLY'])
@@ -116,10 +125,10 @@ export class RegisterDto {
   @IsIn(['PAID', 'UNPAID', 'PARTIAL'])
   paymentStatus!: 'PAID' | 'UNPAID' | 'PARTIAL';
 
-  @ApiPropertyOptional({ enum: ['CASH', 'CARD', 'BANK', 'BANK_TRANSFER', 'OTHER'] })
+  @ApiPropertyOptional({ enum: PAYMENT_METHODS })
   @IsOptional()
-  @IsIn(['CASH', 'CARD', 'BANK', 'BANK_TRANSFER', 'OTHER'])
-  paymentMethod?: 'CASH' | 'CARD' | 'BANK' | 'BANK_TRANSFER' | 'OTHER';
+  @IsIn([...PAYMENT_METHODS])
+  paymentMethod?: PaymentMethod;
 }
 
 export class UpdateCustomerDto {
@@ -141,9 +150,11 @@ export class UpdateCustomerDto {
   @IsIn(['MALE', 'FEMALE'])
   gender?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: '2004-05-17' })
   @IsOptional()
+  @ValidateIf((_, v) => !!v)
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Tug‘ilgan sana noto‘g‘ri.' })
   birthDate?: string | null;
 
   @ApiProperty({ example: 'AA1234567' })
@@ -200,10 +211,10 @@ export class CreatePaymentDto {
   @Min(1)
   amount!: number;
 
-  @ApiPropertyOptional({ enum: ['CASH', 'CARD', 'BANK', 'BANK_TRANSFER', 'OTHER'] })
+  @ApiPropertyOptional({ enum: PAYMENT_METHODS })
   @IsOptional()
-  @IsIn(['CASH', 'CARD', 'BANK', 'BANK_TRANSFER', 'OTHER'])
-  method?: 'CASH' | 'CARD' | 'BANK' | 'BANK_TRANSFER' | 'OTHER';
+  @IsIn([...PAYMENT_METHODS])
+  method?: PaymentMethod;
 
   @ApiPropertyOptional()
   @IsOptional()

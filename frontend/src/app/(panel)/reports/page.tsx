@@ -36,13 +36,13 @@ type CustomerRep = {
     startDate: string;
     endDate?: string | null;
     status: string;
-    customer: { fullName: string; phone: string; passportId?: string; gender: string };
+    customer: { fullName: string; phone: string; passportId?: string; birthDate?: string | null; gender: string };
     room: { number: string; floor: number };
     bed: { number: number };
   }[];
 };
 
-type PayRep = { total?: number; unpaidCount?: number; cash?: number; card?: number };
+type PayRep = { total?: number; unpaidCount?: number; cash?: number; card?: number; terminal?: number };
 
 export default function ReportsPage() {
   const today = useTodayISO();
@@ -183,6 +183,10 @@ export default function ReportsPage() {
               <strong className="text-lg">{formatMoney(payments?.card || 0)}</strong>
             </div>
             <div className="stat-quiet">
+              <p>Terminal</p>
+              <strong className="text-lg">{formatMoney(payments?.terminal || 0)}</strong>
+            </div>
+            <div className="stat-quiet">
               <p>To‘lamaganlar</p>
               <strong>{payments?.unpaidCount || 0}</strong>
             </div>
@@ -195,6 +199,7 @@ export default function ReportsPage() {
                   <th>F.I.Sh.</th>
                   <th>Telefon</th>
                   <th>ID raqami</th>
+                  <th>Tug‘ilgan sana</th>
                   <th>Jins</th>
                   <th>Qavat</th>
                   <th>Xona</th>
@@ -214,6 +219,7 @@ export default function ReportsPage() {
                     <td>{row.customer.fullName}</td>
                     <td>{displayUzPhone(row.customer.phone)}</td>
                     <td>{dash(row.customer.passportId)}</td>
+                    <td>{formatDate(row.customer.birthDate)}</td>
                     <td>{customerGenderLabel(row.customer.gender)}</td>
                     <td>{floorLabel(row.room.floor)}</td>
                     <td>{row.room.number}</td>

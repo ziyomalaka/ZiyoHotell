@@ -41,7 +41,7 @@ export default function AdminReportsPage() {
     left?: number;
     living?: number;
     rows?: {
-      customer: { fullName: string; phone?: string; passportId?: string };
+      customer: { fullName: string; phone?: string; passportId?: string; birthDate?: string | null };
       room: { number: string; floor: number };
       bed?: { number: number };
       startDate: string;
@@ -134,7 +134,7 @@ export default function AdminReportsPage() {
               <table className="data-table">
                 <thead className="bg-background text-left">
                   <tr>
-                    {["F.I.Sh.", "Telefon", "ID raqami", "Qavat", "Xona", "Kirish", "Chiqish", "Holat"].map((h) => (
+                    {["F.I.Sh.", "Telefon", "ID raqami", "Tug‘ilgan sana", "Qavat", "Xona", "Kirish", "Chiqish", "Holat"].map((h) => (
                       <th key={h} className="px-3 py-3">{h}</th>
                     ))}
                   </tr>
@@ -145,6 +145,7 @@ export default function AdminReportsPage() {
                       <td className="px-3 py-3">{r.customer.fullName}</td>
                       <td className="px-3 py-3">{displayUzPhone(r.customer.phone)}</td>
                       <td className="px-3 py-3">{dash(r.customer.passportId)}</td>
+                      <td className="px-3 py-3">{formatDate(r.customer.birthDate)}</td>
                       <td className="px-3 py-3">{floorLabel(r.room.floor)}</td>
                       <td className="px-3 py-3">{r.bed ? roomBedLabel(r.room.number, r.bed.number) : r.room.number}</td>
                       <td className="px-3 py-3">{formatDate(r.startDate)}</td>

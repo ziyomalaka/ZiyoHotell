@@ -13,7 +13,7 @@ type Row = {
   id: string;
   fullName: string;
   phone: string;
-  passportId?: string;
+  passportId?: string; birthDate?: string | null;
   room: string;
   floor: number | null;
   bed: number;
@@ -92,7 +92,7 @@ export default function ManagerDebtsPage() {
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["Mijoz", "Telefon", "ID raqami", "Qavat", "Xona", "O‘rin", "Tur", "To‘lanishi kerak", "To‘langan", "Qolgan qarz", "Boshlangan", "Kun", "Holat"].map((h) => (
+              {["Mijoz", "Telefon", "ID raqami", "Tug‘ilgan sana", "Qavat", "Xona", "O‘rin", "Tur", "To‘lanishi kerak", "To‘langan", "Qolgan qarz", "Boshlangan", "Kun", "Holat"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -105,6 +105,7 @@ export default function ManagerDebtsPage() {
                 <td className="px-3 py-3">{r.fullName}</td>
                 <td className="px-3 py-3">{displayUzPhone(r.phone)}</td>
                 <td className="px-3 py-3">{dash(r.passportId)}</td>
+                <td className="px-3 py-3">{formatDate(r.birthDate)}</td>
                 <td className="px-3 py-3">{floorLabel(r.floor)}</td>
                 <td className="px-3 py-3">{roomLabel(r.room)}</td>
                 <td className="px-3 py-3">{bedLabel(r.bed)}</td>

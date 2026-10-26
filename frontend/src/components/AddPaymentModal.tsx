@@ -6,6 +6,7 @@ import {
   DAILY_STAY_PRICE,
   DEFAULT_MONTHLY_PRICE,
   MONTHLY_DAY_PRICE,
+  PAYMENT_METHOD_OPTIONS,
   addDays,
   daysForAmount,
   describeDays,
@@ -118,8 +119,11 @@ export function AddPaymentModal({
         <label className="mt-3 block text-sm font-medium">
           To‘lov turini tanlang
           <select value={method} onChange={(e) => setMethod(e.target.value)} className="mt-2 w-full">
-            <option value="CASH">Naqd</option>
-            <option value="CARD">Karta</option>
+            {PAYMENT_METHOD_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="mt-3 block text-sm font-medium">

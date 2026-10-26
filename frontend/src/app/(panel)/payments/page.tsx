@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FloorFilter } from "@/components/FloorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, PAYMENT_METHOD_OPTIONS, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -16,7 +16,7 @@ type Stay = {
   paidDays?: number;
   paidDaysLabel?: string;
   daysLeft?: number | null;
-  customer: { fullName: string; phone?: string; passportId?: string };
+  customer: { fullName: string; phone?: string; passportId?: string; birthDate?: string | null };
   room: { number: string; floor: number };
   bed: { number: number };
 };
@@ -30,7 +30,7 @@ type Payment = {
   status: string;
   method?: string;
   paidAt: string;
-  customer: { fullName: string; phone?: string; passportId?: string };
+  customer: { fullName: string; phone?: string; passportId?: string; birthDate?: string | null };
   stay: {
     room: { number: string; floor: number };
     bed: { number: number };
@@ -54,8 +54,10 @@ export default function PaymentsPage() {
     monthIncome?: number;
     todayCash?: number;
     todayCard?: number;
+    todayTerminal?: number;
     monthCash?: number;
     monthCard?: number;
+    monthTerminal?: number;
   }>({
     total: 0,
     rows: [],
@@ -116,7 +118,7 @@ export default function PaymentsPage() {
 
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="stat-quiet">
           <p>Bugungi tushum</p>
           <strong>{formatMoney(data.todayIncome || 0)}</strong>
@@ -130,10 +132,15 @@ export default function PaymentsPage() {
           <strong>{formatMoney(data.todayCard || 0)}</strong>
         </div>
         <div className="stat-quiet">
+          <p>Bugun terminal</p>
+          <strong>{formatMoney(data.todayTerminal || 0)}</strong>
+        </div>
+        <div className="stat-quiet">
           <p>Shu oy tushumi</p>
           <strong>{formatMoney(data.monthIncome || 0)}</strong>
           <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
-            Naqd {formatMoney(data.monthCash || 0)} · Karta {formatMoney(data.monthCard || 0)}
+            Naqd {formatMoney(data.monthCash || 0)} · Karta {formatMoney(data.monthCard || 0)} · Terminal{" "}
+            {formatMoney(data.monthTerminal || 0)}
           </p>
         </div>
       </div>
@@ -164,6 +171,7 @@ export default function PaymentsPage() {
               <th>F.I.Sh.</th>
               <th>Telefon</th>
               <th>ID raqami</th>
+              <th>Tug‘ilgan sana</th>
               <th>Qavat</th>
               <th>Xona</th>
               <th>O‘rin</th>
@@ -182,6 +190,7 @@ export default function PaymentsPage() {
                 <td>{row.customer.fullName}</td>
                 <td>{displayUzPhone(row.customer.phone)}</td>
                 <td>{dash(row.customer.passportId)}</td>
+                <td>{formatDate(row.customer.birthDate)}</td>
                 <td>{floorLabel(row.stay.room.floor)}</td>
                 <td>{row.stay.room.number}</td>
                 <td>{row.stay.bed.number}</td>
@@ -273,8 +282,11 @@ export default function PaymentsPage() {
             <label className="mt-3 block text-sm font-medium">
               To‘lov turini tanlang
               <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} className="mt-2 w-full">
-                <option value="CASH">Naqd</option>
-                <option value="CARD">Karta</option>
+                {PAYMENT_METHOD_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="mt-3 block text-sm font-medium">

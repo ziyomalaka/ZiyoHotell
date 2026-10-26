@@ -13,7 +13,7 @@ type Bed = {
   id: string;
   number: number;
   status: string;
-  occupancy?: { customer: { fullName: string; phone: string; passportId?: string }; stay: Stay } | null;
+  occupancy?: { customer: { fullName: string; phone: string; passportId?: string; birthDate?: string | null }; stay: Stay } | null;
 };
 type Room = {
   id: string;
@@ -159,6 +159,7 @@ export default function RoomsPage() {
                 <p className="font-semibold text-navy">{guest.occupancy.customer.fullName}</p>
                 <p>Telefon: {displayUzPhone(guest.occupancy.customer.phone)}</p>
                 <p>ID raqami: {dash(guest.occupancy.customer.passportId)}</p>
+                <p>Tug‘ilgan sana: {formatDate(guest.occupancy.customer.birthDate)}</p>
                 <p>Kirish: {formatDate(guest.occupancy.stay.startDate)}</p>
                 <p>{guest.occupancy.stay.type === "DAILY" ? "Kunlik" : "Oylik"}</p>
                 <p className="tabular">

@@ -15,7 +15,7 @@ type Row = {
   id: string;
   fullName: string;
   phone: string;
-  passportId?: string;
+  passportId?: string; birthDate?: string | null;
   gender: string;
   payStatus: string;
   living?: boolean;
@@ -93,6 +93,7 @@ export default function ReceptionCustomersPage() {
               <th>F.I.Sh.</th>
               <th>Telefon</th>
               <th>ID raqami</th>
+              <th>Tug‘ilgan sana</th>
               <th>Jins</th>
               <th>Qavat</th>
               <th>Xona</th>
@@ -111,6 +112,7 @@ export default function ReceptionCustomersPage() {
                 <td>{r.fullName}</td>
                 <td>{displayUzPhone(r.phone)}</td>
                 <td>{dash(r.passportId)}</td>
+                <td>{formatDate(r.birthDate)}</td>
                 <td>{customerGenderLabel(r.gender)}</td>
                 <td>{r.occupancy ? floorLabel(r.occupancy.stay.room.floor) : "—"}</td>
                 <td>{r.occupancy?.stay.room.number || "—"}</td>

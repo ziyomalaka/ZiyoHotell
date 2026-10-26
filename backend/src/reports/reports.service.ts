@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UZ_MONTHS, addDays, dayEnd, dayStart, todayISO } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
-import { cashCardTotals, periodInfo } from '../common/billing';
+import { cashCardTotals, methodSplit, periodInfo } from '../common/billing';
 
 @Injectable()
 export class ReportsService {
@@ -67,6 +67,7 @@ export class ReportsService {
           fullName: s.customer.fullName,
           phone: s.customer.phone,
           passportId: s.customer.passportId,
+          birthDate: s.customer.birthDate,
           gender: s.customer.gender,
           floor: s.room.floor,
           room: s.room.number,
@@ -126,6 +127,7 @@ export class ReportsService {
       total: sum('PAID'),
       cash: split.cash,
       card: split.card,
+      terminal: split.terminal,
       paid: sum('PAID'),
       partial: 0,
       unpaid: unpaidStays.reduce((acc, s) => acc + Math.max(0, s.totalAmount - s.paidAmount), 0),
@@ -277,7 +279,7 @@ export class ReportsService {
     ]);
 
     const paid = payments.filter((p) => p.status === 'PAID');
-    const index = new Map(buckets.map((b) => [b.key, { ...b, in: 0, out: 0, income: 0, cash: 0, card: 0 }]));
+    const index = new Map(buckets.map((b) => [b.key, { ...b, in: 0, out: 0, income: 0, cash: 0, card: 0, terminal: 0 }]));
     for (const log of logs) {
       const row = index.get(bucketKey(log.at, view));
       if (!row) continue;
@@ -288,8 +290,10 @@ export class ReportsService {
       const row = index.get(bucketKey(pay.paidAt, view));
       if (!row) continue;
       row.income += pay.amount;
-      if (pay.method === 'CASH') row.cash += pay.amount;
-      if (pay.method === 'CARD') row.card += pay.amount;
+      const part = methodSplit(pay.method, pay.amount);
+      row.cash += part.cash;
+      row.card += part.card;
+      row.terminal += part.terminal;
     }
 
     const rows = [...index.values()]
@@ -309,6 +313,7 @@ export class ReportsService {
       totalIncome: rows.reduce((a, r) => a + r.income, 0),
       cash: split.cash,
       card: split.card,
+      terminal: split.terminal,
       rows,
     };
   }

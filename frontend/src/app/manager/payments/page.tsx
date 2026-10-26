@@ -16,6 +16,7 @@ import {
   formatMoney,
   formatTime,
   methodLabel,
+  PAYMENT_METHOD_OPTIONS,
   payStatusLabel,
   stayTypeLabel,
 } from "@/lib/format";
@@ -28,7 +29,7 @@ type Pay = {
   method: string;
   status: string;
   paidAt: string;
-  customer: { fullName: string; phone?: string; passportId?: string };
+  customer: { fullName: string; phone?: string; passportId?: string; birthDate?: string | null };
   coversTo?: string | null;
   stay: {
     totalAmount: number;
@@ -48,11 +49,14 @@ type Data = {
   todayIncome: number;
   todayCash?: number;
   todayCard?: number;
+  todayTerminal?: number;
   monthIncome: number;
   monthCash?: number;
   monthCard?: number;
+  monthTerminal?: number;
   totalIncome: number;
   cash?: number;
+  terminal?: number;
   card?: number;
   debt: number;
   paid: number;
@@ -88,16 +92,19 @@ export default function ManagerPaymentsPage() {
   return (
     <div>
       <h1 className="sr-only">To‘lovlar nazorati</h1>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard gold label="BUGUNGI TUSHUM" value={formatMoney(data.todayIncome)} />
         <StatCard gold label="BUGUN NAQD" value={formatMoney(data.todayCash || 0)} />
         <StatCard gold label="BUGUN KARTA" value={formatMoney(data.todayCard || 0)} />
+        <StatCard gold label="BUGUN TERMINAL" value={formatMoney(data.todayTerminal || 0)} />
         <StatCard gold label="OYLIK TUSHUM" value={formatMoney(data.monthIncome)} />
         <StatCard gold label="OY NAQD" value={formatMoney(data.monthCash || 0)} />
         <StatCard gold label="OY KARTA" value={formatMoney(data.monthCard || 0)} />
+        <StatCard gold label="OY TERMINAL" value={formatMoney(data.monthTerminal || 0)} />
         <StatCard gold label="JAMI TUSHUM" value={formatMoney(data.totalIncome)} />
         <StatCard gold label="JAMI NAQD" value={formatMoney(data.cash || 0)} />
         <StatCard gold label="JAMI KARTA" value={formatMoney(data.card || 0)} />
+        <StatCard gold label="JAMI TERMINAL" value={formatMoney(data.terminal || 0)} />
         <StatCard gold label="JAMI QARZDORLIK" value={formatMoney(data.debt)} />
         <StatCard label="TO‘LOV QILGANLAR" value={`${data.paid} ta`} />
         <StatCard label="QISMAN / TO‘LAMAGAN" value={`${data.partial} / ${data.unpaid}`} />
@@ -125,8 +132,11 @@ export default function ManagerPaymentsPage() {
         </select>
         <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2">
           <option value="">Usul</option>
-          <option value="CASH">Naqd</option>
-          <option value="CARD">Karta</option>
+          {PAYMENT_METHOD_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
           <option value="BANK">Bank</option>
         </select>
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2">
@@ -146,7 +156,7 @@ export default function ManagerPaymentsPage() {
         <table className="data-table">
           <thead className="bg-background text-left">
             <tr>
-              {["Mijoz", "Telefon", "ID raqami", "Qavat", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Chiqish kuni", "Vaqt", "Holat", "Reception"].map((h) => (
+              {["Mijoz", "Telefon", "ID raqami", "Tug‘ilgan sana", "Qavat", "Xona/o‘rin", "Tur", "Davr", "Kutilgan", "To‘langan", "Qarz", "Usul", "Sana", "Chiqish kuni", "Vaqt", "Holat", "Reception"].map((h) => (
                 <th key={h} className="px-3 py-3">
                   {h}
                 </th>
@@ -159,6 +169,7 @@ export default function ManagerPaymentsPage() {
                 <td className="px-3 py-3">{r.customer.fullName}</td>
                 <td className="px-3 py-3">{displayUzPhone(r.customer.phone)}</td>
                 <td className="px-3 py-3">{dash(r.customer.passportId)}</td>
+                <td className="px-3 py-3">{formatDate(r.customer.birthDate)}</td>
                 <td className="px-3 py-3">{floorLabel(r.stay.room.floor)}</td>
                 <td className="px-3 py-3">
                   {r.stay.room.number}/{r.stay.bed.number}

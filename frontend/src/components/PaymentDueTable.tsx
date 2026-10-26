@@ -6,7 +6,7 @@ export type PaymentDueRow = {
   stayId: string;
   fullName: string;
   phone: string;
-  passportId?: string;
+  passportId?: string; birthDate?: string | null;
   gender?: string;
   floor: number;
   room: string;
@@ -58,6 +58,7 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
               <th>F.I.Sh.</th>
               <th>Telefon</th>
               <th>ID raqami</th>
+              <th>Tug‘ilgan sana</th>
               <th>Jins</th>
               <th>Qavat</th>
               <th>Xona</th>
@@ -75,6 +76,7 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
                 <td>{r.fullName}</td>
                 <td>{displayUzPhone(r.phone)}</td>
                 <td>{dash(r.passportId)}</td>
+                <td>{formatDate(r.birthDate)}</td>
                 <td>{customerGenderLabel(r.gender)}</td>
                 <td>{floorLabel(r.floor)}</td>
                 <td>{r.room}</td>
@@ -103,6 +105,10 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
             <div className="mgr-kv">
               <span>ID raqami</span>
               <span>{dash(r.passportId)}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>Tug‘ilgan sana</span>
+              <span>{formatDate(r.birthDate)}</span>
             </div>
             <div className="mgr-kv">
               <span>Jins</span>
