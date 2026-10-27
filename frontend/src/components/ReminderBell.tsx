@@ -66,33 +66,37 @@ export function ReminderBell() {
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 z-30 mt-2 w-[min(92vw,28rem)] rounded-xl border border-line bg-white p-3 shadow-lg">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-navy">To‘lov muddati</p>
-            {data.unread ? (
-              <button type="button" className="text-xs text-muted hover:text-navy" onClick={markAll}>
-                Barchasini o‘qilgan qilish
-              </button>
-            ) : null}
+        <>
+          <button type="button" className="fixed inset-0 z-20 cursor-default" onClick={() => setOpen(false)} aria-label="Yopish" />
+          {/* Telefonda ekran chetidan chiqib ketmasin — butun kenglikda, sarlavha ostida. */}
+          <div className="z-30 rounded-xl border border-line bg-white p-3 shadow-lg max-sm:fixed max-sm:inset-x-3 max-sm:top-16 sm:absolute sm:right-0 sm:mt-2 sm:w-[28rem]">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-navy">To‘lov muddati</p>
+              {data.unread ? (
+                <button type="button" className="text-xs text-muted hover:text-navy" onClick={markAll}>
+                  Barchasini o‘qilgan qilish
+                </button>
+              ) : null}
+            </div>
+            {data.rows.length ? (
+              <ul className="max-h-[min(20rem,60dvh)] space-y-2 overflow-auto">
+                {data.rows.map((r) => (
+                  <li key={r.id} className="rounded-lg bg-background px-3 py-2 text-sm">
+                    <p className="font-medium text-navy">{r.fullName}</p>
+                    <p className="text-xs text-muted">
+                      {floorLabel(r.floor)} · {r.room}-xona · {r.bed}-o‘rin
+                    </p>
+                    <p className={r.daysLeft < 0 ? "text-[#9b3b3b]" : "text-navy"}>
+                      {daysLeftLabel(r.daysLeft)} · {formatDate(r.dueDate)} · {formatMoney(r.amount)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">Bugun eslatma yo‘q.</p>
+            )}
           </div>
-          {data.rows.length ? (
-            <ul className="max-h-80 space-y-2 overflow-auto">
-              {data.rows.map((r) => (
-                <li key={r.id} className="rounded-lg bg-background px-3 py-2 text-sm">
-                  <p className="font-medium text-navy">{r.fullName}</p>
-                  <p className="text-xs text-muted">
-                    {floorLabel(r.floor)} · {r.room}-xona · {r.bed}-o‘rin
-                  </p>
-                  <p className={r.daysLeft < 0 ? "text-[#9b3b3b]" : "text-navy"}>
-                    {daysLeftLabel(r.daysLeft)} · {formatDate(r.dueDate)} · {formatMoney(r.amount)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted">Bugun eslatma yo‘q.</p>
-          )}
-        </div>
+        </>
       ) : null}
     </div>
   );

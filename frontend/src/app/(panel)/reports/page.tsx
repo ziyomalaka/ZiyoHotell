@@ -184,7 +184,7 @@ export default function ReportsPage() {
 
       {tab === "customers" && !dailyView ? (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div className="stat-quiet">
               <p>Jami mijozlar</p>
               <strong>{customers?.total || 0}</strong>
@@ -283,7 +283,7 @@ function DailyIncome({ data }: { data: DailyRep | null }) {
 
   return (
     <div className="mt-5 space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className="stat-quiet">
           <p>Bugungi tushum</p>
           <strong className="text-lg">{formatMoney(data?.total || 0)}</strong>

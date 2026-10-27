@@ -289,6 +289,7 @@ export default function AdminRoomsPage() {
               <input
                 required
                 type="number"
+                inputMode="numeric"
                 min={1}
                 value={sectorForm.number}
                 onChange={(e) => setSectorForm({ ...sectorForm, number: e.target.value })}
@@ -389,7 +390,7 @@ export default function AdminRoomsPage() {
         ) : null}
         <label className="text-sm">
           O‘rinlar soni
-          <input required type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} className="mt-1 block w-28" />
+          <input required type="number" inputMode="numeric" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} className="mt-1 block w-28" />
         </label>
         <button className="btn-primary" disabled={!sectors.length}>
           Xona qo‘shish

@@ -86,6 +86,7 @@ export function AddPaymentModal({
           <input
             required
             type="number"
+            inputMode="numeric"
             min={1}
             step={1000}
             value={amount}

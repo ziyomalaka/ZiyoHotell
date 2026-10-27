@@ -63,7 +63,7 @@ export default function AdminPaymentsPage() {
   return (
     <div>
       <h1 className="sr-only">To‘lovlar nazorati</h1>
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard gold label="JAMI QARZDORLIK" value={formatMoney(data.debt)} />
       </div>
       <FilterBar>

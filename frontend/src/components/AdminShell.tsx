@@ -3,13 +3,13 @@ import type { SessionUser } from "@/lib/session-types";
 import { AppShell } from "./AppShell";
 
 const nav = [
-  { href: "/admin/rooms", label: "Xonalar nazorati", icon: "bed" },
+  { href: "/admin/rooms", label: "Xonalar nazorati", short: "Xonalar", icon: "bed" },
   { href: "/admin/staff", label: "Xodimlar", icon: "team" },
   { href: "/admin/customers", label: "Mijozlar", icon: "users" },
-  { href: "/admin/stays", label: "Kirish / Chiqish", icon: "door" },
+  { href: "/admin/stays", label: "Kirish / Chiqish", short: "Kirish", icon: "door" },
   { href: "/admin/payments", label: "To‘lovlar", icon: "pay" },
-  { href: "/admin/reports", label: "Hisobotlar", icon: "chart" },
-  { href: "/admin/settings", label: "Tizim nazorati", icon: "cog" },
+  { href: "/admin/reports", label: "Hisobotlar", short: "Hisobot", icon: "chart" },
+  { href: "/admin/settings", label: "Tizim nazorati", short: "Tizim", icon: "cog" },
 ];
 
 export function AdminShell({ children, user }: { children: React.ReactNode; user: SessionUser }) {

@@ -3,11 +3,11 @@ import type { SessionUser } from "@/lib/session-types";
 import { AppShell } from "./AppShell";
 
 const nav = [
-  { href: "/register", label: "Ro‘yxatga olish", icon: "user" },
-  { href: "/customers", label: "Mijozlar boshqaruvi", icon: "users" },
-  { href: "/rooms", label: "Xonalar va o‘rinlar", icon: "bed" },
-  { href: "/stays", label: "Kirish / Chiqish", icon: "door" },
-  { href: "/reports", label: "Hisobotlar", icon: "chart" },
+  { href: "/register", label: "Ro‘yxatga olish", short: "Ro‘yxat", icon: "user" },
+  { href: "/customers", label: "Mijozlar boshqaruvi", short: "Mijozlar", icon: "users" },
+  { href: "/rooms", label: "Xonalar va o‘rinlar", short: "Xonalar", icon: "bed" },
+  { href: "/stays", label: "Kirish / Chiqish", short: "Kirish", icon: "door" },
+  { href: "/reports", label: "Hisobotlar", short: "Hisobot", icon: "chart" },
 ];
 
 export function PanelShell({ children, user }: { children: React.ReactNode; user: SessionUser }) {

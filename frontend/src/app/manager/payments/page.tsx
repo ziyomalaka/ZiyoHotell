@@ -92,7 +92,7 @@ export default function ManagerPaymentsPage() {
   return (
     <div>
       <h1 className="sr-only">To‘lovlar nazorati</h1>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard gold label="BUGUNGI TUSHUM" value={formatMoney(data.todayIncome)} />
         <StatCard gold label="BUGUN NAQD" value={formatMoney(data.todayCash || 0)} />
         <StatCard gold label="BUGUN KARTA" value={formatMoney(data.todayCard || 0)} />

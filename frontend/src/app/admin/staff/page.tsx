@@ -56,7 +56,7 @@ function ActionBtn({
       title={label}
       aria-label={label}
       onClick={onClick}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition ${tones[tone]}`}
+      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl transition sm:h-9 sm:w-9 ${tones[tone]}`}
     >
       {children}
     </button>
@@ -95,6 +95,8 @@ export default function StaffPage() {
       role: roleFormValue(u.role),
       notes: u.notes || "",
     });
+    // Telefonda forma ro‘yxatdan ancha yuqorida — unga qaytaramiz.
+    window.scrollTo({ top: 0, behavior: "smooth" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

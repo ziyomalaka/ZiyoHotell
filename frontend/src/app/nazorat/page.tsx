@@ -98,7 +98,7 @@ export default function SupervisorRoomsPage() {
 
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="stat-quiet">
           <p>Yashovchilar</p>
           <strong>{stats.living}</strong>
@@ -159,7 +159,11 @@ export default function SupervisorRoomsPage() {
                         const occ = bed.occupancy;
                         const tone = dueTone(occ?.stay.daysLeft);
                         return (
-                          <li key={bed.id} className={`rounded-lg px-2.5 py-2 text-sm ${tone ? tone.cell : "bg-background"}`}>
+                          // Telefonda bo‘sh o‘rinlar alohida qator emas — pastda bitta qatorda sanaladi.
+                          <li
+                            key={bed.id}
+                            className={`rounded-lg px-2.5 py-2 text-sm ${tone ? tone.cell : "bg-background"} ${occ ? "" : "max-md:hidden"}`}
+                          >
                             <div className="flex items-center justify-between gap-2">
                               <span className="font-medium text-navy">
                                 {bed.number}-o‘rin{occ ? ` · ${occ.customer.fullName}` : ""}
@@ -194,6 +198,16 @@ export default function SupervisorRoomsPage() {
                           </li>
                         );
                       })}
+                    {room.free ? (
+                      <li className="rounded-lg bg-background px-2.5 py-2 text-sm text-muted md:hidden">
+                        Bo‘sh:{" "}
+                        {room.beds
+                          .filter((b) => b.status === "ACTIVE" && !b.occupancy)
+                          .map((b) => b.number)
+                          .join(", ")}
+                        -o‘rin
+                      </li>
+                    ) : null}
                   </ul>
                 </article>
               ))}

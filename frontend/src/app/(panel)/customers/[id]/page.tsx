@@ -161,7 +161,7 @@ export default function ReceptionCustomerProfile() {
 
       {error ? <p className="rounded-md bg-[#f8ecec] px-4 py-3 text-sm text-[#9b3b3b]">{error}</p> : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="stat-quiet">
           <p>Jami to‘langan</p>
           <strong className="text-lg">{formatMoney(c.paid)}</strong>
@@ -181,7 +181,7 @@ export default function ReceptionCustomerProfile() {
 
       <section className="card p-5">
         <h3 className="mb-4 font-semibold text-navy">Shaxsiy ma’lumotlar</h3>
-        <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 text-sm lg:grid-cols-3">
           <Field label="F.I.Sh.">{c.fullName}</Field>
           <Field label="Tug‘ilgan sana">{formatDate(c.birthDate)}</Field>
           <Field label="ID raqami">{dash(c.passportId)}</Field>
@@ -200,7 +200,7 @@ export default function ReceptionCustomerProfile() {
       {stay ? (
         <section className="card p-5">
           <h3 className="mb-4 font-semibold text-navy">Hozirgi yashash</h3>
-          <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 text-sm lg:grid-cols-4">
             <Field label="Sektor">{sectorLabel(stay.room.sector)}</Field>
             <Field label="Qavat">{floorLabel(stay.room.floor)}</Field>
             <Field label="Xona / o‘rin">

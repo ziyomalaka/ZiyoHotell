@@ -3,8 +3,8 @@ import type { SessionUser } from "@/lib/session-types";
 import { AppShell } from "./AppShell";
 
 const nav = [
-  { href: "/nazorat", label: "Sektorlar va xonalar", icon: "bed" },
-  { href: "/nazorat/muddat", label: "To‘lov muddati", icon: "debt" },
+  { href: "/nazorat", label: "Sektorlar va xonalar", short: "Xonalar", icon: "bed" },
+  { href: "/nazorat/muddat", label: "To‘lov muddati", short: "Muddat", icon: "debt" },
   { href: "/nazorat/tolovlar", label: "To‘lovlar", icon: "pay" },
 ];
 

@@ -50,7 +50,7 @@ export default function ManagerStaysPage() {
   return (
     <div>
       <h1 className="sr-only">Kirish / Chiqish nazorati</h1>
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard label="BUGUN KIRDI" value={data.stats.inToday} />
         <StatCard label="BUGUN CHIQDI" value={data.stats.outToday} />
         <StatCard label="HOZIR YASHAYDI" value={data.stats.living} />

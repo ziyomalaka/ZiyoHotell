@@ -123,7 +123,7 @@ export default function AdminReportsPage() {
 
       {type === "customers" && customers ? (
         <div className="mt-5">
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label="Jami" value={customers.total || 0} />
             <StatCard label="Kelganlar" value={customers.arrived || 0} />
             <StatCard label="Chiqib ketganlar" value={customers.left || 0} />
@@ -160,7 +160,7 @@ export default function AdminReportsPage() {
         </div>
       ) : null}
       {type === "payments" && payments ? (
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard label="Kunlik" value={formatMoney(payments.daily || 0)} />
           <StatCard label="Oylik" value={formatMoney(payments.monthly || 0)} />
           <StatCard label="Jami tushum" value={formatMoney(payments.total || 0)} />
@@ -171,7 +171,7 @@ export default function AdminReportsPage() {
       ) : null}
       {type === "occupancy" && occupancy ? (
         <div className="mt-5">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatCard label="Xonalar" value={occupancy.rooms || 0} />
             <StatCard label="O‘rinlar" value={occupancy.beds || 0} />
             <StatCard label="Band" value={occupancy.occupied || 0} />

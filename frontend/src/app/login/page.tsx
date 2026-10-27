@@ -55,7 +55,7 @@ export default function LoginPage() {
       </div>
 
       <div className="flex items-center justify-center bg-background p-5">
-        <form onSubmit={onSubmit} className="card w-full max-w-md p-8">
+        <form onSubmit={onSubmit} className="card w-full max-w-md p-6 sm:p-8">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
             <BrandLogo size={56} />
             <div>
@@ -68,7 +68,15 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-muted">Login va parol orqali davom eting.</p>
           <label className="mt-6 block text-sm font-medium">
             Login / telefon <span className="text-danger">*</span>
-            <input name="login" required autoComplete="username" className="mt-2 w-full" />
+            <input
+              name="login"
+              required
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="mt-2 w-full"
+            />
           </label>
           <label className="mt-4 block text-sm font-medium">
             Parol <span className="text-danger">*</span>

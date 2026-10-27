@@ -1,6 +1,7 @@
 "use client";
 
-type NavItem = { href: string; label: string; icon: string };
+// short — telefondagi pastki menyu uchun qisqa nom.
+type NavItem = { href: string; label: string; icon: string; short?: string };
 
 const icons: Record<string, string> = {
   home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -15,6 +16,7 @@ const icons: Record<string, string> = {
   log: "M6 3h9l5 5v13H6zm9 0v5h5M8 13h8M8 17h8M8 9h4",
   save: "M5 3h11l3 3v15H5zm3 14h8m-8-4h8M8 3v6h7",
   users: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8v-1.5C5 16 8 14 12 14s7 2 7 4.5V20",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
   debt: "M12 3v18m-7-7c0 2.8 3.1 5 7 5s7-2.2 7-5-3.1-5-7-5-7-2.2-7-5 3.1-5 7-5 7 2.2 7 5",
 };
 

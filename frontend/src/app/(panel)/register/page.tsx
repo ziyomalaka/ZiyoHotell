@@ -235,14 +235,15 @@ export default function RegisterPage() {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <a href="#register-form" className="register-cta">
+        {/* Telefonda forma shu kartochkalar ostida turibdi — havola joy egallamasin. */}
+        <a href="#register-form" className="register-cta max-md:hidden">
           <span className="text-gold-premium">+</span>
           <span>
             <strong className="block text-lg">Yangi mijozni</strong>
             ro‘yxatga olish
           </span>
         </a>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="stat-quiet">
             <p>Bo‘sh o‘rinlar</p>
             <strong>{home?.freeBeds ?? "—"}</strong>
@@ -254,10 +255,10 @@ export default function RegisterPage() {
           <div className="stat-quiet">
             <p>Bugun tushum</p>
             <strong className="text-base">{formatMoney(home?.todayIncome || 0)}</strong>
-            <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
+            <span className="mt-1 block text-[11px] text-muted">
               Naqd {formatMoney(home?.todayCash || 0)} · Karta {formatMoney(home?.todayCard || 0)} · Terminal{" "}
               {formatMoney(home?.todayTerminal || 0)}
-            </p>
+            </span>
           </div>
         </div>
       </div>
@@ -359,6 +360,7 @@ export default function RegisterPage() {
           <FormField label="To‘lov summasi">
             <input
               type="number"
+              inputMode="numeric"
               min={0}
               step={1000}
               value={amountValue}

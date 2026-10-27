@@ -185,7 +185,8 @@ textarea:focus {
   border-radius: 10px;
   padding: 0.95rem 1rem;
 }
-.stat-quiet p {
+/* Faqat sarlavha; ostidagi izoh qatorlari (Naqd · Karta …) o‘z uslubida qoladi. */
+.stat-quiet > p:first-child {
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -336,5 +337,131 @@ textarea:focus {
   }
   .mgr-app .stat-quiet strong {
     overflow-wrap: anywhere;
+  }
+}
+
+/* Telefon (768px dan tor). */
+@media (max-width: 767px) {
+  /* iOS 16px dan kichik maydonga bosilganda sahifani kattalashtirib yuboradi. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Filtr qatorlarida tanlovlar qatorni to‘ldiradi (ikkitadan), bir chetda tor bo‘lib qolmaydi. */
+  .flex-wrap > select {
+    flex: 1 1 9.5rem;
+    min-width: 0;
+  }
+
+  .stat-quiet {
+    padding: 0.8rem 0.85rem;
+  }
+  .stat-quiet strong {
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+  }
+  /* 2 ustunli kartochkalarda yolg‘iz qolgan oxirgisi butun qatorni egallaydi. */
+  .grid-cols-2 > .stat-quiet:last-child:nth-child(odd),
+  .grid-cols-2 > .card:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+
+  /* Jadval qatorlari kartochka: sarlavha yashirin, ustun nomi har katak oldida (data-label, lib/table-cards.ts). */
+  .data-table {
+    display: block;
+    min-width: 0;
+  }
+  .data-table thead {
+    display: none;
+  }
+  .data-table tbody {
+    display: block;
+  }
+  .data-table tbody tr {
+    display: block;
+    margin-bottom: 0.65rem;
+    padding: 0.3rem 0.9rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .data-table tbody tr:hover {
+    background: var(--card);
+  }
+  .data-table td {
+    position: relative;
+    display: block;
+    min-height: 2.25rem;
+    padding: 0.5rem 0 0.5rem 40%;
+    border-top: 1px solid #efe8da;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .data-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    top: 0.55rem;
+    width: 38%;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-align: left;
+  }
+  .data-table td:first-child {
+    padding-left: 0;
+    border-top: 0;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .data-table td:first-child::before,
+  .data-table td[data-label=""]::before,
+  .data-table td[data-actions]::before {
+    content: none;
+  }
+  .data-table td[data-label=""],
+  .data-table td[data-actions] {
+    padding-left: 0;
+  }
+  .data-table td[colspan] {
+    text-align: center;
+  }
+  .data-table td[data-actions] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  /* Jadval o‘ralgan ramka endi ortiqcha: kartochkalarning o‘z ramkasi bor. */
+  .card:has(> .data-table),
+  .surface:has(> .data-table),
+  .card:has(> div > .data-table),
+  .surface:has(> div > .data-table) {
+    border: 0;
+    background: transparent;
+  }
+
+  /* Oyna pastdan chiqadigan varaq bo‘lib ochiladi. */
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-backdrop > * {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    overflow-y: auto;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+  /* Oyna tugmalari bosh barmoqqa qulay — qatorni teng bo‘lib to‘ldiradi. */
+  .modal-backdrop .btn-primary,
+  .modal-backdrop .btn-secondary,
+  .modal-backdrop .btn-danger {
+    flex: 1 1 0;
   }
 }

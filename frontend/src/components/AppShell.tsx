@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatDateTime } from "@/lib/format";
+import { useTableCardLabels } from "@/lib/table-cards";
 import { BrandLogo } from "./BrandLogo";
 import { NavIcon, type NavItem } from "./NavIcon";
 import { ReminderBell } from "./ReminderBell";
@@ -29,7 +30,10 @@ export function AppShell({
   const [menu, setMenu] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
   const isManager = variant === "manager";
+
+  useTableCardLabels(mainRef);
 
   useEffect(() => {
     const tick = () => setNow(formatDateTime(new Date()));
@@ -40,6 +44,7 @@ export function AppShell({
 
   useEffect(() => {
     setDrawer(false);
+    setMenu(false);
   }, [pathname]);
 
   async function logout() {
@@ -56,9 +61,16 @@ export function AppShell({
 
   const pageTitle = nav.find((i) => active(i.href))?.label || "ZiyoHotel";
   const asideClass = isManager ? "hidden lg:block" : "hidden md:block";
-  const overlayClass = isManager ? "lg:hidden" : "md:hidden";
-  const burgerClass = isManager ? "lg:hidden" : "md:hidden";
+  // Yon menyu ko‘rinmaydigan (telefon) ekranda — pastki menyu va logotip.
+  const phoneClass = isManager ? "lg:hidden" : "md:hidden";
   const collapseClass = isManager ? "hidden lg:block" : "hidden md:block";
+  const mainClass = isManager
+    ? "pb-[calc(6rem+env(safe-area-inset-bottom))] lg:p-6"
+    : "pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6";
+
+  // Pastki menyuga 5 tagacha bo‘lim sig‘adi; ko‘p bo‘lsa 4 tasi va "Yana" (qolganlari yon menyuda).
+  const tabs = nav.length > 5 ? nav.slice(0, 4) : nav;
+  const moreActive = tabs.length < nav.length && !tabs.some((i) => active(i.href));
 
   const sidebar = (
     <div className="flex h-full flex-col bg-sidebar text-white">
@@ -110,7 +122,7 @@ export function AppShell({
       </aside>
 
       {drawer ? (
-        <div className={`fixed inset-0 z-40 ${overlayClass}`}>
+        <div className={`fixed inset-0 z-40 ${phoneClass}`}>
           <button type="button" className="absolute inset-0 bg-navy-deep/50 backdrop-blur-[2px]" onClick={() => setDrawer(false)} aria-label="Menyuni yopish" />
           <aside className="relative z-10 h-full w-[min(86vw,264px)] shadow-2xl">{sidebar}</aside>
         </div>
@@ -119,23 +131,11 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-white/95 px-3 py-2.5 backdrop-blur md:px-6 md:py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-line text-navy ${burgerClass}`}
-              onClick={() => setDrawer(true)}
-              aria-label="Menyu"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M4 7h16M4 12h16M4 17h16" />
-              </svg>
-            </button>
-            {isManager ? (
-              <Link href={homeHref || "/manager"} className="hidden shrink-0 max-lg:inline-flex" aria-label="ZiyoHotel">
-                <BrandLogo size={36} />
-              </Link>
-            ) : null}
+            <Link href={homeHref || nav[0]?.href || "/"} className={`shrink-0 ${phoneClass}`} aria-label="ZiyoHotel">
+              <BrandLogo size={36} />
+            </Link>
             <div className="min-w-0">
-              <p className={`text-[11px] uppercase tracking-[0.18em] text-muted ${isManager ? "max-lg:hidden" : ""}`}>ZiyoHotel</p>
+              <p className={`text-[11px] uppercase tracking-[0.18em] text-muted ${isManager ? "max-lg:hidden" : "max-md:hidden"}`}>ZiyoHotel</p>
               <h1 className="truncate text-base font-semibold text-navy md:text-xl">{pageTitle}</h1>
             </div>
           </div>
@@ -158,17 +158,64 @@ export function AppShell({
                 </span>
               </button>
               {menu ? (
-                <div className="absolute right-0 mt-2 w-44 rounded-xl border border-line bg-white p-2 shadow-lg">
-                  <button type="button" onClick={logout} className="min-h-11 w-full rounded-lg px-3 py-2 text-left hover:bg-background">
-                    Chiqish
-                  </button>
-                </div>
+                <>
+                  <button type="button" className="fixed inset-0 z-10 cursor-default" onClick={() => setMenu(false)} aria-label="Yopish" />
+                  <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-line bg-white p-2 shadow-lg">
+                    <div className={`border-b border-line px-3 pb-2 pt-1 ${isManager ? "lg:hidden" : "sm:hidden"}`}>
+                      <p className="truncate font-medium text-navy">{userName}</p>
+                      <p className="text-[11px] text-muted">{roleLabel}</p>
+                    </div>
+                    <button type="button" onClick={logout} className="min-h-11 w-full rounded-lg px-3 py-2 text-left hover:bg-background">
+                      Chiqish
+                    </button>
+                  </div>
+                </>
               ) : null}
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
+        <main ref={mainRef} className={`flex-1 overflow-x-hidden p-4 ${mainClass}`}>
+          {children}
+        </main>
       </div>
+
+      <nav
+        className={`fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur ${phoneClass}`}
+        aria-label="Bo‘limlar"
+      >
+        <div className="flex">
+          {tabs.map((item) => (
+            <BottomTab key={item.href} href={item.href} label={item.short || item.label} icon={item.icon} on={active(item.href)} />
+          ))}
+          {tabs.length < nav.length ? (
+            <BottomTab label="Yana" icon="more" on={moreActive} onClick={() => setDrawer(true)} />
+          ) : null}
+        </div>
+      </nav>
     </div>
+  );
+}
+
+function BottomTab({ href, label, icon, on, onClick }: { href?: string; label: string; icon: string; on: boolean; onClick?: () => void }) {
+  const className = `relative flex min-h-[60px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] ${
+    on ? "font-semibold text-navy" : "text-muted"
+  }`;
+  const body = (
+    <>
+      {on ? <span className="absolute top-0 h-[3px] w-10 rounded-b-full bg-gold" /> : null}
+      <span className={`flex h-7 w-12 items-center justify-center rounded-full ${on ? "bg-gold-light" : ""}`}>
+        <NavIcon name={icon} />
+      </span>
+      <span className="max-w-full truncate">{label}</span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={className} aria-current={on ? "page" : undefined}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" className={className} onClick={onClick}>
+      {body}
+    </button>
   );
 }

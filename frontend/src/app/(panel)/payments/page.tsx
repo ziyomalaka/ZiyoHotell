@@ -118,7 +118,7 @@ export default function PaymentsPage() {
 
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className="stat-quiet">
           <p>Bugungi tushum</p>
           <strong>{formatMoney(data.todayIncome || 0)}</strong>
@@ -244,7 +244,7 @@ export default function PaymentsPage() {
             </label>
             <label className="mt-3 block text-sm font-medium">
               Summa
-              <input required type="number" min={1} step={1000} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-2 w-full" />
+              <input required type="number" inputMode="numeric" min={1} step={1000} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-2 w-full" />
             </label>
             <p className="mt-1 text-xs text-muted">
               {(() => {
