@@ -6,7 +6,8 @@ import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
 import { IdNumberInput } from "@/components/IdNumberInput";
 import { PhoneInput } from "@/components/PhoneInput";
-import { checkoutDate, compareRoomNumbers, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
+import { useSectors } from "@/components/SectorFilter";
+import { checkoutDate, compareRoomNumbers, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, sectorLabel, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
@@ -70,6 +71,7 @@ function roomName(r: Room) {
 
 export default function RegisterPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const sectors = useSectors("reception");
   const [home, setHome] = useState<Home | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
@@ -120,6 +122,25 @@ export default function RegisterPage() {
       .sort((a, b) => (a.sector?.number ?? 999) - (b.sector?.number ?? 999) || compareRoomNumbers(a.number, b.number));
     return [...list.filter((r) => freeCount(r) > 0), ...list.filter((r) => freeCount(r) === 0)];
   }, [rooms, form.gender]);
+  // Ro‘yxatda hamma sektor ko‘rinadi: xonasi yo‘q yoki boshqa jins uchun bo‘lgan sektorda sababi yoziladi.
+  const genderWord = form.gender === "FEMALE" ? "qizlar" : "bollar";
+  const sectorGroups = sectors.map((sector) => {
+    const inSector = rooms.filter((r) => r.status === "ACTIVE" && r.sector?.number === sector.number);
+    const list = activeRooms.filter((r) => r.sector?.number === sector.number);
+    const note = !inSector.length
+      ? "xona qo‘shilmagan"
+      : list.length
+        ? null
+        : sector.gender && sector.gender !== form.gender
+          ? `faqat ${sector.gender === "FEMALE" ? "qizlar" : "bollar"} uchun`
+          : `${genderWord} uchun xona yo‘q`;
+    return { key: sector.id, label: sectorLabel(sector), list, note };
+  });
+  const noSector = activeRooms.filter((r) => !r.sector);
+  // Sektorlar hali yuklanmagan bo‘lsa, xonalar bitta ro‘yxatda ko‘rsatiladi.
+  const roomGroups = sectors.length
+    ? [...sectorGroups, ...(noSector.length ? [{ key: "none", label: "Sektorsiz", list: noSector, note: null }] : [])]
+    : [{ key: "all", label: "Xonalar", list: activeRooms, note: activeRooms.length ? null : `${genderWord} uchun xona yo‘q` }];
   // Xona tanlanmagan yoki tanlangani to‘lib qolgan bo‘lsa, joyi bor birinchi xona taklif qilinadi.
   const suggested = activeRooms.find((r) => freeCount(r) > 0);
   const chosen = activeRooms.find((r) => r.id === form.roomId && freeCount(r) > 0);
@@ -282,14 +303,25 @@ export default function RegisterPage() {
                   {activeRooms.length ? "Bo‘sh joy yo‘q" : `${form.gender === "FEMALE" ? "Qizlar" : "Bollar"} uchun xona yo‘q`}
                 </option>
               ) : null}
-              {activeRooms.map((r) => {
-                const free = freeCount(r);
-                return (
-                  <option key={r.id} value={r.id} disabled={!free}>
-                    {roomName(r)} — {free ? `${free} ta bo‘sh o‘rin` : "joy yo‘q"} · {formatMoney(r.monthlyPrice || DEFAULT_MONTHLY_PRICE)}/oy
-                  </option>
-                );
-              })}
+              {roomGroups.map((group) => (
+                <optgroup key={group.key} label={group.label}>
+                  {group.list.length ? (
+                    group.list.map((r) => {
+                      const free = freeCount(r);
+                      return (
+                        <option key={r.id} value={r.id} disabled={!free}>
+                          {roomName(r)} — {free ? `${free} ta bo‘sh o‘rin` : "joy yo‘q"} ·{" "}
+                          {formatMoney(r.monthlyPrice || DEFAULT_MONTHLY_PRICE)}/oy
+                        </option>
+                      );
+                    })
+                  ) : (
+                    <option disabled value={`note-${group.key}`}>
+                      — {group.note}
+                    </option>
+                  )}
+                </optgroup>
+              ))}
             </select>
             {chosenFull && room ? (
               <p className="mt-1 text-xs font-medium text-[#7a5a00]">Tanlangan xonada joy qolmadi — {roomName(room)} taklif qilindi.</p>
