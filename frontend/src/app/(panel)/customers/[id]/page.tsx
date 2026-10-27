@@ -337,7 +337,7 @@ export default function ReceptionCustomerProfile() {
         <ConfirmModal
           danger
           title="Mijozni o‘chirish"
-          text={`${c.fullName} ni o‘chirishni tasdiqlaysizmi? Uning barcha to‘lov va yashash yozuvlari ham o‘chadi.`}
+          text={`${c.fullName} ro‘yxatdan olib tashlansinmi? To‘langan pul qaytarilmaydi: to‘lovlari va yashash tarixi hisobotlarda saqlanib qoladi.`}
           confirmLabel="O‘chirish"
           onClose={() => setDrop(false)}
           onConfirm={remove}

@@ -72,6 +72,8 @@ model Customer {
   extraPhone  String?
   notes       String?
   blocked     Boolean   @default(false)
+  /// O'chirilgan mijoz: ro'yxat va qidiruvdan yashiriladi, lekin yashash va to'lov tarixi hisobotlarda qoladi.
+  deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   createdById String
@@ -85,6 +87,7 @@ model Customer {
 
   @@index([phone])
   @@index([fullName])
+  @@index([deletedAt])
 }
 
 /// Sektor: yotoqxona bloki (masalan, "Bollar yotoqxonasi, 2-qavat" yoki "Fitnes"). Xonalar sektor ichida, o'rinlar xona ichida.

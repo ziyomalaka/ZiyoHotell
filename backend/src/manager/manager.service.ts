@@ -174,7 +174,7 @@ export class ManagerService {
       recentPays,
       recentChecks,
     ] = await Promise.all([
-      this.prisma.customer.count(),
+      this.prisma.customer.count({ where: { deletedAt: null } }),
       this.prisma.occupancy.count(),
       this.prisma.checkLog.count({ where: { type: 'CHECK_IN', at: { gte: dayStart(today), lte: dayEnd(today) } } }),
       this.prisma.checkLog.count({ where: { type: 'CHECK_OUT', at: { gte: dayStart(today), lte: dayEnd(today) } } }),
@@ -307,7 +307,7 @@ export class ManagerService {
     order?: string;
   }) {
     const today = todayISO();
-    const where: Prisma.CustomerWhereInput = {};
+    const where: Prisma.CustomerWhereInput = { deletedAt: null };
     const q = opts.q?.trim() || '';
     if (q) {
       where.OR = [
@@ -366,8 +366,8 @@ export class ManagerService {
   }
 
   async customerProfile(id: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id },
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, deletedAt: null },
       include: {
         occupancy: { include: { stay: { include: { room: true, bed: true } } } },
         stays: { include: { room: true, bed: true, checkLogs: true }, orderBy: { createdAt: 'desc' } },

@@ -430,8 +430,20 @@ export class AdminService {
       throw new AppError('Xonada mijoz yashayapti. Avval chiqaring.', 409, 'ROOM_HAS_ACTIVE_STAYS');
     }
     const stayIds = (await this.prisma.stay.findMany({ where: { roomId: id }, select: { id: true } })).map((s) => s.id);
+    // To'langan pul hisobotdan yo'qolmasligi uchun to'lov tarixi bor xona o'chirilmaydi.
+    const paid = stayIds.length
+      ? await this.prisma.payment.count({ where: { stayId: { in: stayIds }, status: 'PAID' } })
+      : 0;
+    if (paid > 0) {
+      throw new AppError(
+        'Bu xonada yashagan mijozlarning to‘lov tarixi bor, o‘chirilsa hisobot buziladi. Xonani boshqa sektorga o‘tkazing yoki ta’mirga qo‘ying.',
+        409,
+        'ROOM_HAS_PAYMENTS',
+      );
+    }
     await this.prisma.$transaction(async (tx) => {
       if (stayIds.length) {
+        await tx.reminder.deleteMany({ where: { stayId: { in: stayIds } } });
         await tx.payment.deleteMany({ where: { stayId: { in: stayIds } } });
         await tx.checkLog.deleteMany({ where: { stayId: { in: stayIds } } });
         await tx.stay.deleteMany({ where: { roomId: id } });
@@ -750,7 +762,7 @@ export class AdminService {
     page: number;
     pageSize: number;
   }) {
-    const where: Prisma.CustomerWhereInput = {};
+    const where: Prisma.CustomerWhereInput = { deletedAt: null };
     const q = opts.q?.trim() || '';
     if (q) {
       where.OR = [
@@ -821,8 +833,8 @@ export class AdminService {
   }
 
   async getCustomer(id: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id },
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, deletedAt: null },
       include: {
         occupancy: { include: { stay: { include: { room: true, bed: true } } } },
         stays: { include: { room: true, bed: true, payments: true }, orderBy: { createdAt: 'desc' } },

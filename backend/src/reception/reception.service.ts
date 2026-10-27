@@ -145,12 +145,12 @@ export class ReceptionService implements OnModuleInit {
           where: { passportId: id },
           include: { occupancy: { include: { stay: { include: stayInclude } } } },
         });
-        if (byPassport) return byPassport;
+        if (byPassport && !byPassport.deletedAt) return byPassport;
       }
     }
     if (phone) {
       return this.prisma.customer.findFirst({
-        where: { phone: this.contains(phone.trim()) },
+        where: { phone: this.contains(phone.trim()), deletedAt: null },
         include: { occupancy: { include: { stay: { include: stayInclude } } } },
         orderBy: { createdAt: 'desc' },
       });
@@ -163,6 +163,7 @@ export class ReceptionService implements OnModuleInit {
     if (!query) return [];
     return this.prisma.customer.findMany({
       where: {
+        deletedAt: null,
         OR: [{ fullName: this.contains(query) }, { phone: this.contains(query) }, { passportId: this.contains(query) }],
       },
       include: { occupancy: { include: { stay: { include: { room: true, bed: true } } } } },
@@ -212,22 +213,23 @@ export class ReceptionService implements OnModuleInit {
         }
 
         const existing = await tx.customer.findUnique({ where: { passportId } });
-        if (existing) {
+        if (existing && !existing.deletedAt) {
           throw new AppError('Bu mijoz kiritilgan.', 409, 'CUSTOMER_ALREADY_EXISTS');
         }
-        const customer = await tx.customer.create({
-          data: {
-            fullName: input.fullName.trim(),
-            phone,
-            gender,
-            birthDate: input.birthDate ? parseDate(input.birthDate) : null,
-            passportId,
-            address: input.address?.trim() || null,
-            extraPhone: normalizePhone(input.extraPhone) || null,
-            notes: input.notes?.trim() || null,
-            createdById: userId,
-          },
-        });
+        const details = {
+          fullName: input.fullName.trim(),
+          phone,
+          gender,
+          birthDate: input.birthDate ? parseDate(input.birthDate) : null,
+          passportId,
+          address: input.address?.trim() || null,
+          extraPhone: normalizePhone(input.extraPhone) || null,
+          notes: input.notes?.trim() || null,
+        };
+        // O'chirilgan mijoz qaytib kelsa, eski yozuvi tiklanadi: tarixi va to'lovlari bir joyda qoladi.
+        const customer = existing
+          ? await tx.customer.update({ where: { id: existing.id }, data: { ...details, deletedAt: null } })
+          : await tx.customer.create({ data: { ...details, createdById: userId } });
 
         const startDate = parseDate(input.startDate);
         const paymentMonth = input.stayType === 'MONTHLY' ? input.paymentMonth || input.startDate.slice(0, 7) : null;
@@ -500,7 +502,7 @@ export class ReceptionService implements OnModuleInit {
   }
 
   async listCustomers(opts: { q?: string; tab?: string; floor?: number; skip: number; page: number; pageSize: number }) {
-    const where: Prisma.CustomerWhereInput = {};
+    const where: Prisma.CustomerWhereInput = { deletedAt: null };
     const q = opts.q?.trim() || '';
     if (q) {
       where.OR = [
@@ -701,16 +703,15 @@ export class ReceptionService implements OnModuleInit {
 
   async deleteCustomer(id: string, userId: string) {
     const customer = await this.prisma.customer.findUnique({ where: { id }, include: { occupancy: true } });
-    if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
+    if (!customer || customer.deletedAt) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
     if (customer.occupancy) {
       throw new AppError('Mijoz hozir yashayapti. Avval chiqaring.', 409, 'CUSTOMER_ALREADY_ACTIVE');
     }
+    // Mijoz ro'yxatdan olib tashlanadi, lekin yashash va to'lov tarixi saqlanadi:
+    // to'langan pul qaytarilmaydi, shuning uchun hisobot va tushumdan ayrilmasligi kerak.
     await this.prisma.$transaction(async (tx) => {
       await tx.reminder.deleteMany({ where: { customerId: id } });
-      await tx.payment.deleteMany({ where: { customerId: id } });
-      await tx.checkLog.deleteMany({ where: { customerId: id } });
-      await tx.stay.deleteMany({ where: { customerId: id } });
-      await tx.customer.delete({ where: { id } });
+      await tx.customer.update({ where: { id }, data: { deletedAt: new Date() } });
       await tx.auditLog.create({
         data: { userId, action: 'CUSTOMER_DELETE', entity: 'Customer', entityId: id },
       });
@@ -719,8 +720,8 @@ export class ReceptionService implements OnModuleInit {
   }
 
   async getCustomer(id: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id },
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, deletedAt: null },
       include: {
         createdBy: { select: { fullName: true } },
         occupancy: { include: { stay: { include: { room: { include: { sector: true } }, bed: true } } } },

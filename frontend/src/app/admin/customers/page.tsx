@@ -193,7 +193,7 @@ export default function AdminCustomersPage() {
         <ConfirmModal
           danger
           title="Mijozni o‘chirish"
-          text={`${drop.fullName} ni o‘chirishni tasdiqlaysizmi?${drop.living ? "\nHozir yashayotgan mijozni avval chiqaring." : ""}`}
+          text={`${drop.fullName} ro‘yxatdan olib tashlansinmi? To‘lovlari va yashash tarixi hisobotlarda saqlanib qoladi.${drop.living ? "\nHozir yashayotgan mijozni avval chiqaring." : ""}`}
           confirmLabel="O‘chirish"
           onClose={() => setDrop(null)}
           onConfirm={remove}
