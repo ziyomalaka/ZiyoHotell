@@ -4,13 +4,17 @@ export const ROLES = {
   RECEPTION: 'RECEPTION',
   MANAGER: 'MANAGER',
   BOSHLIQ: 'MANAGER',
+  /** Nazoratchi: sektor va xonalarni kuzatadi, to'lov qabul qiladi. */
+  SUPERVISOR: 'SUPERVISOR',
+  NAZORATCHI: 'SUPERVISOR',
 } as const;
 
-export type RoleCode = 'RECEPTION' | 'SYSTEM_ADMIN' | 'MANAGER';
+export type RoleCode = 'RECEPTION' | 'SYSTEM_ADMIN' | 'MANAGER' | 'SUPERVISOR';
 
 export function normalizeRole(role: string): RoleCode {
   if (role === 'SOFTWARE_ADMIN' || role === 'SYSTEM_ADMIN') return 'SYSTEM_ADMIN';
   if (role === 'BOSHLIQ' || role === 'MANAGER') return 'MANAGER';
+  if (role === 'NAZORATCHI' || role === 'SUPERVISOR') return 'SUPERVISOR';
   return 'RECEPTION';
 }
 
@@ -44,12 +48,14 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   MANAGER: ['customers.view', 'payments.view', 'reports.view', 'reports.export'],
   BOSHLIQ: ['customers.view', 'payments.view', 'reports.view', 'reports.export'],
+  SUPERVISOR: ['customers.view', 'payments.view', 'payments.create', 'reports.view', 'reports.export'],
 };
 
 export function homePath(role: string) {
   const r = normalizeRole(role);
   if (r === 'SYSTEM_ADMIN') return '/admin';
   if (r === 'MANAGER') return '/manager';
+  if (r === 'SUPERVISOR') return '/nazorat';
   return '/register';
 }
 

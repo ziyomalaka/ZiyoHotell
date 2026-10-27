@@ -366,6 +366,14 @@ export function describeDays(totalDays: number, type?: string | null) {
 }
 
 /** Qolgan kun matni: "3 kun qoldi", "bugun tugaydi", "2 kun kechikdi". */
+/** To‘lovgacha 1 kun qolsa yoki muddat o‘tgan bo‘lsa qizil, 3 kungacha qolsa sariq. */
+export function dueTone(daysLeft?: number | null) {
+  if (daysLeft == null) return null;
+  if (daysLeft <= 1) return { cell: "bg-[#f7cfcf]", text: "text-[#8a2f2f]" };
+  if (daysLeft <= 3) return { cell: "bg-[#fdecb0]", text: "text-[#7a5a00]" };
+  return null;
+}
+
 export function daysLeftLabel(daysLeft: number | null | undefined) {
   if (daysLeft == null) return "—";
   if (daysLeft > 0) return `${daysLeft} kun qoldi`;

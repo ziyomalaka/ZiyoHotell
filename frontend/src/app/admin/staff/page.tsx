@@ -14,12 +14,14 @@ const emptyForm = { fullName: "", login: "", phone: "", password: "", role: "REC
 function roleFormValue(role: string) {
   if (role === "SYSTEM_ADMIN" || role === "SOFTWARE_ADMIN") return "SOFTWARE_ADMIN";
   if (role === "MANAGER" || role === "BOSHLIQ") return "BOSHLIQ";
+  if (role === "SUPERVISOR" || role === "NAZORATCHI") return "NAZORATCHI";
   return "RECEPTION";
 }
 
 function roleLabel(role: string) {
   if (role === "SYSTEM_ADMIN" || role === "SOFTWARE_ADMIN") return "Dasturiy Admin";
   if (role === "MANAGER" || role === "BOSHLIQ") return "Boshliq";
+  if (role === "SUPERVISOR" || role === "NAZORATCHI") return "Nazoratchi";
   return "Admin / Reception";
 }
 
@@ -213,6 +215,7 @@ export default function StaffPage() {
               <option value="RECEPTION">Admin / Reception</option>
               <option value="SOFTWARE_ADMIN">Dasturiy Admin</option>
               <option value="BOSHLIQ">Boshliq</option>
+              <option value="NAZORATCHI">Nazoratchi</option>
             </select>
           </FormField>
           <div className="flex items-end gap-2">

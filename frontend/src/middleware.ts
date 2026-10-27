@@ -7,7 +7,7 @@ function secret() {
   return new TextEncoder().encode(process.env.JWT_ACCESS_SECRET || "");
 }
 
-const knownRoles = new Set<string>([ROLES.SYSTEM_ADMIN, ROLES.RECEPTION, ROLES.MANAGER]);
+const knownRoles = new Set<string>([ROLES.SYSTEM_ADMIN, ROLES.RECEPTION, ROLES.MANAGER, ROLES.SUPERVISOR]);
 const receptionPages = ["/register", "/customers", "/rooms", "/stays", "/payments", "/reports"];
 
 async function sessionFrom(req: NextRequest) {
@@ -55,6 +55,7 @@ export async function middleware(req: NextRequest) {
   if (pathname === "/") return to(req, homePath(role));
   if (pathname.startsWith("/admin") && role !== ROLES.SYSTEM_ADMIN) return to(req, homePath(role));
   if (pathname.startsWith("/manager") && role !== ROLES.MANAGER) return to(req, homePath(role));
+  if (pathname.startsWith("/nazorat") && role !== ROLES.SUPERVISOR) return to(req, homePath(role));
   if (receptionPages.some((p) => pathname === p || pathname.startsWith(`${p}/`)) && role !== ROLES.RECEPTION) {
     return to(req, homePath(role));
   }
@@ -81,5 +82,7 @@ export const config = {
     "/admin/:path*",
     "/manager",
     "/manager/:path*",
+    "/nazorat",
+    "/nazorat/:path*",
   ],
 };

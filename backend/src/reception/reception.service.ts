@@ -961,7 +961,14 @@ export class ReceptionService implements OnModuleInit {
         level: true,
         sector: true,
         beds: {
-          include: { occupancy: { include: { customer: true, stay: true } } },
+          include: {
+            occupancy: {
+              include: {
+                customer: true,
+                stay: { include: { payments: { where: { status: 'PAID' }, orderBy: { paidAt: 'desc' }, take: 1, select: { paidAt: true } } } },
+              },
+            },
+          },
           orderBy: { number: 'asc' },
         },
       },
@@ -973,6 +980,15 @@ export class ReceptionService implements OnModuleInit {
       return {
         ...room,
         floor: room.level?.number ?? room.floor,
+        // Har bir yashovchi uchun: to'lov muddati, qolgan kun va oxirgi to'lov sanasi (nazoratchi va xonalar sahifasi uchun).
+        beds: room.beds.map((bed) => {
+          if (!bed.occupancy) return bed;
+          const { payments, ...stay } = bed.occupancy.stay;
+          return {
+            ...bed,
+            occupancy: { ...bed.occupancy, stay: { ...stay, ...periodInfo(stay), lastPaidAt: payments[0]?.paidAt ?? null } },
+          };
+        }),
         occupied,
         free: Math.max(0, room.capacity - occupied),
         kind: repair ? 'inactive' : occupied <= 0 ? 'empty' : occupied >= room.capacity ? 'full' : 'partial',

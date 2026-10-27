@@ -7,7 +7,7 @@ import { RemindersService } from './reminders.service';
 @ApiTags('reminders')
 @ApiCookieAuth('zh_access')
 @ApiBearerAuth()
-@Roles(ROLES.RECEPTION, ROLES.MANAGER, ROLES.SYSTEM_ADMIN)
+@Roles(ROLES.RECEPTION, ROLES.MANAGER, ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR)
 @Controller('reminders')
 export class RemindersController {
   constructor(private reminders: RemindersService) {}

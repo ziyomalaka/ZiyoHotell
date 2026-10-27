@@ -1,6 +1,6 @@
 "use client";
 
-import { customerGenderLabel, dash, displayUzPhone, daysLeftLabel, floorLabel, formatDate, formatMoney, stayTypeLabel } from "@/lib/format";
+import { customerGenderLabel, dash, displayUzPhone, daysLeftLabel, floorLabel, formatDate, formatMoney, sectorLabel, stayTypeLabel } from "@/lib/format";
 
 export type PaymentDueRow = {
   stayId: string;
@@ -9,10 +9,14 @@ export type PaymentDueRow = {
   passportId?: string; birthDate?: string | null;
   gender?: string;
   floor: number;
+  sector?: { number: number; name: string } | null;
   room: string;
   bed: number;
   type: string;
+  startDate?: string;
+  paidDays?: number | null;
   paidDaysLabel: string;
+  lastPaidAt?: string | null;
   dueDate: string | null;
   daysLeft: number | null;
   overdue: boolean;
@@ -29,7 +33,12 @@ export type PaymentDueData = {
   rows: PaymentDueRow[];
 };
 
-export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
+/** Qisqa joy nomi: sektor bo‘lsa "2-sektor", aks holda qavat. */
+function placeLabel(r: PaymentDueRow) {
+  return r.sector ? `${r.sector.number}-sektor` : floorLabel(r.floor);
+}
+
+export function PaymentDueTable({ data, onPay }: { data: PaymentDueData | null; onPay?: (row: PaymentDueRow) => void }) {
   if (!data) return null;
   return (
     <div>
@@ -60,14 +69,16 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
               <th>ID raqami</th>
               <th>Tug‘ilgan sana</th>
               <th>Jins</th>
-              <th>Qavat</th>
+              <th>Sektor</th>
               <th>Xona</th>
               <th>O‘rin</th>
               <th>Tur</th>
               <th>To‘langan davr</th>
-              <th>Chiqish kuni</th>
+              <th>Oxirgi to‘lov</th>
+              <th>Keyingi to‘lov sanasi</th>
               <th>Qolgan</th>
-              <th>Keyingi to‘lov</th>
+              <th>Keyingi to‘lov summasi</th>
+              {onPay ? <th /> : null}
             </tr>
           </thead>
           <tbody>
@@ -78,14 +89,22 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
                 <td>{dash(r.passportId)}</td>
                 <td>{formatDate(r.birthDate)}</td>
                 <td>{customerGenderLabel(r.gender)}</td>
-                <td>{floorLabel(r.floor)}</td>
+                <td title={sectorLabel(r.sector)}>{placeLabel(r)}</td>
                 <td>{r.room}</td>
                 <td>{r.bed}</td>
                 <td>{stayTypeLabel(r.type)}</td>
                 <td>{r.paidDaysLabel}</td>
+                <td>{formatDate(r.lastPaidAt)}</td>
                 <td>{formatDate(r.dueDate)}</td>
                 <td>{daysLeftLabel(r.daysLeft)}</td>
                 <td className="tabular">{formatMoney(r.monthlyPrice)}</td>
+                {onPay ? (
+                  <td>
+                    <button type="button" className="text-sm font-semibold text-royal" onClick={() => onPay(r)}>
+                      To‘lov
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -117,7 +136,7 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
             <div className="mgr-kv">
               <span>Joy</span>
               <span>
-                {floorLabel(r.floor)} · {r.room}-xona · {r.bed}-o‘rin
+                {placeLabel(r)} · {r.room}-xona · {r.bed}-o‘rin
               </span>
             </div>
             <div className="mgr-kv">
@@ -129,7 +148,11 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
               <span>{r.paidDaysLabel}</span>
             </div>
             <div className="mgr-kv">
-              <span>Chiqish kuni</span>
+              <span>Oxirgi to‘lov</span>
+              <span>{formatDate(r.lastPaidAt)}</span>
+            </div>
+            <div className="mgr-kv">
+              <span>Keyingi to‘lov sanasi</span>
               <span>{formatDate(r.dueDate)}</span>
             </div>
             <div className="mgr-kv">
@@ -137,9 +160,14 @@ export function PaymentDueTable({ data }: { data: PaymentDueData | null }) {
               <span>{daysLeftLabel(r.daysLeft)}</span>
             </div>
             <div className="mgr-kv">
-              <span>Keyingi to‘lov</span>
+              <span>Keyingi to‘lov summasi</span>
               <span className="tabular font-semibold">{formatMoney(r.monthlyPrice)}</span>
             </div>
+            {onPay ? (
+              <button type="button" className="btn-primary mt-3 w-full" onClick={() => onPay(r)}>
+                To‘lov qabul qilish
+              </button>
+            ) : null}
           </article>
         ))}
       </div>

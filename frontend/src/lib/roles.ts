@@ -4,6 +4,8 @@ export const ROLES = {
   RECEPTION: "RECEPTION",
   BOSHLIQ: "MANAGER",
   MANAGER: "MANAGER",
+  NAZORATCHI: "SUPERVISOR",
+  SUPERVISOR: "SUPERVISOR",
 } as const;
 
 export const ALL_PERMISSIONS = [
@@ -35,12 +37,14 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     "reports.export",
   ],
   MANAGER: ["customers.view", "payments.view", "reports.view", "reports.export"],
+  SUPERVISOR: ["customers.view", "payments.view", "payments.create", "reports.view", "reports.export"],
   BOSHLIQ: ["customers.view", "payments.view", "reports.view", "reports.export"],
 };
 
 export function normalizeRole(role: string) {
   if (role === "SOFTWARE_ADMIN" || role === "SYSTEM_ADMIN") return ROLES.SYSTEM_ADMIN;
   if (role === "BOSHLIQ" || role === "MANAGER") return ROLES.MANAGER;
+  if (role === "NAZORATCHI" || role === "SUPERVISOR") return ROLES.SUPERVISOR;
   return ROLES.RECEPTION;
 }
 
@@ -48,6 +52,7 @@ export function homePath(role: string) {
   const r = normalizeRole(role);
   if (r === ROLES.SYSTEM_ADMIN) return "/admin/rooms";
   if (r === ROLES.MANAGER) return "/manager";
+  if (r === ROLES.SUPERVISOR) return "/nazorat";
   return "/register";
 }
 

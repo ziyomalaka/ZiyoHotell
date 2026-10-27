@@ -48,10 +48,11 @@ const roleNames: Record<string, string> = {
   SYSTEM_ADMIN: 'Dasturiy Admin',
   RECEPTION: 'Admin / Reception',
   MANAGER: 'Boshliq',
+  SUPERVISOR: 'Nazoratchi',
 };
 
 async function main() {
-  for (const code of ['SYSTEM_ADMIN', 'RECEPTION', 'MANAGER'] as const) {
+  for (const code of ['SYSTEM_ADMIN', 'RECEPTION', 'MANAGER', 'SUPERVISOR'] as const) {
     await prisma.role.upsert({
       where: { code },
       update: { name: roleNames[code], permissions: JSON.stringify(DEFAULT_ROLE_PERMISSIONS[code]) },

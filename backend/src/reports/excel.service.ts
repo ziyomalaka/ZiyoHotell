@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import { checkoutDate } from '../common/billing';
 import { formatDate, formatDateTime, formatMoney, todayISO } from '../common/datetime';
 import { genderLabel } from '../common/gender';
+import { sectorLabel } from '../common/sector';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportsService } from './reports.service';
 import { ManagerService } from '../manager/manager.service';
@@ -72,15 +73,17 @@ export class ExcelService {
       'Telefon',
       'ID raqami',
       'Tug‘ilgan sana',
+      'Sektor',
       'Qavat',
       'Xona',
       'O‘rin',
       'Tur',
       'To‘langan davr',
-      'Chiqish kuni',
+      'Oxirgi to‘lov',
+      'Keyingi to‘lov sanasi',
       'Qolgan kun',
       'Holat',
-      'Keyingi to‘lov',
+      'Keyingi to‘lov summasi',
     ]);
     data.rows.forEach((r, i) =>
       sheet.addRow([
@@ -89,11 +92,13 @@ export class ExcelService {
         r.phone,
         r.passportId,
         formatDate(r.birthDate),
+        sectorLabel(r.sector),
         r.floor,
         r.room,
         r.bed,
         stayTypeLabel(r.type),
         r.paidDaysLabel,
+        formatDate(r.lastPaidAt),
         formatDate(r.dueDate),
         r.daysLeft ?? '—',
         r.overdue ? 'Muddat o‘tgan' : r.dueSoon ? 'Muddat yaqin' : 'Muddat bor',

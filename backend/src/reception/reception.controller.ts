@@ -24,7 +24,8 @@ import { PrismaService } from '../prisma/prisma.service';
 @ApiTags('reception')
 @ApiCookieAuth('zh_access')
 @ApiBearerAuth()
-@Roles(ROLES.RECEPTION, ROLES.SYSTEM_ADMIN)
+// Nazoratchi ham shu API orqali xonalarni ko'radi va to'lov qabul qiladi; qolgan amallar ruxsatlar bilan cheklangan.
+@Roles(ROLES.RECEPTION, ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR)
 @Controller('reception')
 export class ReceptionController {
   constructor(
@@ -156,6 +157,8 @@ export class ReceptionController {
   }
 
   @Post('payments/:id/cancel')
+  // To'lovni bekor qilish faqat reception va admin uchun: nazoratchi faqat qabul qiladi.
+  @Roles(ROLES.RECEPTION, ROLES.SYSTEM_ADMIN)
   @Permissions('payments.create')
   @ApiOperation({ summary: 'To‘lovni bekor qilish' })
   cancelPayment(@Param('id') id: string, @Body() body: CancelPaymentDto, @CurrentUser() user: { id: string }) {

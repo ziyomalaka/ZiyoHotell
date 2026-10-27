@@ -57,7 +57,12 @@ export class ReportsService {
     const level = this.level(floor);
     const stays = await this.prisma.stay.findMany({
       where: { status: 'ACTIVE', occupancy: { isNot: null }, ...(level ? { room: { sector: { number: level } } } : {}) },
-      include: { customer: true, room: true, bed: true },
+      include: {
+        customer: true,
+        room: { include: { sector: true } },
+        bed: true,
+        payments: { where: { status: 'PAID' }, orderBy: { paidAt: 'desc' }, take: 1, select: { paidAt: true, amount: true } },
+      },
     });
     const rows = stays
       .map((s) => {
@@ -71,10 +76,13 @@ export class ReportsService {
           birthDate: s.customer.birthDate,
           gender: s.customer.gender,
           floor: s.room.floor,
+          sector: s.room.sector ? { number: s.room.sector.number, name: s.room.sector.name } : null,
           room: s.room.number,
           bed: s.bed.number,
           type: s.type,
           startDate: s.startDate,
+          lastPaidAt: s.payments[0]?.paidAt ?? null,
+          lastPaidAmount: s.payments[0]?.amount ?? null,
           monthlyPrice: s.monthlyPrice,
           paidAmount: s.paidAmount,
           paidDays: s.paidDays,

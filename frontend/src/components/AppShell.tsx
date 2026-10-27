@@ -49,7 +49,7 @@ export function AppShell({
   }
 
   function active(href: string) {
-    if (href === "/admin" || href === "/manager") return pathname === href;
+    if (href === "/admin" || href === "/manager" || href === "/nazorat") return pathname === href;
     if (href === "/manager/payments") return pathname === "/manager/payments";
     return pathname === href || pathname.startsWith(`${href}/`);
   }

@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { EmptyState } from "@/components/EmptyState";
 import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
-import { daysLeftLabel, sectorLabel } from "@/lib/format";
+import { daysLeftLabel, dueTone, sectorLabel } from "@/lib/format";
 
 type Row = {
   id: string;
@@ -17,14 +17,6 @@ type Row = {
     stay: { room: { number: string; floor: number; sector?: { number: number; name: string } | null } };
   } | null;
 };
-
-/** To‘lovgacha 1 kun qolsa yoki muddat o‘tgan bo‘lsa qizil, 3 kungacha qolsa sariq. */
-function dueTone(daysLeft?: number | null) {
-  if (daysLeft == null) return null;
-  if (daysLeft <= 1) return { cell: "bg-[#f7cfcf]", text: "text-[#8a2f2f]" };
-  if (daysLeft <= 3) return { cell: "bg-[#fdecb0]", text: "text-[#7a5a00]" };
-  return null;
-}
 
 export default function ReceptionCustomersPage() {
   const router = useRouter();
