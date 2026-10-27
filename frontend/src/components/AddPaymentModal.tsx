@@ -5,7 +5,6 @@ import { api, newIdempotencyKey } from "@/lib/api";
 import {
   DAILY_STAY_PRICE,
   DEFAULT_MONTHLY_PRICE,
-  MONTHLY_DAY_PRICE,
   PAYMENT_METHOD_OPTIONS,
   addDays,
   daysForAmount,
@@ -34,7 +33,9 @@ export function AddPaymentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [amount, setAmount] = useState(stay.type === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE));
+  // Oylik to'lovda standart summa — mijoz yashayotgan xonaning oylik narxi.
+  const price = stay.monthlyPrice || DEFAULT_MONTHLY_PRICE;
+  const [amount, setAmount] = useState(stay.type === "DAILY" ? String(DAILY_STAY_PRICE) : String(price));
   const [type, setType] = useState(stay.type === "DAILY" ? "DAILY" : "MONTHLY");
   const [method, setMethod] = useState("CASH");
   const [paymentDate, setPaymentDate] = useState(todayISO());
@@ -43,7 +44,6 @@ export function AddPaymentModal({
   const [saving, setSaving] = useState(false);
   const [idempotencyKey] = useState(newIdempotencyKey);
 
-  const price = stay.monthlyPrice || DEFAULT_MONTHLY_PRICE;
   const days = daysForAmount(Number(amount || 0), price, type);
     const start = stay.startDate ? todayISO(stay.startDate) : "";
   const coveredUntil =
@@ -96,7 +96,7 @@ export function AddPaymentModal({
         <p className="mt-1 text-xs text-muted">
           {type === "DAILY"
             ? `Kuniga ${formatMoney(DAILY_STAY_PRICE)}.`
-            : `Kuniga ${formatMoney(MONTHLY_DAY_PRICE)}. 30 kun = 1 oy = ${formatMoney(price)}.`}
+            : `Kuniga ${formatMoney(Math.round(price / 30))}. 30 kun = 1 oy = ${formatMoney(price)}.`}
           {days
             ? ` Shu summa ${describeDays(days, type)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.`
             : ""}
@@ -108,7 +108,7 @@ export function AddPaymentModal({
             onChange={(e) => {
               const next = e.target.value;
               setType(next);
-              setAmount(next === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE));
+              setAmount(next === "DAILY" ? String(DAILY_STAY_PRICE) : String(price));
             }}
             className="mt-2 w-full"
           >

@@ -1,6 +1,6 @@
 import { paymentStatusFromAmounts, stayDebt } from './datetime';
 import { homePath, normalizeRole } from './roles';
-import { checkoutDate, daysForAmount, describeDays, paymentPeriod } from './billing';
+import { capacityMonthlyPrice, checkoutDate, daysForAmount, describeDays, paymentPeriod } from './billing';
 
 describe('money source of truth', () => {
   it('UNPAID when paid is 0', () => {
@@ -103,5 +103,20 @@ describe('billing period', () => {
       endDate: null,
     });
     expect(planned instanceof Date ? planned.toISOString().slice(0, 10) : planned).toBe('2026-10-01');
+  });
+});
+
+describe('capacity pricing', () => {
+  it('prices rooms by number of beds, "up to N"', () => {
+    expect([2, 3, 4, 5, 6, 7, 8, 9, 14, 16].map(capacityMonthlyPrice)).toEqual([
+      1200000, 950000, 950000, 900000, 900000, 850000, 850000, 750000, 750000, 750000,
+    ]);
+  });
+
+  it('paying above the monthly price adds extra days', () => {
+    // 2 kishilik: 1 200 000 / 30 = 40 000 so‘m kuniga.
+    expect(daysForAmount(1200000, capacityMonthlyPrice(2), 'MONTHLY')).toBe(30);
+    expect(daysForAmount(1500000, capacityMonthlyPrice(2), 'MONTHLY')).toBe(37);
+    expect(describeDays(37, 'MONTHLY')).toContain('1 oy');
   });
 });

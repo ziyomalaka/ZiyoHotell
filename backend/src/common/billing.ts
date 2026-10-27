@@ -17,6 +17,22 @@ export const DAYS_PER_MONTH = 30;
 /** Yangi xonalar oylik narxi = 25 000 × 30. */
 export const DEFAULT_MONTHLY_PRICE = MONTHLY_DAY_PRICE * DAYS_PER_MONTH;
 
+/**
+ * Narxi o‘rinlar soniga qarab qo‘yiladigan sektorlar uchun oylik narx: "N kishilikkacha".
+ * 2 kishilik — 1 200 000, 4 — 950 000, 6 — 900 000, 8 — 850 000, 9 va undan ko‘p (14 ham) — 750 000.
+ */
+export const CAPACITY_PRICE_TIERS = [
+  { upTo: 2, price: 1_200_000 },
+  { upTo: 4, price: 950_000 },
+  { upTo: 6, price: 900_000 },
+  { upTo: 8, price: 850_000 },
+] as const;
+export const CAPACITY_PRICE_LARGE = 750_000;
+
+export function capacityMonthlyPrice(capacity: number) {
+  return CAPACITY_PRICE_TIERS.find((t) => capacity <= t.upTo)?.price ?? CAPACITY_PRICE_LARGE;
+}
+
 /** Xona kunlik narxi (kunlik yashash). */
 export const DEFAULT_DAILY_PRICE = DAILY_STAY_PRICE;
 

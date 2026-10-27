@@ -6,7 +6,7 @@ import { FormField } from "@/components/FormSection";
 import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentDate";
 import { IdNumberInput } from "@/components/IdNumberInput";
 import { PhoneInput } from "@/components/PhoneInput";
-import { checkoutDate, compareRoomNumbers, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, DEFAULT_REGISTER_AMOUNT, MONTHLY_DAY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
+import { checkoutDate, compareRoomNumbers, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, todayISO } from "@/lib/format";
 
 type Room = {
   id: string;
@@ -15,6 +15,7 @@ type Room = {
   gender: string;
   status: string;
   monthlyPrice?: number;
+  capacity?: number;
   sector?: { number: number; name: string } | null;
   beds: { id: string; number: number; status: string; occupancy: unknown }[];
 };
@@ -49,7 +50,9 @@ const emptyForm = {
   gender: "MALE" as "MALE" | "FEMALE",
   roomId: "",
   stayType: "MONTHLY" as "DAILY" | "MONTHLY",
-  amount: String(DEFAULT_REGISTER_AMOUNT),
+  // Summa xona narxidan avtomatik olinadi; xodim o'zi yozsa, o'sha qiymat ishlatiladi.
+  amount: "",
+  amountAuto: true,
   paymentStatus: "PAID" as "PAID" | "UNPAID",
   paymentMethod: "CASH" as PaymentMethod,
   startDate: "",
@@ -123,7 +126,9 @@ export default function RegisterPage() {
   const room = chosen || suggested;
   const chosenFull = Boolean(form.roomId) && !chosen;
   const monthlyPrice = room?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
-  const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(form.amount || 0)) : 0;
+  const autoAmount = form.stayType === "DAILY" ? DAILY_STAY_PRICE : monthlyPrice;
+  const amountValue = form.amountAuto ? String(autoAmount) : form.amount;
+  const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(amountValue || 0)) : 0;
   const coveredDays = daysForAmount(paidPreview, monthlyPrice, form.stayType);
   const coveredUntil =
     coveredDays && form.startDate
@@ -158,7 +163,7 @@ export default function RegisterPage() {
       setError("Telefon raqami +998 dan keyin 9 ta raqam bo‘lishi kerak.");
       return;
     }
-    const amount = Math.max(0, Number(form.amount || 0));
+    const amount = Math.max(0, Number(amountValue || 0));
     setSaving(true);
     try {
       const stay = await api<{ paidDaysLabel?: string; dueDate?: string | null }>("/api/v1/reception/customers/register", {
@@ -281,7 +286,7 @@ export default function RegisterPage() {
                 const free = freeCount(r);
                 return (
                   <option key={r.id} value={r.id} disabled={!free}>
-                    {roomName(r)} — {free ? `${free} ta bo‘sh o‘rin` : "joy yo‘q"}
+                    {roomName(r)} — {free ? `${free} ta bo‘sh o‘rin` : "joy yo‘q"} · {formatMoney(r.monthlyPrice || DEFAULT_MONTHLY_PRICE)}/oy
                   </option>
                 );
               })}
@@ -300,7 +305,8 @@ export default function RegisterPage() {
                 setForm((prev) => ({
                   ...prev,
                   stayType,
-                  amount: stayType === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_REGISTER_AMOUNT),
+                  amount: "",
+                  amountAuto: true,
                 }));
               }}
               className="w-full"
@@ -319,11 +325,18 @@ export default function RegisterPage() {
             </select>
           </FormField>
           <FormField label="To‘lov summasi">
-            <input type="number" min={0} step={1000} value={form.amount} onChange={(e) => patch("amount", e.target.value)} className="w-full" />
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              value={amountValue}
+              onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value, amountAuto: false }))}
+              className="w-full"
+            />
             {form.stayType === "MONTHLY" ? (
               <p className="mt-1 text-xs text-muted">
-                Kuniga {formatMoney(MONTHLY_DAY_PRICE)}. 30 kun = 1 oy = {formatMoney(monthlyPrice)}. Boshida odatda 3
-                oylik — {formatMoney(DEFAULT_REGISTER_AMOUNT)}.
+                {room?.capacity ? `${room.capacity} kishilik xona: ` : ""}oyiga {formatMoney(monthlyPrice)}, kuniga{" "}
+                {formatMoney(Math.round(monthlyPrice / 30))}.
                 {paidPreview > 0
                   ? ` Shu summa ${describeDays(coveredDays, form.stayType)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}. Hisob kirish kunidan.`
                   : " To‘lamasa muddat hisoblanmaydi."}

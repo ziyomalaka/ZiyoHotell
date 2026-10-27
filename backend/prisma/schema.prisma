@@ -96,6 +96,8 @@ model Sector {
   gender    String?
   /// Qavat: 2, 1, -1 (podval). null — qavat ko'rsatilmagan.
   floor     Int?
+  /// true bo'lsa xonalar oylik narxi o'rinlar soniga qarab qo'yiladi (2 kishilik — 1 200 000 ... 9+ — 750 000).
+  capacityPricing Boolean @default(false)
   status    String   @default("ACTIVE")
   notes     String?
   createdAt DateTime @default(now())

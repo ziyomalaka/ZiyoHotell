@@ -6,10 +6,18 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { SectorFilter, resetSectorCache } from "@/components/SectorFilter";
 import { BedIndicator, BedCard } from "@/components/RoomVisual";
 import { StatusBadge } from "@/components/StatusBadge";
-import { compareRoomNumbers, floorLabel, genderLabel, occupancyLabel, sectorLabel } from "@/lib/format";
+import { compareRoomNumbers, floorLabel, formatMoney, genderLabel, occupancyLabel, sectorLabel } from "@/lib/format";
 
 type Bed = { id: string; number: number; status: string; occupancy?: { customer: { fullName: string } } | null };
-type Sector = { id: string; number: number; name: string; gender?: string | null; floor?: number | null; rooms: number };
+type Sector = {
+  id: string;
+  number: number;
+  name: string;
+  gender?: string | null;
+  floor?: number | null;
+  capacityPricing?: boolean;
+  rooms: number;
+};
 type Room = {
   id: string;
   number: string;
@@ -19,11 +27,12 @@ type Room = {
   beds: Bed[];
   floor: number;
   gender: string;
+  monthlyPrice?: number;
   sectorId?: string | null;
   sector?: Sector | null;
 };
 
-const emptySector = { id: "", number: "", name: "", gender: "MALE", floor: "1" };
+const emptySector = { id: "", number: "", name: "", gender: "MALE", floor: "1", capacityPricing: false };
 
 /** Sektor kimlar uchun: jinsi belgilanmagan sektorda (masalan, fitnes) jins har bir xonada tanlanadi. */
 function sectorGenderLabel(gender?: string | null) {
@@ -97,6 +106,7 @@ export default function AdminRoomsPage() {
       name: sectorForm.name.trim(),
       gender: sectorForm.gender || null,
       floor: sectorForm.floor === "" ? null : Number(sectorForm.floor),
+      capacityPricing: sectorForm.capacityPricing,
     };
     try {
       await api(sectorForm.id ? `/api/v1/admin/sectors/${sectorForm.id}` : "/api/v1/admin/sectors", {
@@ -225,6 +235,7 @@ export default function AdminRoomsPage() {
                   <th>Sektor</th>
                   <th>Qavat</th>
                   <th>Kimlar uchun</th>
+                  <th>Narx</th>
                   <th>Xonalar</th>
                   <th />
                 </tr>
@@ -235,6 +246,7 @@ export default function AdminRoomsPage() {
                     <td className="font-medium text-navy">{sectorLabel(s)}</td>
                     <td>{s.floor == null ? "—" : floorLabel(s.floor)}</td>
                     <td>{sectorGenderLabel(s.gender)}</td>
+                    <td>{s.capacityPricing ? "O‘rinlar soniga qarab" : "Oddiy"}</td>
                     <td>{s.rooms}</td>
                     <td>
                       <div className="flex justify-end gap-3 text-sm">
@@ -248,6 +260,7 @@ export default function AdminRoomsPage() {
                               name: s.name,
                               gender: s.gender || "",
                               floor: s.floor == null ? "" : String(s.floor),
+                              capacityPricing: Boolean(s.capacityPricing),
                             })
                           }
                         >
@@ -319,6 +332,14 @@ export default function AdminRoomsPage() {
                 <option value="FEMALE">Qizlar</option>
                 <option value="">Bollar va qizlar</option>
               </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm" title="2 kishilik — 1 200 000, 4 — 950 000, 6 — 900 000, 8 — 850 000, 9 va ko‘p — 750 000">
+              <input
+                type="checkbox"
+                checked={sectorForm.capacityPricing}
+                onChange={(e) => setSectorForm({ ...sectorForm, capacityPricing: e.target.checked })}
+              />
+              Narx o‘rinlar soniga qarab
             </label>
             <button className="btn-primary">{sectorForm.id ? "Saqlash" : "Sektor qo‘shish"}</button>
             <button type="button" className="btn-secondary" onClick={() => setSectorForm(null)}>
@@ -425,6 +446,9 @@ export default function AdminRoomsPage() {
                         <p className="mt-3 text-sm text-muted">
                           {room.occupied} BAND / {Math.max(0, room.capacity - room.occupied)} BO‘SH
                         </p>
+                        {room.monthlyPrice ? (
+                          <p className="mt-1 text-sm font-medium text-navy">{formatMoney(room.monthlyPrice)} / oy</p>
+                        ) : null}
                       </div>
                     </button>
                     <button type="button" className="mt-4 text-sm font-medium text-danger" onClick={() => setDrop(room)}>
@@ -446,6 +470,7 @@ export default function AdminRoomsPage() {
             <h2 className="text-xl font-semibold text-navy">{open.number}-xona</h2>
             <p className="mt-1 text-sm text-muted">
               {sectorLabel(open.sector)} · {floorLabel(open.floor)} · {genderLabel(open.gender)} · {open.capacity} o‘rin
+              {open.monthlyPrice ? ` · ${formatMoney(open.monthlyPrice)} / oy` : ""}
             </p>
             <label className="mt-4 block text-sm">
               Sektor

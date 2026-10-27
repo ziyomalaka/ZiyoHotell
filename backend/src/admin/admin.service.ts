@@ -10,7 +10,7 @@ import { AppError, required } from '../common/errors';
 import { AuthService } from '../auth/auth.service';
 import { dayEnd, dayStart, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE } from '../common/billing';
+import { capacityMonthlyPrice, checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE } from '../common/billing';
 import { DEFAULT_ROLE_PERMISSIONS, normalizeRole } from '../common/roles';
 
 const execFileAsync = promisify(execFile);
@@ -167,7 +167,16 @@ export class AdminService {
   }
 
   async saveSector(
-    input: { id?: string; number: number; name: string; gender?: string | null; floor?: number | null; status?: string; notes?: string },
+    input: {
+      id?: string;
+      number: number;
+      name: string;
+      gender?: string | null;
+      floor?: number | null;
+      capacityPricing?: boolean;
+      status?: string;
+      notes?: string;
+    },
     userId: string,
     ip?: string,
   ) {
@@ -183,8 +192,9 @@ export class AdminService {
       status: input.status || 'ACTIVE',
       notes: input.notes?.trim() || null,
     };
+    const capacityPricing = Boolean(input.capacityPricing);
     if (!input.id) {
-      const row = await this.prisma.sector.create({ data });
+      const row = await this.prisma.sector.create({ data: { ...data, capacityPricing } });
       await this.audit({ userId, action: 'ROOM_CREATE', entity: 'Sector', entityId: row.id, section: 'Xonalar', ip, newValue: row });
       return row;
     }
@@ -200,7 +210,20 @@ export class AdminService {
       }
     }
     const row = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.sector.update({ where: { id: old.id }, data });
+      const updated = await tx.sector.update({
+        where: { id: old.id },
+        data: { ...data, capacityPricing: input.capacityPricing ?? old.capacityPricing },
+      });
+      // Narx turi o'zgarsa: o'rinlarga qarab yoki hamma xonaga standart (eski) narx.
+      if (updated.capacityPricing !== old.capacityPricing) {
+        const rooms = await tx.room.findMany({ where: { sectorId: old.id }, select: { id: true, capacity: true } });
+        for (const room of rooms) {
+          await tx.room.update({
+            where: { id: room.id },
+            data: { monthlyPrice: updated.capacityPricing ? capacityMonthlyPrice(room.capacity) : DEFAULT_MONTHLY_PRICE },
+          });
+        }
+      }
       // Xonalar sektorning qavati va jinsini meros qilib oladi.
       if (floor != null && floor !== old.floor) {
         const level = await tx.floor.findUniqueOrThrow({ where: { number: floor } });
@@ -244,7 +267,7 @@ export class AdminService {
     ip?: string,
   ) {
     required({ number: input.number, capacity: input.capacity });
-    const old = input.id ? await this.prisma.room.findUnique({ where: { id: input.id } }) : null;
+    const old = input.id ? await this.prisma.room.findUnique({ where: { id: input.id }, include: { sector: true } }) : null;
     if (input.id && !old) throw new AppError('Xona topilmadi.', 404);
     // Xona doim sektor ichida: qavat va jins sektordan olinadi (fitnes kabi aralash sektorda jins xonaga beriladi).
     const sectorId = input.sectorId || old?.sectorId;
@@ -288,7 +311,15 @@ export class AdminService {
           gender,
           capacity: Number(input.capacity),
           dailyPrice: input.dailyPrice != null ? Number(input.dailyPrice) : old.dailyPrice,
-          monthlyPrice: input.monthlyPrice != null ? Number(input.monthlyPrice) : old.monthlyPrice,
+          // Narxi o'rinlarga bog'liq sektorda sig'imdan; oddiy sektorga ko'chsa eski (standart) narxga qaytadi.
+          monthlyPrice:
+            input.monthlyPrice != null
+              ? Number(input.monthlyPrice)
+              : sector.capacityPricing
+                ? capacityMonthlyPrice(Number(input.capacity))
+                : old.sector?.capacityPricing
+                  ? DEFAULT_MONTHLY_PRICE
+                  : old.monthlyPrice,
           status: input.status || old.status,
           notes: input.notes ?? old.notes,
         },
@@ -315,7 +346,12 @@ export class AdminService {
         gender,
         capacity,
         dailyPrice: input.dailyPrice != null ? Number(input.dailyPrice) : DEFAULT_DAILY_PRICE,
-        monthlyPrice: input.monthlyPrice != null ? Number(input.monthlyPrice) : DEFAULT_MONTHLY_PRICE,
+        monthlyPrice:
+          input.monthlyPrice != null
+            ? Number(input.monthlyPrice)
+            : sector.capacityPricing
+              ? capacityMonthlyPrice(capacity)
+              : DEFAULT_MONTHLY_PRICE,
         status: input.status || 'ACTIVE',
         notes: input.notes || null,
         beds: { create: Array.from({ length: capacity }, (_, i) => ({ number: i + 1, status: 'ACTIVE' })) },
@@ -331,6 +367,14 @@ export class AdminService {
       newValue: { number: row.number, floor: row.floor, gender: row.gender },
     });
     return row;
+  }
+
+  /** O'rinlar soni o'zgarganda narxi o'rinlarga bog'liq sektordagi xona narxini qayta qo'yadi. */
+  private async repriceRoom(roomId: string) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId }, include: { sector: true } });
+    if (room?.sector?.capacityPricing) {
+      await this.prisma.room.update({ where: { id: roomId }, data: { monthlyPrice: capacityMonthlyPrice(room.capacity) } });
+    }
   }
 
   async saveBed(input: { id?: string; roomId: string; number: number; status?: string }, userId: string, ip?: string) {
@@ -352,6 +396,7 @@ export class AdminService {
       data: { roomId: input.roomId, number: Number(input.number), status: input.status || 'ACTIVE' },
     });
     await this.prisma.room.update({ where: { id: input.roomId }, data: { capacity: { increment: 1 } } });
+    await this.repriceRoom(input.roomId);
     await this.audit({ userId, action: 'BED_CREATE', entity: 'Bed', entityId: row.id, ip });
     return row;
   }
@@ -366,6 +411,7 @@ export class AdminService {
         where: { id: bed.roomId },
         data: { capacity: { decrement: 1 } },
       });
+      await this.repriceRoom(bed.roomId);
       await this.audit({ userId, action: 'BED_DELETE', entity: 'Bed', entityId: id, ip });
       return { id, deleted: true };
     }

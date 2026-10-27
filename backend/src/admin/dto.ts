@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Min, MinLength } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Min, MinLength } from 'class-validator';
 
 export class FloorDto {
   @ApiPropertyOptional()
@@ -52,6 +52,11 @@ export class SectorDto {
   @IsInt()
   @Min(-9)
   floor?: number | null;
+
+  @ApiPropertyOptional({ description: 'true — xonalar narxi o‘rinlar soniga qarab qo‘yiladi.' })
+  @IsOptional()
+  @IsBoolean()
+  capacityPricing?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
