@@ -235,8 +235,8 @@ export default function RegisterPage() {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        {/* Telefonda forma shu kartochkalar ostida turibdi — havola joy egallamasin. */}
-        <a href="#register-form" className="register-cta max-md:hidden">
+        {/* Telefonda yashirin (globals.css): forma shu kartochkalar ostida turibdi. */}
+        <a href="#register-form" className="register-cta">
           <span className="text-gold-premium">+</span>
           <span>
             <strong className="block text-lg">Yangi mijozni</strong>

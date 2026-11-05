@@ -355,6 +355,12 @@ textarea:focus {
     min-width: 0;
   }
 
+  /* Ro‘yxatga olish formasi kartochkalar ostida turibdi — havola telefonda joy egallamasin.
+     Tailwind max-md:hidden yetmaydi: bu qoidalar qatlamsiz, utility'lardan ustun. */
+  .register-cta {
+    display: none;
+  }
+
   .stat-quiet {
     padding: 0.8rem 0.85rem;
   }
