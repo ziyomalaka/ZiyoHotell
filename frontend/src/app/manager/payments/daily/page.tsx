@@ -34,6 +34,8 @@ type Data = {
   cash?: number;
   card?: number;
   terminal?: number;
+  /** Migrantlardan tushgan summa. */
+  migrant?: number;
   rows: Row[];
 };
 
@@ -78,6 +80,10 @@ export default function ManagerDailyPaymentsPage() {
           <strong className="text-base sm:text-2xl">{formatMoney(data.terminal || 0)}</strong>
         </div>
         <div className="stat-quiet px-2 py-3 sm:px-4">
+          <p className="leading-tight">Migrantlar</p>
+          <strong className="text-base sm:text-2xl">{formatMoney(data.migrant || 0)}</strong>
+        </div>
+        <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Bugun to‘lagan</p>
           <strong className="text-lg sm:text-[1.45rem]">{data.paid ?? data.count} ta</strong>
         </div>
@@ -98,7 +104,7 @@ export default function ManagerDailyPaymentsPage() {
               <th>Xona</th>
               <th>Summa</th>
               <th>Usul</th>
-              <th>Kunlik/Oylik</th>
+              <th>Turi</th>
               <th>Chiqish kuni</th>
               <th>Vaqt</th>
               <th>Holati</th>
@@ -163,7 +169,7 @@ export default function ManagerDailyPaymentsPage() {
                 <span>{methodLabel(r.method || "")}</span>
               </div>
               <div className="mgr-kv">
-                <span>Kunlik/Oylik</span>
+                <span>Turi</span>
                 <span>{stayTypeLabel(r.type)}</span>
               </div>
               <div className="mgr-kv">

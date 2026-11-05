@@ -51,7 +51,7 @@ export default function AdminReportsPage() {
       status: string;
     }[];
   } | null;
-  const payments = data as { daily?: number; monthly?: number; total?: number; paid?: number; partial?: number; unpaid?: number } | null;
+  const payments = data as { daily?: number; monthly?: number; migrant?: number; total?: number; paid?: number; partial?: number; unpaid?: number } | null;
   const occupancy = data as {
     rooms?: number;
     beds?: number;
@@ -163,6 +163,7 @@ export default function AdminReportsPage() {
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard label="Kunlik" value={formatMoney(payments.daily || 0)} />
           <StatCard label="Oylik" value={formatMoney(payments.monthly || 0)} />
+          <StatCard label="Migrant" value={formatMoney(payments.migrant || 0)} />
           <StatCard label="Jami tushum" value={formatMoney(payments.total || 0)} />
           <StatCard label="To‘langan" value={formatMoney(payments.paid || 0)} />
           <StatCard label="Qisman" value={formatMoney(payments.partial || 0)} />

@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { IdNumberInput } from "@/components/IdNumberInput";
 import { PhoneInput } from "@/components/PhoneInput";
-import { compareRoomNumbers, formatPassportId, formatUzPhone, isValidPassportId, isValidUzPhone, todayISO } from "@/lib/format";
+import { compareRoomNumbers, formatMigrantPassportId, formatPassportId, formatUzPhone, isValidMigrantPassportId, isValidPassportId, isValidUzPhone, todayISO } from "@/lib/format";
 
 export type EditCustomerSeed = {
   id: string;
@@ -22,6 +22,8 @@ type Detail = {
   address?: string | null;
   passportId?: string | null;
   birthDate?: string | null;
+  /** Migrant pasporti istalgan formatda. */
+  migrant?: boolean;
   occupancy?: {
     stay: StayPlace;
   } | null;
@@ -70,6 +72,7 @@ export function EditCustomerModal({
     bedId: "",
   });
   const [living, setLiving] = useState(false);
+  const [migrant, setMigrant] = useState(false);
   const [currentBedId, setCurrentBedId] = useState("");
   const [rooms, setRooms] = useState<Room[]>([]);
   const [error, setError] = useState("");
@@ -101,6 +104,7 @@ export function EditCustomerModal({
             (r) => r.status === "ACTIVE" && r.gender === gender && String(r.sector?.number) === floor && r.beds.some(isFree),
           );
         setLiving(!!row.occupancy?.stay);
+        setMigrant(!!row.migrant);
         setCurrentBedId(bed && isFree(bed) ? bedId : "");
         setRooms(list);
         setForm({
@@ -109,7 +113,7 @@ export function EditCustomerModal({
           gender,
           extraPhone: formatUzPhone(row.extraPhone || ""),
           address: row.address || "",
-          passportId: formatPassportId(row.passportId || ""),
+          passportId: row.migrant ? formatMigrantPassportId(row.passportId || "") : formatPassportId(row.passportId || ""),
           birthDate: row.birthDate ? todayISO(row.birthDate) : "",
           notes: row.notes || "",
           floor: floorOk ? floor : "",
@@ -170,8 +174,12 @@ export function EditCustomerModal({
       setError("F.I.Sh. majburiy.");
       return;
     }
-    if (!isValidPassportId(form.passportId)) {
-      setError("ID raqami 2 ta harf va 7 ta raqam bo‘lishi kerak. Masalan: AA1234567.");
+    if (migrant ? !isValidMigrantPassportId(form.passportId) : !isValidPassportId(form.passportId)) {
+      setError(
+        migrant
+          ? "Pasport raqami 3–20 ta harf yoki raqamdan iborat bo‘lishi kerak."
+          : "ID raqami 2 ta harf va 7 ta raqam bo‘lishi kerak. Masalan: AA1234567.",
+      );
       return;
     }
     if (!isValidUzPhone(form.phone) || !isValidUzPhone(form.extraPhone)) {
@@ -270,8 +278,20 @@ export function EditCustomerModal({
           <input value={form.address} onChange={(e) => patch("address", e.target.value)} className="mt-2 w-full" />
         </label>
         <label className="mt-3 block text-sm font-medium">
-          ID raqami
-          <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} className="mt-2 w-full uppercase" />
+          {migrant ? "Pasport raqami (migrant)" : "ID raqami"}
+          {migrant ? (
+            <input
+              value={form.passportId}
+              onChange={(e) => patch("passportId", formatMigrantPassportId(e.target.value))}
+              maxLength={20}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              className="mt-2 w-full uppercase"
+            />
+          ) : (
+            <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} className="mt-2 w-full uppercase" />
+          )}
         </label>
         <label className="mt-3 block text-sm font-medium">
           Tug‘ilgan sana

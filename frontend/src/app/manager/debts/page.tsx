@@ -61,6 +61,7 @@ export default function ManagerDebtsPage() {
           ["unpaid", "Umuman to‘lamaganlar"],
           ["daily", "Kunlik qarzdorlik"],
           ["monthly", "Oylik qarzdorlik"],
+          ["migrant", "Migrant qarzdorlik"],
         ].map(([id, l]) => (
           <button key={id} onClick={() => setTab(id)} className={`chip ${tab === id  ? "chip-active" : ""}`}>
             {l}
@@ -80,6 +81,7 @@ export default function ManagerDebtsPage() {
           <option value="">Tur</option>
           <option value="DAILY">Kunlik</option>
           <option value="MONTHLY">Oylik</option>
+          <option value="MIGRANT">Migrant</option>
         </select>
         <SectorFilter
           scope="manager"

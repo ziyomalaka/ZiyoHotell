@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { PAYMENT_METHODS, PaymentMethod } from '../common/billing';
+import { PAYMENT_METHODS, PaymentMethod, STAY_TYPES, type StayType } from '../common/billing';
 import {
   IsDateString,
   IsIn,
@@ -56,8 +56,9 @@ export class RegisterDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Tug‘ilgan sana noto‘g‘ri.' })
   birthDate?: string | null;
 
-  @ApiProperty({ example: 'AA1234567' })
+  @ApiProperty({ example: 'AA1234567', description: 'Migrantda istalgan format: 3–20 ta harf yoki raqam (servis tekshiradi).' })
   @Transform(({ value }) => toPassportId(value))
+  @ValidateIf((o: RegisterDto) => o.stayType !== 'MIGRANT')
   @IsString()
   @Matches(/^[A-Z]{2}\d{7}$/, { message: PASSPORT_ID_MSG })
   passportId!: string;
@@ -87,19 +88,21 @@ export class RegisterDto {
   @IsUUID()
   roomId?: string;
 
-  @ApiProperty({ enum: ['DAILY', 'MONTHLY'] })
-  @IsIn(['DAILY', 'MONTHLY'])
-  stayType!: 'DAILY' | 'MONTHLY';
+  @ApiProperty({ enum: STAY_TYPES })
+  @IsIn([...STAY_TYPES])
+  stayType!: StayType;
 
   @ApiProperty()
   @IsDateString()
   startDate!: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiPropertyOptional({ description: 'Kunlik va migrant uchun. Migrantda majburiy.' })
+  // Xato matni pastki dekoratordan olinadi: kun kiritilmasa "kiriting" chiqishi uchun IsInt eng pastda.
+  @ValidateIf((o: RegisterDto) => o.stayType === 'MIGRANT' || o.daysCount != null)
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @Max(3650, { message: 'Kunlar soni juda katta.' })
+  @Min(1, { message: 'Kunlar soni kamida 1 bo‘lishi kerak.' })
+  @IsInt({ message: 'Migrant uchun kunlar sonini kiriting.' })
   daysCount?: number;
 
   @ApiPropertyOptional()
@@ -157,10 +160,10 @@ export class UpdateCustomerDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Tug‘ilgan sana noto‘g‘ri.' })
   birthDate?: string | null;
 
-  @ApiProperty({ example: 'AA1234567' })
+  @ApiProperty({ example: 'AA1234567', description: 'Format servisda tekshiriladi: migrant mijozda istalgan.' })
   @Transform(({ value }) => toPassportId(value))
   @IsString()
-  @Matches(/^[A-Z]{2}\d{7}$/, { message: PASSPORT_ID_MSG })
+  @MinLength(1)
   passportId!: string;
 
   @ApiPropertyOptional()
@@ -226,10 +229,18 @@ export class CreatePaymentDto {
   @IsDateString()
   paymentDate?: string;
 
-  @ApiPropertyOptional({ enum: ['DAILY', 'MONTHLY'] })
+  @ApiPropertyOptional({ enum: STAY_TYPES })
   @IsOptional()
-  @IsIn(['DAILY', 'MONTHLY'])
-  type?: 'DAILY' | 'MONTHLY';
+  @IsIn([...STAY_TYPES])
+  type?: StayType;
+
+  @ApiPropertyOptional({ description: 'Migrant to‘lovi qancha kun berishi (xodim kiritadi). 0 — faqat qarz yopiladi.' })
+  @IsOptional()
+  @Type(() => Number)
+  @Max(3650, { message: 'Kunlar soni juda katta.' })
+  @Min(0, { message: 'Kunlar soni manfiy bo‘lmaydi.' })
+  @IsInt({ message: 'Kunlar soni butun son bo‘lishi kerak.' })
+  days?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

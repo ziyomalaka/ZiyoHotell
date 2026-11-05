@@ -6,7 +6,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { SectorFilter } from "@/components/SectorFilter";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
 
 type Pay = {
   id: string;
@@ -76,6 +76,7 @@ export default function AdminPaymentsPage() {
           <option value="">Tur</option>
           <option value="DAILY">Kunlik</option>
           <option value="MONTHLY">Oylik</option>
+          <option value="MIGRANT">Migrant</option>
         </select>
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Holat</option>
@@ -98,7 +99,7 @@ export default function AdminPaymentsPage() {
                 <td className="px-3 py-3">{formatDate(r.customer.birthDate)}</td>
                 <td className="px-3 py-3">{floorLabel(r.stay.room.floor)}</td>
                 <td className="px-3 py-3">{r.stay.room.number}/{r.stay.bed.number}</td>
-                <td className="px-3 py-3">{r.type === "DAILY" ? "Kunlik" : "Oylik"}</td>
+                <td className="px-3 py-3">{stayTypeLabel(r.type)}</td>
                 <td className="px-3 py-3">{r.period}</td>
                 <td className="px-3 py-3">{formatMoney(r.stay.totalAmount)}</td>
                 <td className="px-3 py-3">{formatMoney(r.stay.paidAmount)}</td>

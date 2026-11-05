@@ -7,7 +7,9 @@ import { CurrentDate, CurrentGreeting, useTodayISO } from "@/components/CurrentD
 import { IdNumberInput } from "@/components/IdNumberInput";
 import { PhoneInput } from "@/components/PhoneInput";
 import { useSectors } from "@/components/SectorFilter";
-import { checkoutDate, compareRoomNumbers, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMoney, isValidPassportId, isValidUzPhone, parseDate, addDays, sectorLabel, todayISO } from "@/lib/format";
+import { checkoutDate, compareRoomNumbers, customerGenderLabel, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, PAYMENT_METHOD_OPTIONS, type PaymentMethod, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatLongDate, formatMigrantPassportId, formatMoney, formatPassportId, isValidMigrantPassportId, isValidPassportId, isValidUzPhone, parseDate, addDays, sectorLabel, todayISO } from "@/lib/format";
+
+type StayType = "DAILY" | "MONTHLY" | "MIGRANT";
 
 type Room = {
   id: string;
@@ -50,10 +52,12 @@ const emptyForm = {
   birthDate: "",
   gender: "MALE" as "MALE" | "FEMALE",
   roomId: "",
-  stayType: "MONTHLY" as "DAILY" | "MONTHLY",
+  stayType: "MONTHLY" as StayType,
   // Summa xona narxidan avtomatik olinadi; xodim o'zi yozsa, o'sha qiymat ishlatiladi.
+  // Migrantda avtomatik summa yo'q: summa ham, kunlar ham qo'lda kiritiladi.
   amount: "",
   amountAuto: true,
+  days: "",
   paymentStatus: "PAID" as "PAID" | "UNPAID",
   paymentMethod: "CASH" as PaymentMethod,
   startDate: "",
@@ -79,6 +83,8 @@ export default function RegisterPage() {
   const [saving, setSaving] = useState(false);
   const [idTaken, setIdTaken] = useState(false);
   const today = useTodayISO();
+  const migrant = form.stayType === "MIGRANT";
+  const idValid = migrant ? isValidMigrantPassportId(form.passportId) : isValidPassportId(form.passportId);
 
   function load() {
     api<Room[]>("/api/v1/reception/rooms").then(setRooms).catch((e) => setError(e.message));
@@ -94,7 +100,7 @@ export default function RegisterPage() {
   }, [today]);
 
   useEffect(() => {
-    if (!isValidPassportId(form.passportId)) {
+    if (!idValid) {
       setIdTaken(false);
       return;
     }
@@ -112,7 +118,7 @@ export default function RegisterPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [form.passportId]);
+  }, [form.passportId, idValid]);
 
   // Faqat mijoz jinsiga ajratilgan xonalar ko‘rsatiladi — aralash joylashtirish oldini oladi.
   // Tartib: sektor va xona raqami bo‘yicha, joyi qolmagan xonalar oxirida.
@@ -148,9 +154,10 @@ export default function RegisterPage() {
   const chosenFull = Boolean(form.roomId) && !chosen;
   const monthlyPrice = room?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
   const autoAmount = form.stayType === "DAILY" ? DAILY_STAY_PRICE : monthlyPrice;
-  const amountValue = form.amountAuto ? String(autoAmount) : form.amount;
+  const amountValue = form.amountAuto && !migrant ? String(autoAmount) : form.amount;
   const paidPreview = form.paymentStatus === "PAID" ? Math.max(0, Number(amountValue || 0)) : 0;
-  const coveredDays = daysForAmount(paidPreview, monthlyPrice, form.stayType);
+  const migrantDays = Math.max(0, Math.trunc(Number(form.days) || 0));
+  const coveredDays = migrant ? migrantDays : daysForAmount(paidPreview, monthlyPrice, form.stayType);
   const coveredUntil =
     coveredDays && form.startDate
       ? formatDate(addDays(parseDate(form.startDate), coveredDays))
@@ -172,8 +179,20 @@ export default function RegisterPage() {
       setError("Tug‘ilgan sana bugundan keyin bo‘lishi mumkin emas.");
       return;
     }
-    if (!isValidPassportId(form.passportId)) {
-      setError("ID raqami 2 ta harf va 7 ta raqam bo‘lishi kerak. Masalan: AA1234567.");
+    if (!idValid) {
+      setError(
+        migrant
+          ? "Pasport raqami 3–20 ta harf yoki raqamdan iborat bo‘lishi kerak."
+          : "ID raqami 2 ta harf va 7 ta raqam bo‘lishi kerak. Masalan: AA1234567.",
+      );
+      return;
+    }
+    if (migrant && migrantDays < 1) {
+      setError("Migrant uchun kunlar sonini kiriting.");
+      return;
+    }
+    if (migrant && form.paymentStatus === "PAID" && !(Number(amountValue) > 0)) {
+      setError("To‘lov summasini kiriting.");
       return;
     }
     if (idTaken) {
@@ -192,13 +211,14 @@ export default function RegisterPage() {
         body: JSON.stringify({
           fullName: form.fullName.trim(),
           phone: form.phone.trim(),
-          passportId: form.passportId.trim(),
+          passportId: migrant ? formatMigrantPassportId(form.passportId) : form.passportId.trim(),
           birthDate: form.birthDate,
           gender: form.gender,
           notes: form.notes.trim() || null,
           roomId: room.id,
           stayType: form.stayType,
           startDate: form.startDate,
+          ...(migrant ? { daysCount: migrantDays } : {}),
           amount,
           paidAmount: form.paymentStatus === "PAID" ? amount : 0,
           paymentStatus: form.paymentStatus,
@@ -277,9 +297,24 @@ export default function RegisterPage() {
               className="w-full"
             />
           </FormField>
-          <FormField label="ID raqami" required>
-            <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} />
+          <FormField label={migrant ? "Pasport raqami" : "ID raqami"} required>
+            {migrant ? (
+              // Migrant pasporti davlatga qarab har xil: format cheklovi yo‘q.
+              <input
+                value={form.passportId}
+                onChange={(e) => patch("passportId", formatMigrantPassportId(e.target.value))}
+                maxLength={20}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="Istalgan format"
+                className="w-full uppercase"
+              />
+            ) : (
+              <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} />
+            )}
             {idTaken ? <p className="mt-1 text-xs text-danger">Bu mijoz kiritilgan.</p> : null}
+            {migrant && !idTaken ? <p className="mt-1 text-xs text-muted">Migrant: pasport istalgan formatda.</p> : null}
           </FormField>
           <FormField label="Telefon">
             <PhoneInput value={form.phone} onChange={(value) => patch("phone", value)} />
@@ -334,18 +369,22 @@ export default function RegisterPage() {
             <select
               value={form.stayType}
               onChange={(e) => {
-                const stayType = e.target.value as "DAILY" | "MONTHLY";
+                const stayType = e.target.value as StayType;
                 setForm((prev) => ({
                   ...prev,
                   stayType,
                   amount: "",
-                  amountAuto: true,
+                  amountAuto: stayType !== "MIGRANT",
+                  days: "",
+                  // Migrantdan oddiy turga qaytilsa, ID AA1234567 shakliga keltiriladi.
+                  passportId: stayType === "MIGRANT" ? prev.passportId : formatPassportId(prev.passportId),
                 }));
               }}
               className="w-full"
             >
               <option value="MONTHLY">Oylik</option>
               <option value="DAILY">Kunlik</option>
+              <option value="MIGRANT">Migrant</option>
             </select>
           </FormField>
           <FormField label="Kirish sanasi" required>
@@ -357,17 +396,25 @@ export default function RegisterPage() {
               <option value="UNPAID">To‘lamadi</option>
             </select>
           </FormField>
-          <FormField label="To‘lov summasi">
+          <FormField label="To‘lov summasi" required={migrant && form.paymentStatus === "PAID"}>
             <input
               type="number"
               inputMode="numeric"
               min={0}
-              step={1000}
+              step={1}
               value={amountValue}
+              placeholder={migrant ? "Summani kiriting" : undefined}
               onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value, amountAuto: false }))}
               className="w-full"
             />
-            {form.stayType === "MONTHLY" ? (
+            {migrant ? (
+              <p className="mt-1 text-xs text-muted">
+                Migrant: summa va kunlar qo‘lda kiritiladi.
+                {migrantDays && Number(amountValue) > 0
+                  ? ` Kuniga taxminan ${formatMoney(Math.round(Number(amountValue) / migrantDays))}.`
+                  : ""}
+              </p>
+            ) : form.stayType === "MONTHLY" ? (
               <p className="mt-1 text-xs text-muted">
                 {room?.capacity ? `${room.capacity} kishilik xona: ` : ""}oyiga {formatMoney(monthlyPrice)}, kuniga{" "}
                 {formatMoney(Math.round(monthlyPrice / 30))}.
@@ -384,6 +431,23 @@ export default function RegisterPage() {
               </p>
             )}
           </FormField>
+          {migrant ? (
+            <FormField label="Kunlar soni" required>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step={1}
+                value={form.days}
+                placeholder="Masalan: 30"
+                onChange={(e) => patch("days", e.target.value)}
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-muted">
+                {migrantDays && coveredUntil ? `${migrantDays} kun, chiqish ${coveredUntil}. Hisob kirish kunidan.` : "Necha kun yashashini kiriting."}
+              </p>
+            </FormField>
+          ) : null}
           {form.paymentStatus === "PAID" ? (
             <FormField label="To‘lov turini tanlang" required>
               <select

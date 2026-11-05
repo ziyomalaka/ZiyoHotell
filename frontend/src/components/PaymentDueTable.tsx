@@ -9,7 +9,7 @@ export type PaymentDueRow = {
   passportId?: string; birthDate?: string | null;
   gender?: string;
   floor: number;
-  sector?: { number: number; name: string } | null;
+  sector?: { number: number; name: string; floor?: number | null } | null;
   room: string;
   bed: number;
   type: string;
@@ -33,9 +33,16 @@ export type PaymentDueData = {
   rows: PaymentDueRow[];
 };
 
-/** Qisqa joy nomi: sektor bo‘lsa "2-sektor", aks holda qavat. */
+/** Keyingi to‘lov summasi: migrantda narx jadvali yo‘q — summa har safar kelishiladi. */
+function nextAmount(r: PaymentDueRow) {
+  return r.type === "MIGRANT" ? "Kelishiladi" : formatMoney(r.monthlyPrice);
+}
+
+/** Qisqa joy nomi: sektor bo‘lsa "2-sektor" (podvaldagisi "3-sektor · Podval"), aks holda qavat. */
 function placeLabel(r: PaymentDueRow) {
-  return r.sector ? `${r.sector.number}-sektor` : floorLabel(r.floor);
+  if (!r.sector) return floorLabel(r.floor);
+  const basement = (r.sector.floor ?? r.floor) < 0;
+  return basement ? `${r.sector.number}-sektor · Podval` : `${r.sector.number}-sektor`;
 }
 
 export function PaymentDueTable({ data, onPay }: { data: PaymentDueData | null; onPay?: (row: PaymentDueRow) => void }) {
@@ -97,7 +104,7 @@ export function PaymentDueTable({ data, onPay }: { data: PaymentDueData | null; 
                 <td>{formatDate(r.lastPaidAt)}</td>
                 <td>{formatDate(r.dueDate)}</td>
                 <td>{daysLeftLabel(r.daysLeft)}</td>
-                <td className="tabular">{formatMoney(r.monthlyPrice)}</td>
+                <td className="tabular">{nextAmount(r)}</td>
                 {onPay ? (
                   <td>
                     <button type="button" className="text-sm font-semibold text-royal" onClick={() => onPay(r)}>
@@ -161,7 +168,7 @@ export function PaymentDueTable({ data, onPay }: { data: PaymentDueData | null; 
             </div>
             <div className="mgr-kv">
               <span>Keyingi to‘lov summasi</span>
-              <span className="tabular font-semibold">{formatMoney(r.monthlyPrice)}</span>
+              <span className="tabular font-semibold">{nextAmount(r)}</span>
             </div>
             {onPay ? (
               <button type="button" className="btn-primary mt-3 w-full" onClick={() => onPay(r)}>

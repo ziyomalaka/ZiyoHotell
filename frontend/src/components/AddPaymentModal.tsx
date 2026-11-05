@@ -34,9 +34,14 @@ export function AddPaymentModal({
   onSaved: () => void;
 }) {
   // Oylik to'lovda standart summa — mijoz yashayotgan xonaning oylik narxi.
+  // Migrantda narx jadvali yo'q: summa ham, qo'shiladigan kunlar ham qo'lda kiritiladi.
+  const migrant = stay.type === "MIGRANT";
   const price = stay.monthlyPrice || DEFAULT_MONTHLY_PRICE;
-  const [amount, setAmount] = useState(stay.type === "DAILY" ? String(DAILY_STAY_PRICE) : String(price));
-  const [type, setType] = useState(stay.type === "DAILY" ? "DAILY" : "MONTHLY");
+  const [amount, setAmount] = useState(
+    migrant ? "" : stay.type === "DAILY" ? String(DAILY_STAY_PRICE) : String(price),
+  );
+  const [type, setType] = useState(migrant ? "MIGRANT" : stay.type === "DAILY" ? "DAILY" : "MONTHLY");
+  const [extraDays, setExtraDays] = useState("");
   const [method, setMethod] = useState("CASH");
   const [paymentDate, setPaymentDate] = useState(todayISO());
   const [note, setNote] = useState("");
@@ -44,8 +49,10 @@ export function AddPaymentModal({
   const [saving, setSaving] = useState(false);
   const [idempotencyKey] = useState(newIdempotencyKey);
 
-  const days = daysForAmount(Number(amount || 0), price, type);
-    const start = stay.startDate ? todayISO(stay.startDate) : "";
+  const days = migrant
+    ? Math.max(0, Math.trunc(Number(extraDays) || 0))
+    : daysForAmount(Number(amount || 0), price, type);
+  const start = stay.startDate ? todayISO(stay.startDate) : "";
   const coveredUntil =
     days && start
       ? formatDate(addDays(parseDate(start), (stay.paidDays || 0) + days))
@@ -62,6 +69,7 @@ export function AddPaymentModal({
           stayId: stay.id,
           amount: Number(amount),
           type,
+          ...(migrant ? { days } : {}),
           method,
           paymentDate,
           note: note.trim() || undefined,
@@ -88,12 +96,33 @@ export function AddPaymentModal({
             type="number"
             inputMode="numeric"
             min={1}
-            step={1000}
+            step={1}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="mt-2 w-full"
           />
         </label>
+        {migrant ? (
+          <>
+            <label className="mt-3 block text-sm font-medium">
+              Qo‘shiladigan kunlar
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={extraDays}
+                placeholder="0 — faqat qarz to‘lanadi"
+                onChange={(e) => setExtraDays(e.target.value)}
+                className="mt-2 w-full"
+              />
+            </label>
+            <p className="mt-1 text-xs text-muted">
+              Migrant: summa va kunlar qo‘lda kiritiladi.
+              {days ? ` ${describeDays(days, type)} qo‘shiladi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.` : ""}
+            </p>
+          </>
+        ) : (
         <p className="mt-1 text-xs text-muted">
           {type === "DAILY"
             ? `Kuniga ${formatMoney(DAILY_STAY_PRICE)}.`
@@ -102,6 +131,12 @@ export function AddPaymentModal({
             ? ` Shu summa ${describeDays(days, type)} beradi${coveredUntil ? `, chiqish ${coveredUntil}` : ""}.`
             : ""}
         </p>
+        )}
+        {migrant ? (
+          <p className="mt-3 text-sm font-medium">
+            Yashash turi: <span className="font-normal">Migrant</span>
+          </p>
+        ) : (
         <label className="mt-3 block text-sm font-medium">
           Yashash turi
           <select
@@ -117,6 +152,7 @@ export function AddPaymentModal({
             <option value="DAILY">Kunlik</option>
           </select>
         </label>
+        )}
         <label className="mt-3 block text-sm font-medium">
           To‘lov turini tanlang
           <select value={method} onChange={(e) => setMethod(e.target.value)} className="mt-2 w-full">

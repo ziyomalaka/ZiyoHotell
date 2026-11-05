@@ -44,7 +44,16 @@ type CustomerRep = {
   }[];
 };
 
-type PayRep = { total?: number; unpaidCount?: number; cash?: number; card?: number; terminal?: number };
+type PayRep = {
+  total?: number;
+  unpaidCount?: number;
+  cash?: number;
+  card?: number;
+  terminal?: number;
+  /** Migrantlardan tushgan summa va to‘lovlar soni. */
+  migrant?: number;
+  migrantCount?: number;
+};
 
 /** Kunlik tushum: bugungi to‘lovlar va naqd/karta/terminal jamlari. */
 type DailyRep = PayRep & {
@@ -184,7 +193,7 @@ export default function ReportsPage() {
 
       {tab === "customers" && !dailyView ? (
         <>
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
             <div className="stat-quiet">
               <p>Jami mijozlar</p>
               <strong>{customers?.total || 0}</strong>
@@ -216,6 +225,13 @@ export default function ReportsPage() {
             <div className="stat-quiet">
               <p>To‘lamaganlar</p>
               <strong>{payments?.unpaidCount || 0}</strong>
+            </div>
+            <div className="stat-quiet">
+              <p>Migrantlar</p>
+              <strong className="text-lg">{formatMoney(payments?.migrant || 0)}</strong>
+              <span className="mt-1 block text-[11px] text-muted">
+                {(customers?.rows || []).filter((r) => r.type === "MIGRANT").length} ta mijoz · {payments?.migrantCount || 0} ta to‘lov
+              </span>
             </div>
           </div>
 
@@ -283,7 +299,7 @@ function DailyIncome({ data }: { data: DailyRep | null }) {
 
   return (
     <div className="mt-5 space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <div className="stat-quiet">
           <p>Bugungi tushum</p>
           <strong className="text-lg">{formatMoney(data?.total || 0)}</strong>
@@ -304,6 +320,11 @@ function DailyIncome({ data }: { data: DailyRep | null }) {
         <div className="stat-quiet">
           <p>To‘lamadi</p>
           <strong className="text-lg">{rows.filter((r) => r.status === "UNPAID").length} ta</strong>
+        </div>
+        <div className="stat-quiet">
+          <p>Migrantlar</p>
+          <strong className="text-lg">{formatMoney(data?.migrant || 0)}</strong>
+          <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">{data?.migrantCount || 0} ta to‘lov</p>
         </div>
       </div>
       <p className="text-xs text-muted">50/50 to‘lovlar yarmi naqdga, yarmi kartaga qo‘shib hisoblangan.</p>

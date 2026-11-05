@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
 import { SectorFilter } from "@/components/SectorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel, roomBedLabel } from "@/lib/format";
+import { checkoutDate, floorLabel, formatDate, formatMoney, payStatusLabel, roomBedLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type StayRow = {
@@ -27,6 +27,8 @@ type Data = {
   cash?: number;
   card?: number;
   terminal?: number;
+  /** Migrantlardan tushgan summa. */
+  migrant?: number;
   paid: number;
   unpaid: number;
   partial: number;
@@ -97,6 +99,10 @@ export default function ManagerMonthlyPaymentsPage() {
           <strong className="text-base sm:text-2xl">{formatMoney(data.terminal || 0)}</strong>
         </div>
         <div className="stat-quiet px-2 py-3 sm:px-4">
+          <p className="leading-tight">Migrantlar</p>
+          <strong className="text-base sm:text-2xl">{formatMoney(data.migrant || 0)}</strong>
+        </div>
+        <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">To‘laganlar</p>
           <strong className="text-lg sm:text-[1.45rem]">{data.paid}</strong>
         </div>
@@ -112,7 +118,7 @@ export default function ManagerMonthlyPaymentsPage() {
               <th>Mijoz</th>
               <th>Qavat</th>
               <th>Xona</th>
-              <th>Kunlik/Oylik</th>
+              <th>Turi</th>
               <th>Summa</th>
               <th>Holati</th>
               <th>Sana</th>
@@ -125,7 +131,7 @@ export default function ManagerMonthlyPaymentsPage() {
                 <td>{r.customer}</td>
                 <td>{floorLabel(r.floor)}</td>
                 <td>{roomBedLabel(r.room, r.bed)}</td>
-                <td>{r.type === "DAILY" ? "Kunlik" : "Oylik"}</td>
+                <td>{r.type ? stayTypeLabel(r.type) : "—"}</td>
                 <td className="tabular">{formatMoney(r.totalAmount)}</td>
                 <td>
                   <StatusBadge value={r.payStatus === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.payStatus)} />
@@ -158,8 +164,8 @@ export default function ManagerMonthlyPaymentsPage() {
                 <span>{floorLabel(r.floor)}</span>
               </div>
               <div className="mgr-kv">
-                <span>Kunlik/Oylik</span>
-                <span>{r.type === "DAILY" ? "Kunlik" : "Oylik"}</span>
+                <span>Turi</span>
+                <span>{r.type ? stayTypeLabel(r.type) : "—"}</span>
               </div>
               <div className="mgr-kv">
                 <span>Sana</span>

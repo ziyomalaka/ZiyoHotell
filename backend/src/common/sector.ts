@@ -1,12 +1,23 @@
-/** Sektor nomi ro‘yxat va hisobotlar uchun: "1-sektor · Bollar yotoqxonasi". */
-export function sectorLabel(sector?: { number: number; name: string } | null) {
-  return sector ? `${sector.number}-sektor · ${sector.name}` : 'Sektorsiz';
+/** Qavat yorlig‘i: -1 → "Podval", 2 → "2-qavat". */
+function floorWord(floor: number) {
+  return floor < 0 ? 'Podval' : `${floor}-qavat`;
+}
+
+/**
+ * Sektor nomi ro‘yxat va hisobotlar uchun: "3-sektor · Bollar yotoqxonasi · Podval".
+ * Bollar sektorlari bir xil nomli — qavat (ayniqsa podval) qo‘shilsa ajralib turadi.
+ */
+export function sectorLabel(sector?: { number: number; name: string; floor?: number | null } | null) {
+  if (!sector) return 'Sektorsiz';
+  const base = `${sector.number}-sektor · ${sector.name}`;
+  if (sector.floor == null || /podval|qavat/i.test(sector.name)) return base;
+  return `${base} · ${floorWord(sector.floor)}`;
 }
 
 type BreakdownRoom = {
   status: string;
   capacity: number;
-  sector?: { number: number; name: string } | null;
+  sector?: { number: number; name: string; floor?: number | null } | null;
   beds: { status: string; occupancy: unknown }[];
 };
 

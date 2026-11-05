@@ -4,8 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, paymentPeriod, PaymentMethod, periodInfo, revertPeriod } from '../common/billing';
-import { normalizePassportId } from '../common/passport';
+import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, paymentPeriod, PaymentMethod, periodInfo, revertPeriod, STAY_TYPES, type StayType } from '../common/billing';
+import { normalizeMigrantPassportId, normalizePassportId } from '../common/passport';
 import { normalizePhone } from '../common/phone';
 
 export type RegisterInput = {
@@ -20,8 +20,9 @@ export type RegisterInput = {
   bedId?: string;
   /** bedId berilmasa shu xonadagi bo‘sh o‘rin olinadi. */
   roomId?: string;
-  stayType: 'DAILY' | 'MONTHLY';
+  stayType: StayType;
   startDate: string;
+  /** Kunlik: to‘lanmasa necha kun. Migrant: majburiy, xodim kiritadi. */
   daysCount?: number;
   paymentMonth?: string;
   amount?: number;
@@ -55,6 +56,7 @@ export class ReceptionService implements OnModuleInit {
     const stays = await this.prisma.stay.findMany({
       select: {
         id: true,
+        type: true,
         startDate: true,
         paidDays: true,
         paidUntil: true,
@@ -69,6 +71,8 @@ export class ReceptionService implements OnModuleInit {
     let staysFixed = 0;
     const sameDay = (a?: Date | null, b?: Date | null) => !!a && !!b && todayISO(a) === todayISO(b);
     for (const stay of stays) {
+      // Summasiz migrantda to‘lov yozuvi yo‘q: kunlari xodim kiritgan, to‘lovlardan qayta hisoblanmaydi.
+      if (stay.type === 'MIGRANT' && !stay.payments.length) continue;
       const origin = stay.startDate;
       let already = 0;
       for (let i = 0; i < stay.payments.length; i++) {
@@ -181,16 +185,22 @@ export class ReceptionService implements OnModuleInit {
       startDate: input.startDate,
       stayType: input.stayType,
     });
-    if (!['DAILY', 'MONTHLY'].includes(input.stayType)) throw new AppError('Majburiy maydonlarni to‘ldiring.');
+    if (!STAY_TYPES.includes(input.stayType)) throw new AppError('Majburiy maydonlarni to‘ldiring.');
     const amount = Number(input.amount ?? input.paidAmount ?? 0);
     if (Number.isNaN(amount) || amount < 0) {
       throw new AppError('To‘lov summasi noto‘g‘ri.', 400, 'PAYMENT_INVALID');
+    }
+    // Migrant: pasport istalgan formatda, summa va kunlar narx jadvalidan emas — xodim kiritganidek.
+    const migrant = input.stayType === 'MIGRANT';
+    const migrantDays = migrant ? Math.trunc(Number(input.daysCount)) : 0;
+    if (migrant && !(migrantDays >= 1)) {
+      throw new AppError('Migrant uchun kunlar sonini kiriting.', 400, 'DAYS_REQUIRED');
     }
     const paymentStatus = input.paymentStatus === 'PAID' && amount > 0 ? 'PAID' : 'UNPAID';
     const paidAmount = paymentStatus === 'PAID' ? amount : 0;
     const gender = roomGender(input.gender);
     const phone = normalizePhone(input.phone);
-    const passportId = normalizePassportId(input.passportId);
+    const passportId = migrant ? normalizeMigrantPassportId(input.passportId) : normalizePassportId(input.passportId);
 
     return this.retrySerializable(() => this.prisma.$transaction(
       async (tx) => {
@@ -225,6 +235,7 @@ export class ReceptionService implements OnModuleInit {
           address: input.address?.trim() || null,
           extraPhone: normalizePhone(input.extraPhone) || null,
           notes: input.notes?.trim() || null,
+          migrant,
         };
         // O'chirilgan mijoz qaytib kelsa, eski yozuvi tiklanadi: tarixi va to'lovlari bir joyda qoladi.
         const customer = existing
@@ -236,8 +247,9 @@ export class ReceptionService implements OnModuleInit {
         const method = input.paymentMethod === 'BANK_TRANSFER' ? 'BANK' : input.paymentMethod || 'CASH';
 
         const paidAt = startDate;
-        const period =
-          paidAmount > 0
+        const period = migrant
+          ? { days: migrantDays, from: startDate, to: addDays(startDate, migrantDays) }
+          : paidAmount > 0
             ? paymentPeriod({
                 amount: paidAmount,
                 monthlyPrice: bed.room.monthlyPrice,
@@ -246,11 +258,18 @@ export class ReceptionService implements OnModuleInit {
                 type: input.stayType,
               })
             : null;
-        const daysCount =
-          input.stayType === 'DAILY'
+        const daysCount = migrant
+          ? migrantDays
+          : input.stayType === 'DAILY'
             ? period?.days || Math.max(1, Number(input.daysCount || 1))
             : null;
         const endDate = daysCount ? addDays(startDate, daysCount) : null;
+        const dailyPrice =
+          input.stayType === 'DAILY'
+            ? DAILY_STAY_PRICE
+            : migrant
+              ? Math.round(amount / migrantDays)
+              : bed.room.dailyPrice;
 
         const stay = await tx.stay.create({
           data: {
@@ -262,7 +281,7 @@ export class ReceptionService implements OnModuleInit {
             endDate,
             daysCount,
             paymentMonth,
-            dailyPrice: input.stayType === 'DAILY' ? DAILY_STAY_PRICE : bed.room.dailyPrice,
+            dailyPrice,
             monthlyPrice: bed.room.monthlyPrice,
             totalAmount: amount,
             paidAmount,
@@ -291,7 +310,7 @@ export class ReceptionService implements OnModuleInit {
               customerId: customer.id,
               stayId: stay.id,
               type: input.stayType,
-              period: input.stayType === 'DAILY' ? input.startDate : paymentMonth || '',
+              period: input.stayType === 'MONTHLY' ? paymentMonth || '' : input.startDate,
               amount,
               days: period?.days ?? 0,
               coversFrom: period?.from ?? null,
@@ -389,7 +408,9 @@ export class ReceptionService implements OnModuleInit {
       stayId: string;
       amount: number;
       method?: PaymentMethod;
-      type?: 'DAILY' | 'MONTHLY';
+      type?: StayType;
+      /** Faqat migrant: shu to‘lov necha kun beradi (0 — kun qo‘shilmaydi, faqat qarz yopiladi). */
+      days?: number;
       period?: string;
       note?: string;
       paymentDate?: string;
@@ -431,15 +452,27 @@ export class ReceptionService implements OnModuleInit {
       const paidAt = parseDate(input.paymentDate || todayISO());
 
       // Oylik: 25 000/kun. Kunlik: 50 000/kun. Hisob kirish kunidan.
-      const type = input.type || stay.type;
-      const period = paymentPeriod({
-        amount,
-        monthlyPrice: stay.monthlyPrice,
-        paidAt,
-        startDate: stay.startDate,
-        currentPaidDays: stay.paidDays || daysForAmount(stay.paidAmount, stay.monthlyPrice, stay.type),
-        type,
-      });
+      // Migrant: narx jadvali yo‘q — kunlarni xodim kiritadi, ular to‘langan kunlar ustiga qo‘shiladi.
+      const migrant = stay.type === 'MIGRANT';
+      if (!migrant && input.type === 'MIGRANT') {
+        throw new AppError('Bu mijoz migrant sifatida ro‘yxatga olinmagan.', 400, 'NOT_MIGRANT');
+      }
+      const type = migrant ? 'MIGRANT' : input.type || stay.type;
+      let period: { days: number; from: Date; to: Date };
+      if (migrant) {
+        const days = Math.max(0, Math.trunc(Number(input.days) || 0));
+        const from = addDays(stay.startDate, Math.max(0, stay.paidDays));
+        period = { days, from, to: addDays(from, days) };
+      } else {
+        period = paymentPeriod({
+          amount,
+          monthlyPrice: stay.monthlyPrice,
+          paidAt,
+          startDate: stay.startDate,
+          currentPaidDays: stay.paidDays || daysForAmount(stay.paidAmount, stay.monthlyPrice, stay.type),
+          type,
+        });
+      }
 
       const payment = await tx.payment.create({
         data: {
@@ -595,7 +628,6 @@ export class ReceptionService implements OnModuleInit {
     userId: string,
   ) {
     required({ fullName: input.fullName, passportId: input.passportId });
-    const passportId = normalizePassportId(input.passportId);
 
     return this.prisma.$transaction(async (tx) => {
       const customer = await tx.customer.findUnique({
@@ -603,6 +635,10 @@ export class ReceptionService implements OnModuleInit {
         include: { occupancy: { include: { stay: { include: { room: true } } } } },
       });
       if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
+      // Migrant pasporti istalgan formatda bo‘lishi mumkin.
+      const passportId = customer.migrant
+        ? normalizeMigrantPassportId(input.passportId)
+        : normalizePassportId(input.passportId);
       const gender = input.gender === 'FEMALE' ? 'FEMALE' : input.gender === 'MALE' ? 'MALE' : customer.gender;
       if (passportId !== customer.passportId) {
         const taken = await tx.customer.findUnique({ where: { passportId } });

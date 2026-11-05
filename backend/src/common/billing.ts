@@ -11,6 +11,12 @@ export const MONTHLY_DAY_PRICE = 25000;
 /** Kunlik yashash: kuniga 50 000. */
 export const DAILY_STAY_PRICE = 50000;
 
+/**
+ * Yashash turlari. MIGRANT — narx jadvali yo'q: summa ham, kunlar soni ham xodim tomonidan kiritiladi.
+ */
+export const STAY_TYPES = ['DAILY', 'MONTHLY', 'MIGRANT'] as const;
+export type StayType = (typeof STAY_TYPES)[number];
+
 /** 30 kun = 1 oy. */
 export const DAYS_PER_MONTH = 30;
 
@@ -100,11 +106,11 @@ export function splitDays(totalDays: number) {
   return { months: Math.floor(days / DAYS_PER_MONTH), days: days % DAYS_PER_MONTH };
 }
 
-/** Odam o'qiy oladigan shakl: "3 oy", "1 oy 15 kun", "12 kun". Kunlikda faqat kun. */
+/** Odam o'qiy oladigan shakl: "3 oy", "1 oy 15 kun", "12 kun". Kunlik va migrantda faqat kun. */
 export function describeDays(totalDays: number, type?: string | null) {
   const days = Math.max(0, Math.trunc(totalDays));
   if (!days) return '—';
-  if (type === 'DAILY') return `${days} kun`;
+  if (type === 'DAILY' || type === 'MIGRANT') return `${days} kun`;
   const parts: string[] = [];
   const months = Math.floor(days / DAYS_PER_MONTH);
   const rest = days % DAYS_PER_MONTH;

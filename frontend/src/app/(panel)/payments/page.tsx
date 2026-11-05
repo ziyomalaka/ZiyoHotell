@@ -68,10 +68,13 @@ export default function PaymentsPage() {
     stayId: "",
     amount: String(DEFAULT_MONTHLY_PRICE),
     type: "MONTHLY",
+    days: "",
     method: "CASH",
     paymentDate: "",
     note: "",
   });
+  // Migrant mijozda summa va qo‘shiladigan kunlar qo‘lda kiritiladi.
+  const formMigrant = form.type === "MIGRANT";
   const [error, setError] = useState("");
   const [payKey, setPayKey] = useState(newIdempotencyKey);
 
@@ -101,6 +104,7 @@ export default function PaymentsPage() {
           stayId: form.stayId,
           amount: Number(form.amount),
           type: form.type,
+          ...(formMigrant ? { days: Math.max(0, Math.trunc(Number(form.days) || 0)) } : {}),
           method: form.method,
           paymentDate: form.paymentDate,
           note: form.note || undefined,
@@ -109,7 +113,7 @@ export default function PaymentsPage() {
       });
       setPayKey(newIdempotencyKey());
       setOpen(false);
-      setForm({ stayId: "", amount: String(DEFAULT_MONTHLY_PRICE), type: "MONTHLY", method: "CASH", paymentDate: todayISO(), note: "" });
+      setForm({ stayId: "", amount: String(DEFAULT_MONTHLY_PRICE), type: "MONTHLY", days: "", method: "CASH", paymentDate: todayISO(), note: "" });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik");
@@ -150,9 +154,10 @@ export default function PaymentsPage() {
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         <SectorFilter scope="reception" value={floor} onChange={setFloor} />
         <select value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">Kunlik / Oylik</option>
+          <option value="">Barcha turlar</option>
           <option value="DAILY">Kunlik</option>
           <option value="MONTHLY">Oylik</option>
+          <option value="MIGRANT">Migrant</option>
         </select>
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">To‘ladi / To‘lamadi</option>
@@ -175,7 +180,7 @@ export default function PaymentsPage() {
               <th>Qavat</th>
               <th>Xona</th>
               <th>O‘rin</th>
-              <th>Kunlik/Oylik</th>
+              <th>Turi</th>
               <th>Summa</th>
               <th>Usul</th>
               <th>Davr</th>
@@ -222,12 +227,14 @@ export default function PaymentsPage() {
                 value={form.stayId}
                 onChange={(e) => {
                   const stay = stays.find((s) => s.id === e.target.value);
-                  const type = stay?.type === "DAILY" ? "DAILY" : "MONTHLY";
+                  const type = stay?.type === "MIGRANT" ? "MIGRANT" : stay?.type === "DAILY" ? "DAILY" : "MONTHLY";
                   setForm({
                     ...form,
                     stayId: e.target.value,
                     type,
-                    amount: type === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE),
+                    days: "",
+                    amount:
+                      type === "MIGRANT" ? "" : type === "DAILY" ? String(DAILY_STAY_PRICE) : String(DEFAULT_MONTHLY_PRICE),
                   });
                 }}
                 className="mt-2 w-full"
@@ -244,10 +251,29 @@ export default function PaymentsPage() {
             </label>
             <label className="mt-3 block text-sm font-medium">
               Summa
-              <input required type="number" inputMode="numeric" min={1} step={1000} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-2 w-full" />
+              <input required type="number" inputMode="numeric" min={1} step={1} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-2 w-full" />
             </label>
+            {formMigrant ? (
+              <label className="mt-3 block text-sm font-medium">
+                Qo‘shiladigan kunlar
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={form.days}
+                  placeholder="0 — faqat qarz to‘lanadi"
+                  onChange={(e) => setForm({ ...form, days: e.target.value })}
+                  className="mt-2 w-full"
+                />
+              </label>
+            ) : null}
             <p className="mt-1 text-xs text-muted">
               {(() => {
+                if (formMigrant) {
+                  const extra = Math.max(0, Math.trunc(Number(form.days) || 0));
+                  return `Migrant: summa va kunlar qo‘lda kiritiladi.${extra ? ` ${describeDays(extra, "MIGRANT")} qo‘shiladi.` : ""}`;
+                }
                 const stay = stays.find((s) => s.id === form.stayId);
                 const price = stay?.monthlyPrice || DEFAULT_MONTHLY_PRICE;
                 const days = daysForAmount(Number(form.amount || 0), price, form.type);
@@ -261,6 +287,11 @@ export default function PaymentsPage() {
                   : `Kuniga ${formatMoney(MONTHLY_DAY_PRICE)}. 30 kun = 1 oy = ${formatMoney(price)}.`;
               })()}
             </p>
+            {formMigrant ? (
+              <p className="mt-3 text-sm font-medium">
+                Yashash turi: <span className="font-normal">Migrant</span>
+              </p>
+            ) : (
             <label className="mt-3 block text-sm font-medium">
               Yashash turi
               <select
@@ -279,6 +310,7 @@ export default function PaymentsPage() {
                 <option value="MONTHLY">Oylik</option>
               </select>
             </label>
+            )}
             <label className="mt-3 block text-sm font-medium">
               To‘lov turini tanlang
               <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })} className="mt-2 w-full">

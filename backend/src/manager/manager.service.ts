@@ -471,6 +471,7 @@ export class ManagerService {
       total: sum(() => true),
       daily: sum((p) => p.type === 'DAILY'),
       monthly: sum((p) => p.type === 'MONTHLY'),
+      migrant: sum((p) => p.type === 'MIGRANT'),
       ...cashCardTotals(rows),
       bank: sum((p) => p.method === 'BANK'),
       other: sum((p) => p.method === 'OTHER'),
@@ -536,6 +537,7 @@ export class ManagerService {
       debt: stayRows.reduce((a, s) => a + s.debt, 0),
       daily: rows.filter((p) => p.type === 'DAILY').reduce((a, p) => a + p.amount, 0),
       monthly: rows.filter((p) => p.type === 'MONTHLY').reduce((a, p) => a + p.amount, 0),
+      migrant: rows.filter((p) => p.type === 'MIGRANT').reduce((a, p) => a + p.amount, 0),
       chart,
       rows,
       stayRows,
@@ -581,6 +583,7 @@ export class ManagerService {
     if (opts.tab === 'unpaid') rows = rows.filter((r) => r.status === 'UNPAID');
     if (opts.tab === 'daily' || opts.type === 'DAILY') rows = rows.filter((r) => r.type === 'DAILY');
     if (opts.tab === 'monthly' || opts.type === 'MONTHLY') rows = rows.filter((r) => r.type === 'MONTHLY');
+    if (opts.tab === 'migrant' || opts.type === 'MIGRANT') rows = rows.filter((r) => r.type === 'MIGRANT');
     if (opts.age === 'today') rows = rows.filter((r) => r.days === 0);
     if (opts.age === '1-7') rows = rows.filter((r) => r.days >= 1 && r.days <= 7);
     if (opts.age === '8-30') rows = rows.filter((r) => r.days >= 8 && r.days <= 30);

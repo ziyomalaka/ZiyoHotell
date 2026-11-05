@@ -84,6 +84,17 @@ export function isValidPassportId(value: string) {
   return PASSPORT_ID_RE.test(value.trim().toUpperCase());
 }
 
+/** Migrant pasporti: davlatga qarab har xil — faqat harf va raqam, 3–20 belgi (bo‘sh joy va chiziqcha olib tashlanadi). */
+export const MIGRANT_PASSPORT_RE = /^[\p{L}\p{N}]{3,20}$/u;
+
+export function formatMigrantPassportId(raw: string) {
+  return raw.replace(/[\s-]+/g, "").toUpperCase().slice(0, 20);
+}
+
+export function isValidMigrantPassportId(value: string) {
+  return MIGRANT_PASSPORT_RE.test(formatMigrantPassportId(value));
+}
+
 export const UZ_PHONE_PREFIX = "+998";
 export const UZ_PHONE_LOCAL_LEN = 9;
 
@@ -175,8 +186,15 @@ export function formatLongDate(value: Date | string | null | undefined, withYear
 }
 
 export function stayTypeLabel(type: string) {
-  return type === "DAILY" ? "Kunlik" : type === "MONTHLY" ? "Oylik" : type;
+  return type === "DAILY" ? "Kunlik" : type === "MONTHLY" ? "Oylik" : type === "MIGRANT" ? "Migrant" : type;
 }
+
+/** Yashash turlari tanlovi (filtrlar uchun). */
+export const STAY_TYPE_OPTIONS = [
+  { value: "DAILY", label: "Kunlik" },
+  { value: "MONTHLY", label: "Oylik" },
+  { value: "MIGRANT", label: "Migrant" },
+] as const;
 
 export function payStatusLabel(status: string) {
   if (status === "PAID") return "To‘ladi";
@@ -284,9 +302,21 @@ export function floorLabel(value: unknown) {
   return floor < 0 ? "Podval" : `${floor}-qavat`;
 }
 
-/** Sektor nomi ro‘yxat va hisobotlar uchun: "1-sektor · Bollar yotoqxonasi". */
-export function sectorLabel(sector?: { number: number; name: string } | null) {
-  return sector ? `${sector.number}-sektor · ${sector.name}` : "Sektorsiz";
+/**
+ * Sektor nomi ro‘yxat va hisobotlar uchun: "3-sektor · Bollar yotoqxonasi · Podval".
+ * Bollar sektorlari bir xil nomli — qavat (ayniqsa podval) qo‘shilsa ajralib turadi.
+ * Nomida qavat allaqachon yozilgan bo‘lsa, takrorlanmaydi.
+ */
+export function sectorLabel(sector?: { number: number; name: string; floor?: number | null } | null) {
+  if (!sector) return "Sektorsiz";
+  const base = `${sector.number}-sektor · ${sector.name}`;
+  if (sector.floor == null || /podval|qavat/i.test(sector.name)) return base;
+  return `${base} · ${floorLabel(sector.floor)}`;
+}
+
+/** Sektor nomida qavat bormi: bor bo‘lsa xona qavatini alohida yozish shart emas. */
+export function sectorHasFloor(sector?: { floor?: number | null } | null) {
+  return sector?.floor != null;
 }
 
 export function daysInMonth(year: number, month1to12: number) {
@@ -353,11 +383,11 @@ export function splitDays(totalDays: number) {
   return { months: Math.floor(days / DAYS_PER_MONTH), days: days % DAYS_PER_MONTH };
 }
 
-/** "3 oy", "1 oy 15 kun", "12 kun". Kunlikda faqat kun. */
+/** "3 oy", "1 oy 15 kun", "12 kun". Kunlik va migrantda faqat kun. */
 export function describeDays(totalDays: number, type?: string | null) {
   const days = Math.max(0, Math.trunc(totalDays));
   if (!days) return "—";
-  if (type === "DAILY") return `${days} kun`;
+  if (type === "DAILY" || type === "MIGRANT") return `${days} kun`;
   const { months, days: rest } = splitDays(days);
   const parts: string[] = [];
   if (months) parts.push(`${months} oy`);

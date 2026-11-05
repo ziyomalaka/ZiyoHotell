@@ -42,7 +42,7 @@ type Room = {
   occupied: number;
   free: number;
   monthlyPrice?: number;
-  sector?: { number: number; name: string } | null;
+  sector?: { number: number; name: string; floor?: number | null } | null;
   beds: Bed[];
 };
 

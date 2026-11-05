@@ -101,7 +101,7 @@ export default function ManagerCustomersPage() {
               <th>Xona</th>
               <th>O‘rin</th>
               <th>Kirish sanasi</th>
-              <th>Kunlik/Oylik</th>
+              <th>Turi</th>
               <th>To‘lov holati</th>
             </tr>
           </thead>
@@ -166,7 +166,7 @@ export default function ManagerCustomersPage() {
               <span>{formatDate(r.startDate)}</span>
             </div>
             <div className="mgr-kv">
-              <span>Kunlik/Oylik</span>
+              <span>Turi</span>
               <span>{r.type ? stayTypeLabel(r.type) : "—"}</span>
             </div>
           </article>

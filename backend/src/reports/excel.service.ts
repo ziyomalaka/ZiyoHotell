@@ -9,7 +9,7 @@ import { ReportsService } from './reports.service';
 import { ManagerService } from '../manager/manager.service';
 
 function stayTypeLabel(type: string) {
-  return type === 'DAILY' ? 'Kunlik' : type === 'MONTHLY' ? 'Oylik' : type;
+  return type === 'DAILY' ? 'Kunlik' : type === 'MONTHLY' ? 'Oylik' : type === 'MIGRANT' ? 'Migrant' : type;
 }
 
 function payStatusLabel(status: string) {
@@ -102,7 +102,7 @@ export class ExcelService {
         formatDate(r.dueDate),
         r.daysLeft ?? '—',
         r.overdue ? 'Muddat o‘tgan' : r.dueSoon ? 'Muddat yaqin' : 'Muddat bor',
-        formatMoney(r.monthlyPrice),
+        r.type === 'MIGRANT' ? 'Kelishiladi' : formatMoney(r.monthlyPrice),
       ]),
     );
     sheet.addRow([]);

@@ -6,7 +6,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { SectorFilter, resetSectorCache } from "@/components/SectorFilter";
 import { BedIndicator, BedCard } from "@/components/RoomVisual";
 import { StatusBadge } from "@/components/StatusBadge";
-import { compareRoomNumbers, floorLabel, formatMoney, genderLabel, occupancyLabel, sectorLabel } from "@/lib/format";
+import { compareRoomNumbers, floorLabel, formatMoney, genderLabel, occupancyLabel, sectorHasFloor, sectorLabel } from "@/lib/format";
 
 type Bed = { id: string; number: number; status: string; occupancy?: { customer: { fullName: string } } | null };
 type Sector = {
@@ -470,7 +470,8 @@ export default function AdminRoomsPage() {
           <div className="surface max-h-[90vh] w-full max-w-lg overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-semibold text-navy">{open.number}-xona</h2>
             <p className="mt-1 text-sm text-muted">
-              {sectorLabel(open.sector)} · {floorLabel(open.floor)} · {genderLabel(open.gender)} · {open.capacity} o‘rin
+              {sectorLabel(open.sector)}
+              {sectorHasFloor(open.sector) ? "" : ` · ${floorLabel(open.floor)}`} · {genderLabel(open.gender)} · {open.capacity} o‘rin
               {open.monthlyPrice ? ` · ${formatMoney(open.monthlyPrice)} / oy` : ""}
             </p>
             <label className="mt-4 block text-sm">

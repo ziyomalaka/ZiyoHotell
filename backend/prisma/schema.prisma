@@ -72,6 +72,8 @@ model Customer {
   extraPhone  String?
   notes       String?
   blocked     Boolean   @default(false)
+  /// Migrant (chet ellik): pasport har qanday formatda bo'lishi mumkin, AA1234567 shakli talab qilinmaydi.
+  migrant     Boolean   @default(false)
   /// O'chirilgan mijoz: ro'yxat va qidiruvdan yashiriladi, lekin yashash va to'lov tarixi hisobotlarda qoladi.
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())

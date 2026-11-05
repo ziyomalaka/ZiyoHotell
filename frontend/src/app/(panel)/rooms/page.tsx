@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FilterBar } from "@/components/FilterBar";
 import { SectorFilter } from "@/components/SectorFilter";
 import { BedCard, RoomCard } from "@/components/RoomVisual";
-import { compareRoomNumbers, dash, displayUzPhone, floorLabel, formatDate, formatMoney, genderLabel, sectorLabel } from "@/lib/format";
+import { compareRoomNumbers, dash, displayUzPhone, floorLabel, formatDate, formatMoney, genderLabel, sectorHasFloor, sectorLabel, stayTypeLabel } from "@/lib/format";
 
 type Stay = { startDate: string; type: string; paidAmount: number; totalAmount: number };
 type Bed = {
@@ -19,7 +19,7 @@ type Room = {
   id: string;
   number: string;
   floor: number;
-  sector?: { number: number; name: string } | null;
+  sector?: { number: number; name: string; floor?: number | null } | null;
   gender: string;
   capacity: number;
   occupied: number;
@@ -143,7 +143,8 @@ export default function RoomsPage() {
           <div className="surface max-h-[90vh] w-full max-w-lg overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-semibold text-navy">{open.number}-xona</h2>
             <p className="mt-1 text-sm text-muted">
-              {sectorLabel(open.sector)} · {floorLabel(open.floor)} ·{" "}
+              {sectorLabel(open.sector)}
+              {sectorHasFloor(open.sector) ? "" : ` · ${floorLabel(open.floor)}`} ·{" "}
               {genderLabel(open.gender)} · {open.capacity} ta o‘rin · {open.occupied} band · {open.free} bo‘sh
             </p>
             <div className="mt-4 space-y-2">
@@ -164,7 +165,7 @@ export default function RoomsPage() {
                 <p>ID raqami: {dash(guest.occupancy.customer.passportId)}</p>
                 <p>Tug‘ilgan sana: {formatDate(guest.occupancy.customer.birthDate)}</p>
                 <p>Kirish: {formatDate(guest.occupancy.stay.startDate)}</p>
-                <p>{guest.occupancy.stay.type === "DAILY" ? "Kunlik" : "Oylik"}</p>
+                <p>{stayTypeLabel(guest.occupancy.stay.type)}</p>
                 <p className="tabular">
                   To‘lov: {formatMoney(guest.occupancy.stay.paidAmount)} / {formatMoney(guest.occupancy.stay.totalAmount)}
                 </p>

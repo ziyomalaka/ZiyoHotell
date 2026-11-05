@@ -129,6 +129,7 @@ export default function ManagerPaymentsPage() {
           <option value="">Tur</option>
           <option value="DAILY">Kunlik</option>
           <option value="MONTHLY">Oylik</option>
+          <option value="MIGRANT">Migrant</option>
         </select>
         <select value={method} onChange={(e) => setMethod(e.target.value)} className="rounded-lg border border-line bg-white px-3 py-2">
           <option value="">Usul</option>

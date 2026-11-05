@@ -76,7 +76,9 @@ export class ReportsService {
           birthDate: s.customer.birthDate,
           gender: s.customer.gender,
           floor: s.room.floor,
-          sector: s.room.sector ? { number: s.room.sector.number, name: s.room.sector.name } : null,
+          sector: s.room.sector
+            ? { number: s.room.sector.number, name: s.room.sector.name, floor: s.room.sector.floor }
+            : null,
           room: s.room.number,
           bed: s.bed.number,
           type: s.type,
@@ -101,7 +103,8 @@ export class ReportsService {
       dueSoon: rows.filter((r) => r.dueSoon && !r.overdue).length,
       // `ok` emas: javob o‘ramidagi boolean `ok` bilan aralashib, frontend 0 ni xato deb o‘qiydi.
       current: rows.filter((r) => r.daysLeft !== null && !r.dueSoon).length,
-      expected: rows.filter((r) => r.dueSoon).reduce((acc, r) => acc + r.monthlyPrice, 0),
+      // Migrantda keyingi summa oldindan ma'lum emas (har safar kelishiladi), shuning uchun qo'shilmaydi.
+      expected: rows.filter((r) => r.dueSoon && r.type !== 'MIGRANT').reduce((acc, r) => acc + r.monthlyPrice, 0),
       rows,
     };
   }
@@ -133,6 +136,8 @@ export class ReportsService {
       floor: level,
       daily: sum('PAID', 'DAILY'),
       monthly: sum('PAID', 'MONTHLY'),
+      migrant: sum('PAID', 'MIGRANT'),
+      migrantCount: paidRows.filter((p) => p.type === 'MIGRANT').length,
       total: sum('PAID'),
       cash: split.cash,
       card: split.card,
