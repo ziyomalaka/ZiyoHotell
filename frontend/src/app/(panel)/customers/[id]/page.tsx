@@ -338,7 +338,7 @@ export default function ReceptionCustomerProfile() {
         <ConfirmModal
           danger
           title="Mijozni o‘chirish"
-          text={`${c.fullName} ro‘yxatdan olib tashlansinmi? To‘langan pul qaytarilmaydi: to‘lovlari va yashash tarixi hisobotlarda saqlanib qoladi.`}
+          text={`${c.fullName} bazadan butunlay o‘chirilsinmi?\nUning yashash tarixi va to‘lovlari ham o‘chadi — hisobot va tushumdan chiqib ketadi. Bu amalni qaytarib bo‘lmaydi.`}
           confirmLabel="O‘chirish"
           onClose={() => setDrop(false)}
           onConfirm={remove}

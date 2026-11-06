@@ -820,22 +820,50 @@ export class ReceptionService implements OnModuleInit {
     });
   }
 
+  /**
+   * Chiqib ketgan mijozni bazadan butunlay o'chiradi: yashashlari, to'lovlari (qaytim ham), kirish/chiqish
+   * yozuvlari, eslatmalari va unga tegishli audit yozuvlari. Uning hech qanday ma'lumoti qolmaydi —
+   * shu bilan birga uning to'lovlari hisobot va tushumdan ham chiqib ketadi.
+   */
   async deleteCustomer(id: string, userId: string) {
     const customer = await this.prisma.customer.findUnique({ where: { id }, include: { occupancy: true } });
-    if (!customer || customer.deletedAt) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
+    if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
     if (customer.occupancy) {
       throw new AppError('Mijoz hozir yashayapti. Avval chiqaring.', 409, 'CUSTOMER_ALREADY_ACTIVE');
     }
-    // Mijoz ro'yxatdan olib tashlanadi, lekin yashash va to'lov tarixi saqlanadi:
-    // to'langan pul qaytarilmaydi, shuning uchun hisobot va tushumdan ayrilmasligi kerak.
-    await this.prisma.$transaction(async (tx) => {
-      await tx.reminder.deleteMany({ where: { customerId: id } });
-      await tx.customer.update({ where: { id }, data: { deletedAt: new Date() } });
-      await tx.auditLog.create({
-        data: { userId, action: 'CUSTOMER_DELETE', entity: 'Customer', entityId: id },
+    const counts = await this.prisma.$transaction(async (tx) => {
+      // Shu payt boshqa xodim uni joylashtirayotgan bo'lsa — kutib, qayta tekshiramiz.
+      await tx.$queryRaw`SELECT id FROM "Customer" WHERE id = ${id} FOR UPDATE`;
+      if (await tx.occupancy.findUnique({ where: { customerId: id } })) {
+        throw new AppError('Mijoz hozir yashayapti. Avval chiqaring.', 409, 'CUSTOMER_ALREADY_ACTIVE');
+      }
+      const stays = await tx.stay.findMany({ where: { customerId: id }, select: { id: true } });
+      const stayIds = stays.map((s) => s.id);
+      const payments = await tx.payment.findMany({
+        where: { OR: [{ customerId: id }, { stayId: { in: stayIds } }] },
+        select: { id: true },
       });
+      const paymentIds = payments.map((p) => p.id);
+      // Audit: mijoz, uning yashash/to'lov ID'lari yoki pasport raqami yozilgan qatorlar ham o'chadi.
+      // Juda qisqa (migrant) pasport raqami begona yozuvlarga mos kelib qolmasin — faqat 6+ belgili qidiriladi.
+      const keys = [id, ...(customer.passportId.length >= 6 ? [customer.passportId] : []), ...stayIds, ...paymentIds];
+      const textMatch = (field: 'meta' | 'oldValue' | 'newValue') => keys.map((k) => ({ [field]: { contains: k } }));
+      const audits = await tx.auditLog.deleteMany({
+        where: { OR: [{ entityId: { in: keys } }, ...textMatch('meta'), ...textMatch('oldValue'), ...textMatch('newValue')] },
+      });
+      const reminders = await tx.reminder.deleteMany({ where: { OR: [{ customerId: id }, { stayId: { in: stayIds } }] } });
+      const checkLogs = await tx.checkLog.deleteMany({ where: { OR: [{ customerId: id }, { stayId: { in: stayIds } }] } });
+      const paid = await tx.payment.deleteMany({ where: { id: { in: paymentIds } } });
+      await tx.stay.deleteMany({ where: { id: { in: stayIds } } });
+      await tx.customer.delete({ where: { id } });
+      const result = { stays: stayIds.length, payments: paid.count, checkLogs: checkLogs.count, reminders: reminders.count, audits: audits.count };
+      // Kim o'chirgani qoladi, lekin mijozning o'zi haqida hech narsa (ID ham) yozilmaydi.
+      await tx.auditLog.create({
+        data: { userId, action: 'CUSTOMER_PURGE', entity: 'Customer', entityId: null, meta: JSON.stringify(result) },
+      });
+      return result;
     });
-    return { id, deleted: true };
+    return { deleted: true, ...counts };
   }
 
   async getCustomer(id: string) {

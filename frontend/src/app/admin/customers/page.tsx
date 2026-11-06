@@ -193,7 +193,7 @@ export default function AdminCustomersPage() {
         <ConfirmModal
           danger
           title="Mijozni o‘chirish"
-          text={`${drop.fullName} ro‘yxatdan olib tashlansinmi? To‘lovlari va yashash tarixi hisobotlarda saqlanib qoladi.${drop.living ? "\nHozir yashayotgan mijozni avval chiqaring." : ""}`}
+          text={`${drop.fullName} bazadan butunlay o‘chirilsinmi?\nUning yashash tarixi va to‘lovlari ham o‘chadi — hisobot va tushumdan chiqib ketadi. Bu amalni qaytarib bo‘lmaydi.${drop.living ? "\nHozir yashayotgan mijozni avval chiqaring." : ""}`}
           confirmLabel="O‘chirish"
           onClose={() => setDrop(null)}
           onConfirm={remove}
