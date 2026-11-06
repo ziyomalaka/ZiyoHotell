@@ -13,7 +13,7 @@ import {
   todayISO,
 } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
-import { cashCardTotals, checkoutDate } from '../common/billing';
+import { cashCardTotals, checkoutDate, INCOME_STATUSES, netIncome } from '../common/billing';
 import { sectorBreakdown } from '../common/sector';
 import { ReportsService } from '../reports/reports.service';
 
@@ -132,9 +132,10 @@ export class ManagerService {
     return Object.keys(paidAt).length ? paidAt : undefined;
   }
 
+  /** Kassa yozuvlari: to'lovlar va chiqishda qaytarilgan pul (REFUND — summalarda ayiriladi). */
   private incomeWhere(from?: Date, to?: Date) {
     return {
-      status: 'PAID' as const,
+      status: { in: [...INCOME_STATUSES] },
       ...(from || to ? { paidAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
     };
   }
@@ -142,12 +143,12 @@ export class ManagerService {
   private async incomeSum(from?: Date, to?: Date) {
     const rows = await this.prisma.payment.findMany({
       where: this.incomeWhere(from, to),
-      select: { amount: true, method: true },
+      select: { amount: true, method: true, status: true },
     });
     const split = cashCardTotals(rows);
     return {
-      amount: rows.reduce((acc, p) => acc + p.amount, 0),
-      count: rows.length,
+      amount: netIncome(rows),
+      count: rows.filter((p) => p.status === 'PAID').length,
       cash: split.cash,
       card: split.card,
       terminal: split.terminal,
@@ -235,11 +236,12 @@ export class ManagerService {
     for (let d = 1; d <= lastDay; d++) {
       const day = isoDay(y, m, d);
       if (day > today) break;
-      const inc = await this.prisma.payment.aggregate({
+      const inc = await this.prisma.payment.groupBy({
+        by: ['status'],
         _sum: { amount: true },
         where: this.incomeWhere(dayStart(day), dayEnd(day)),
       });
-      monthChart.push({ day: String(d), value: inc._sum.amount || 0 });
+      monthChart.push({ day: String(d), value: netIncome(inc.map((g) => ({ status: g.status, amount: g._sum.amount || 0 }))) });
     }
     const topDebtorsRaw = await this.prisma.stay.findMany({ include: { customer: true } });
     const byCustomer = new Map<string, { fullName: string; debt: number }>();
@@ -375,9 +377,12 @@ export class ManagerService {
       },
     });
     if (!customer) return null;
-    const paid = customer.payments.filter((p) => p.status === 'PAID').reduce((a, p) => a + p.amount, 0);
+    // Chiqib ketgan mijozning to'lov tarixi profilda ko'rsatilmaydi (kassa hisobotlarida qoladi).
+    const current = customer.occupancy?.stay;
+    const payments = current ? customer.payments.filter((p) => p.stayId === current.id) : [];
+    const paid = netIncome(payments);
     const debt = customer.stays.reduce((acc, s) => acc + stayDebt(s.totalAmount, s.paidAmount), 0);
-    return { ...customer, paid, debt };
+    return { ...customer, payments, paid, debt };
   }
 
   async payments(opts: {
@@ -461,12 +466,17 @@ export class ManagerService {
         where: { status: 'UNPAID', paidAt: { gte: dayStart(date), lte: dayEnd(date) }, ...floorWhere },
       }),
     ]);
-    const sum = (pred: (p: (typeof rows)[number]) => boolean) => rows.filter(pred).reduce((a, p) => a + p.amount, 0);
+    // Qaytim (REFUND) summalardan ayiriladi; "to'lagan" soniga faqat to'lovlar kiradi.
+    const sum = (pred: (p: (typeof rows)[number]) => boolean) => netIncome(rows.filter(pred));
+    const paidCount = rows.filter((p) => p.status === 'PAID').length;
+    const refunds = rows.filter((p) => p.status === 'REFUND');
     return {
       date,
       floor,
-      count: rows.length,
-      paid: rows.length,
+      count: paidCount,
+      paid: paidCount,
+      refund: refunds.reduce((a, p) => a + p.amount, 0),
+      refundCount: refunds.length,
       unpaid,
       total: sum(() => true),
       daily: sum((p) => p.type === 'DAILY'),
@@ -496,7 +506,7 @@ export class ManagerService {
     for (let d = 1; d <= last; d++) {
       const day = isoDay(year, month, d);
       if (day > today) break;
-      const value = rows.filter((p) => todayISO(p.paidAt) === day).reduce((a, p) => a + p.amount, 0);
+      const value = netIncome(rows.filter((p) => todayISO(p.paidAt) === day));
       chart.push({ day: String(d), value });
     }
     const stays = await this.prisma.stay.findMany({
@@ -528,16 +538,17 @@ export class ManagerService {
       year,
       month,
       floor,
-      total: rows.reduce((a, p) => a + p.amount, 0),
+      total: netIncome(rows),
       ...cashCardTotals(rows),
-      count: rows.length,
+      count: rows.filter((p) => p.status === 'PAID').length,
+      refund: rows.filter((p) => p.status === 'REFUND').reduce((a, p) => a + p.amount, 0),
       paid: stayRows.filter((s) => s.payStatus === 'PAID').length,
       partial: stayRows.filter((s) => s.payStatus === 'PARTIAL').length,
       unpaid: stayRows.filter((s) => s.payStatus === 'UNPAID').length,
       debt: stayRows.reduce((a, s) => a + s.debt, 0),
-      daily: rows.filter((p) => p.type === 'DAILY').reduce((a, p) => a + p.amount, 0),
-      monthly: rows.filter((p) => p.type === 'MONTHLY').reduce((a, p) => a + p.amount, 0),
-      migrant: rows.filter((p) => p.type === 'MIGRANT').reduce((a, p) => a + p.amount, 0),
+      daily: netIncome(rows.filter((p) => p.type === 'DAILY')),
+      monthly: netIncome(rows.filter((p) => p.type === 'MONTHLY')),
+      migrant: netIncome(rows.filter((p) => p.type === 'MIGRANT')),
       chart,
       rows,
       stayRows,

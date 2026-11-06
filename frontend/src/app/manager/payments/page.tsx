@@ -14,6 +14,7 @@ import {
   floorLabel,
   formatDate,
   formatMoney,
+  paymentAmountLabel,
   formatTime,
   methodLabel,
   PAYMENT_METHOD_OPTIONS,
@@ -178,7 +179,7 @@ export default function ManagerPaymentsPage() {
                 <td className="px-3 py-3">{stayTypeLabel(r.type)}</td>
                 <td className="px-3 py-3">{r.period}</td>
                 <td className="px-3 py-3">{formatMoney(r.stay.totalAmount)}</td>
-                <td className="px-3 py-3">{formatMoney(r.amount)}</td>
+                <td className="px-3 py-3">{paymentAmountLabel(r)}</td>
                 <td className="px-3 py-3">{formatMoney(Math.max(0, r.stay.totalAmount - r.stay.paidAmount))}</td>
                 <td className="px-3 py-3">{methodLabel(r.method)}</td>
                 <td className="px-3 py-3">{formatDate(r.paidAt)}</td>

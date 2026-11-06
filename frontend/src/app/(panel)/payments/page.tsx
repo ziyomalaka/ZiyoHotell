@@ -6,7 +6,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { SectorFilter } from "@/components/SectorFilter";
 import { PaginationBar } from "@/components/PaginationBar";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatMoney, methodLabel, PAYMENT_METHOD_OPTIONS, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
+import { checkoutDate, DAILY_STAY_PRICE, DEFAULT_MONTHLY_PRICE, MONTHLY_DAY_PRICE, dash, displayUzPhone, daysForAmount, describeDays, floorLabel, formatDate, formatMoney,
+  paymentAmountLabel, methodLabel, PAYMENT_METHOD_OPTIONS, payStatusLabel, stayTypeLabel, todayISO } from "@/lib/format";
 
 type Stay = {
   id: string;
@@ -200,7 +201,7 @@ export default function PaymentsPage() {
                 <td>{row.stay.room.number}</td>
                 <td>{row.stay.bed.number}</td>
                 <td>{stayTypeLabel(row.type)}</td>
-                <td className="tabular">{formatMoney(row.amount)}</td>
+                <td className="tabular">{paymentAmountLabel(row)}</td>
                 <td>{methodLabel(row.method || "")}</td>
                 <td>{row.days ? describeDays(row.days, row.type) : "—"}</td>
                 <td>{formatDate(row.coversTo || checkoutDate(row.stay))}</td>

@@ -130,6 +130,12 @@ export class ReceptionController {
     return this.reception.listStays({ ...query, ...page });
   }
 
+  @Get('stays/:id/checkout-preview')
+  @ApiOperation({ summary: 'Chiqarish oldidan: foydalanilmagan kunlar va qaytim summasi' })
+  checkoutPreview(@Param('id') id: string, @Query('at') at?: string) {
+    return this.reception.checkoutPreview(id, at);
+  }
+
   @Post('check-out')
   @Permissions('stays.manage')
   @ApiOperation({ summary: 'Check-out' })

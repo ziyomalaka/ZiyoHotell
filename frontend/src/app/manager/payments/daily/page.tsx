@@ -5,7 +5,8 @@ import { api } from "@/lib/api";
 import { LoadingSkeleton } from "@/components/EmptyState";
 import { SectorFilter } from "@/components/SectorFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
+import { checkoutDate, dash, displayUzPhone, floorLabel, formatDate, formatMoney,
+  paymentAmountLabel, formatTime, methodLabel, payStatusLabel, stayTypeLabel } from "@/lib/format";
 import { useTodayISO } from "@/components/CurrentDate";
 
 type Row = {
@@ -36,6 +37,8 @@ type Data = {
   terminal?: number;
   /** Migrantlardan tushgan summa. */
   migrant?: number;
+  /** Chiqishda qaytarilgan pul (tushumdan ayirilgan). */
+  refund?: number;
   rows: Row[];
 };
 
@@ -66,6 +69,9 @@ export default function ManagerDailyPaymentsPage() {
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Bugungi tushum</p>
           <strong className="text-base sm:text-2xl">{formatMoney(data.total)}</strong>
+          {data.refund ? (
+            <span className="mt-1 block text-[11px] text-muted">qaytim −{formatMoney(data.refund)}</span>
+          ) : null}
         </div>
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Naqd</p>
@@ -119,7 +125,7 @@ export default function ManagerDailyPaymentsPage() {
                 <td>{formatDate(r.customer.birthDate)}</td>
                 <td>{floorLabel(r.stay.room.floor)}</td>
                 <td>{r.stay.room.number}</td>
-                <td className="tabular">{formatMoney(r.amount)}</td>
+                <td className="tabular">{paymentAmountLabel(r)}</td>
                 <td>{methodLabel(r.method || "")}</td>
                 <td>{stayTypeLabel(r.type)}</td>
                 <td>{formatDate(r.coversTo || checkoutDate(r.stay))}</td>
@@ -142,7 +148,7 @@ export default function ManagerDailyPaymentsPage() {
                   <p className="text-sm text-muted">{r.stay.room.number}-xona</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="tabular text-base font-semibold text-navy">{formatMoney(r.amount)}</p>
+                  <p className="tabular text-base font-semibold text-navy">{paymentAmountLabel(r)}</p>
                   <StatusBadge value={r.status === "PAID" ? "PAID" : "UNPAID"} label={payStatusLabel(r.status)} />
                 </div>
               </div>

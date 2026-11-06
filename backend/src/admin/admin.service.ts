@@ -10,7 +10,7 @@ import { AppError, required } from '../common/errors';
 import { AuthService } from '../auth/auth.service';
 import { dayEnd, dayStart, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { capacityMonthlyPrice, checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE } from '../common/billing';
+import { capacityMonthlyPrice, checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE, INCOME_STATUSES, netIncome } from '../common/billing';
 import { DEFAULT_ROLE_PERMISSIONS, normalizeRole } from '../common/roles';
 
 const execFileAsync = promisify(execFile);
@@ -54,6 +54,16 @@ export class AdminService {
     });
   }
 
+  /** Kassa tushumi: to'lovlar minus chiqishda qaytarilgan pul (qaytim). */
+  private async incomeBetween(from: Date, to?: Date) {
+    const groups = await this.prisma.payment.groupBy({
+      by: ['status'],
+      _sum: { amount: true },
+      where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: from, ...(to ? { lte: to } : {}) } },
+    });
+    return netIncome(groups.map((g) => ({ status: g.status, amount: g._sum.amount || 0 })));
+  }
+
   async dashboard() {
     const today = todayISO();
     const monthStart = today.slice(0, 8) + '01';
@@ -67,14 +77,8 @@ export class AdminService {
         this.prisma.user.count(),
         this.prisma.checkLog.count({ where: { type: 'CHECK_IN', at: { gte: dayStart(today), lte: dayEnd(today) } } }),
         this.prisma.checkLog.count({ where: { type: 'CHECK_OUT', at: { gte: dayStart(today), lte: dayEnd(today) } } }),
-        this.prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: { status: 'PAID', paidAt: { gte: dayStart(today), lte: dayEnd(today) } },
-        }),
-        this.prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: { status: 'PAID', paidAt: { gte: dayStart(monthStart) } },
-        }),
+        this.incomeBetween(dayStart(today), dayEnd(today)),
+        this.incomeBetween(dayStart(monthStart)),
         this.prisma.stay.findMany({ select: { totalAmount: true, paidAmount: true } }),
       ]);
     const debt = stays.reduce((acc, s) => acc + Math.max(0, s.totalAmount - s.paidAmount), 0);
@@ -92,14 +96,11 @@ export class AdminService {
     const checkFlow = [];
     for (const day of last7) {
       const [inc, cin, cout] = await Promise.all([
-        this.prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: { status: 'PAID', paidAt: { gte: dayStart(day), lte: dayEnd(day) } },
-        }),
+        this.incomeBetween(dayStart(day), dayEnd(day)),
         this.prisma.checkLog.count({ where: { type: 'CHECK_IN', at: { gte: dayStart(day), lte: dayEnd(day) } } }),
         this.prisma.checkLog.count({ where: { type: 'CHECK_OUT', at: { gte: dayStart(day), lte: dayEnd(day) } } }),
       ]);
-      dailyIncome.push({ day: day.slice(8), value: inc._sum.amount || 0 });
+      dailyIncome.push({ day: day.slice(8), value: inc });
       checkFlow.push({ day: day.slice(8), in: cin, out: cout });
     }
     const payGroups = await this.prisma.payment.groupBy({
@@ -117,8 +118,8 @@ export class AdminService {
       staff,
       inToday,
       outToday,
-      todayIncome: payToday._sum.amount || 0,
-      monthIncome: payMonth._sum.amount || 0,
+      todayIncome: payToday,
+      monthIncome: payMonth,
       debt,
       occupancyPercent: beds ? Math.round((occupied / beds) * 100) : 0,
       dailyIncome,
@@ -842,7 +843,22 @@ export class AdminService {
       },
     });
     if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
-    return customer;
+    // Chiqib ketgan mijozning to'lov tarixi profilda ko'rsatilmaydi (kassa hisobotlarida qoladi).
+    const current = customer.occupancy?.stay;
+    // Profil sahifasi qarzdorlik va audit qatorlarini kutadi (ilgari qaytarilmas edi — sahifa ochilmasdi).
+    const audits = await this.prisma.auditLog.findMany({
+      where: { entityId: { in: [id, ...customer.stays.map((s) => s.id)] } },
+      include: { user: { select: { fullName: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+    const debt = customer.stays.reduce((acc, s) => acc + Math.max(0, s.totalAmount - s.paidAmount), 0);
+    return {
+      ...customer,
+      payments: current ? customer.payments.filter((p) => p.stayId === current.id) : [],
+      debt,
+      audits,
+    };
   }
 
   async listStays(opts: {

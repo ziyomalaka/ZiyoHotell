@@ -15,6 +15,7 @@ import {
   floorLabel,
   formatDate,
   formatMoney,
+  paymentAmountLabel,
   methodLabel,
   PAYMENT_METHOD_OPTIONS,
   payStatusLabel,
@@ -53,6 +54,9 @@ type PayRep = {
   /** Migrantlardan tushgan summa va to‘lovlar soni. */
   migrant?: number;
   migrantCount?: number;
+  /** Chiqishda mijozga qaytarilgan pul (tushumdan ayirilgan). */
+  refund?: number;
+  refundCount?: number;
 };
 
 /** Kunlik tushum: bugungi to‘lovlar va naqd/karta/terminal jamlari. */
@@ -296,6 +300,9 @@ function DailyIncome({ data }: { data: DailyRep | null }) {
   });
   const other = paid.filter((r) => !PAYMENT_METHOD_OPTIONS.some((o) => o.value === r.method));
   if (other.length) byMethod.push({ label: "Boshqa", count: other.length, sum: other.reduce((a, r) => a + r.amount, 0) });
+  // Chiqishda mijozga qaytarilgan pul — tushumdan ayiriladi.
+  const refunds = rows.filter((r) => r.status === "REFUND");
+  if (refunds.length) byMethod.push({ label: "Qaytim", count: refunds.length, sum: -refunds.reduce((a, r) => a + r.amount, 0) });
 
   return (
     <div className="mt-5 space-y-5">
@@ -303,7 +310,10 @@ function DailyIncome({ data }: { data: DailyRep | null }) {
         <div className="stat-quiet">
           <p>Bugungi tushum</p>
           <strong className="text-lg">{formatMoney(data?.total || 0)}</strong>
-          <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">{paid.length} ta to‘lov</p>
+          <p className="mt-1 text-[11px] normal-case tracking-normal text-muted">
+            {paid.length} ta to‘lov
+            {data?.refund ? ` · qaytim −${formatMoney(data.refund)}` : ""}
+          </p>
         </div>
         <div className="stat-quiet">
           <p>Naqd</p>
@@ -374,8 +384,8 @@ function DailyIncome({ data }: { data: DailyRep | null }) {
                 <td>
                   {floorLabel(r.stay.room.floor)} · {r.stay.room.number}/{r.stay.bed.number}
                 </td>
-                <td className="tabular whitespace-nowrap">{formatMoney(r.amount)}</td>
-                <td>{r.status === "PAID" ? methodLabel(r.method) : "—"}</td>
+                <td className="tabular whitespace-nowrap">{paymentAmountLabel(r)}</td>
+                <td>{r.status === "PAID" || r.status === "REFUND" ? methodLabel(r.method) : "—"}</td>
                 <td>{payStatusLabel(r.status)}</td>
                 <td>{r.createdBy?.fullName || "—"}</td>
               </tr>

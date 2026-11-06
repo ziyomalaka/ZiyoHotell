@@ -64,18 +64,62 @@ export function methodSplit(method: string | null | undefined, amount: number) {
   return { cash: 0, card: 0, terminal: 0 };
 }
 
-/** To‘langan summalarni naqd, karta va terminal bo‘yicha ajratadi. */
-export function cashCardTotals(rows: { method?: string | null; amount: number }[]) {
+/**
+ * Kassaga ta’sir qiluvchi to‘lov holatlari. REFUND — chiqishda mijozga qaytarilgan pul (qaytim):
+ * summa musbat saqlanadi, lekin hisobotda ayiriladi.
+ */
+export const INCOME_STATUSES = ['PAID', 'REFUND'] as const;
+
+/** Kassa uchun ishorali summa: qaytim manfiy. */
+export function signedAmount(row: { status?: string | null; amount: number }) {
+  return row.status === 'REFUND' ? -row.amount : row.amount;
+}
+
+/** Kassa tushumi: to‘lovlar minus qaytimlar (boshqa holatlar hisobga olinmaydi). */
+export function netIncome(rows: { status?: string | null; amount: number }[]) {
+  return rows.reduce((acc, row) => acc + (row.status === 'PAID' || row.status === 'REFUND' ? signedAmount(row) : 0), 0);
+}
+
+/** To‘langan summalarni naqd, karta va terminal bo‘yicha ajratadi. Qaytim (REFUND) ayiriladi. */
+export function cashCardTotals(rows: { method?: string | null; amount: number; status?: string | null }[]) {
   let cash = 0;
   let card = 0;
   let terminal = 0;
   for (const row of rows) {
-    const part = methodSplit(row.method, row.amount);
-    cash += part.cash;
-    card += part.card;
-    terminal += part.terminal;
+    const part = methodSplit(row.method, Math.abs(row.amount));
+    const sign = row.status === 'REFUND' ? -1 : 1;
+    cash += sign * part.cash;
+    card += sign * part.card;
+    terminal += sign * part.terminal;
   }
   return { cash, card, terminal };
+}
+
+/**
+ * Chiqishda qaytariladigan summa: har bir to‘lov yopgan davrning chiqish kunidan keyingi
+ * (foydalanilmagan) kunlari shu to‘lovning kunlik narxi bo‘yicha qaytariladi.
+ * Masalan: 750 000 = 30 kun, 10 kun yashab chiqsa — 20 kun × 25 000 = 500 000.
+ */
+export function refundableAmount(
+  payments: { status: string; amount: number; days: number; coversFrom: Date | null; coversTo: Date | null }[],
+  checkoutDay: Date,
+) {
+  const day = 24 * 60 * 60 * 1000;
+  const out = Date.UTC(checkoutDay.getUTCFullYear(), checkoutDay.getUTCMonth(), checkoutDay.getUTCDate());
+  let amount = 0;
+  let days = 0;
+  for (const p of payments) {
+    if (p.status !== 'PAID' || !p.days || !p.coversFrom || !p.coversTo) continue;
+    const from = Date.UTC(p.coversFrom.getUTCFullYear(), p.coversFrom.getUTCMonth(), p.coversFrom.getUTCDate());
+    const to = Date.UTC(p.coversTo.getUTCFullYear(), p.coversTo.getUTCMonth(), p.coversTo.getUTCDate());
+    const unused = Math.min(p.days, Math.max(0, Math.round((to - Math.max(out, from)) / day)));
+    if (!unused) continue;
+    days += unused;
+    amount += Math.round((p.amount * unused) / p.days);
+  }
+  // Oldin qaytarilgan summa ayiriladi: bir yashash uchun ikki marta qaytim berilmaydi.
+  const refunded = payments.filter((p) => p.status === 'REFUND').reduce((acc, p) => acc + p.amount, 0);
+  return { days, amount: Math.max(0, amount - refunded) };
 }
 
 /** Oylik narxdan kunlik tarif: 750 000 / 30 = 25 000. */

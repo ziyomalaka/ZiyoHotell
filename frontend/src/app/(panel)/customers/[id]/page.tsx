@@ -18,6 +18,7 @@ import {
   formatDate,
   formatDateTime,
   formatMoney,
+  paymentAmountLabel,
   methodLabel,
   payStatusLabel,
   sectorLabel,
@@ -237,7 +238,7 @@ export default function ReceptionCustomerProfile() {
                 {c.payments.map((p) => (
                   <tr key={p.id} className={p.status === "CANCELLED" ? "opacity-60" : ""}>
                     <td>{formatDate(p.paidAt)}</td>
-                    <td className="tabular whitespace-nowrap font-medium">{formatMoney(p.amount)}</td>
+                    <td className="tabular whitespace-nowrap font-medium">{paymentAmountLabel(p)}</td>
                     <td>{methodLabel(p.method)}</td>
                     <td>{stayTypeLabel(p.type)}</td>
                     <td className="whitespace-nowrap">

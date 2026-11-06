@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UZ_MONTHS, addDays, dayEnd, dayStart, todayISO } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
-import { cashCardTotals, methodSplit, periodInfo } from '../common/billing';
+import { cashCardTotals, INCOME_STATUSES, methodSplit, netIncome, periodInfo, signedAmount } from '../common/billing';
 import { sectorBreakdown } from '../common/sector';
 
 @Injectable()
@@ -121,28 +121,30 @@ export class ReportsService {
       include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: { select: { id: true, fullName: true } } },
       orderBy: { paidAt: 'desc' },
     });
-    const sum = (status?: string, type?: string) =>
-      payments
-        .filter((p) => (status ? p.status === status : true) && (type ? p.type === type : true))
-        .reduce((acc, p) => acc + p.amount, 0);
+    // Kassa tushumi = to'lovlar minus chiqishda qaytarilgan pul (qaytim, REFUND).
+    const income = payments.filter((p) => (INCOME_STATUSES as readonly string[]).includes(p.status));
+    const sum = (type?: string) => netIncome(income.filter((p) => (type ? p.type === type : true)));
     const unpaidDebt = await this.prisma.stay.findMany({
       where: level ? { room: { sector: { number: level } } } : {},
       select: { totalAmount: true, paidAmount: true, status: true },
     });
     const unpaidStays = unpaidDebt.filter((s) => s.paidAmount < s.totalAmount);
     const paidRows = payments.filter((p) => p.status === 'PAID');
-    const split = cashCardTotals(paidRows);
+    const refundRows = payments.filter((p) => p.status === 'REFUND');
+    const split = cashCardTotals(income);
     return {
       floor: level,
-      daily: sum('PAID', 'DAILY'),
-      monthly: sum('PAID', 'MONTHLY'),
-      migrant: sum('PAID', 'MIGRANT'),
+      daily: sum('DAILY'),
+      monthly: sum('MONTHLY'),
+      migrant: sum('MIGRANT'),
       migrantCount: paidRows.filter((p) => p.type === 'MIGRANT').length,
-      total: sum('PAID'),
+      total: sum(),
       cash: split.cash,
       card: split.card,
       terminal: split.terminal,
-      paid: sum('PAID'),
+      paid: sum(),
+      refund: refundRows.reduce((acc, p) => acc + p.amount, 0),
+      refundCount: refundRows.length,
       partial: 0,
       unpaid: unpaidStays.reduce((acc, s) => acc + Math.max(0, s.totalAmount - s.paidAmount), 0),
       unpaidCount: unpaidStays.length,
@@ -257,7 +259,8 @@ export class ReportsService {
       }),
     ]);
 
-    const paid = payments.filter((p) => p.status === 'PAID');
+    // Qaytim (REFUND) shu davr tushumidan ayiriladi.
+    const paid = payments.filter((p) => (INCOME_STATUSES as readonly string[]).includes(p.status));
     const index = new Map(buckets.map((b) => [b.key, { ...b, in: 0, out: 0, income: 0, cash: 0, card: 0, terminal: 0 }]));
     for (const log of logs) {
       const row = index.get(bucketKey(log.at, view));
@@ -268,11 +271,12 @@ export class ReportsService {
     for (const pay of paid) {
       const row = index.get(bucketKey(pay.paidAt, view));
       if (!row) continue;
-      row.income += pay.amount;
+      const sign = pay.status === 'REFUND' ? -1 : 1;
+      row.income += signedAmount(pay);
       const part = methodSplit(pay.method, pay.amount);
-      row.cash += part.cash;
-      row.card += part.card;
-      row.terminal += part.terminal;
+      row.cash += sign * part.cash;
+      row.card += sign * part.card;
+      row.terminal += sign * part.terminal;
     }
 
     const rows = [...index.values()]

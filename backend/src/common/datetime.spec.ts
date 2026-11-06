@@ -1,6 +1,6 @@
 import { paymentStatusFromAmounts, stayDebt } from './datetime';
 import { homePath, normalizeRole } from './roles';
-import { capacityMonthlyPrice, checkoutDate, daysForAmount, describeDays, paymentPeriod } from './billing';
+import { capacityMonthlyPrice, cashCardTotals, checkoutDate, daysForAmount, describeDays, netIncome, paymentPeriod, refundableAmount } from './billing';
 
 describe('money source of truth', () => {
   it('UNPAID when paid is 0', () => {
@@ -118,5 +118,43 @@ describe('capacity pricing', () => {
     expect(daysForAmount(1200000, capacityMonthlyPrice(2), 'MONTHLY')).toBe(30);
     expect(daysForAmount(1500000, capacityMonthlyPrice(2), 'MONTHLY')).toBe(37);
     expect(describeDays(37, 'MONTHLY')).toContain('1 oy');
+  });
+});
+
+describe('checkout refund', () => {
+  const day = (iso: string) => new Date(`${iso}T12:00:00.000Z`);
+  const pay = (amount: number, days: number, from: string, to: string) => ({
+    status: 'PAID',
+    amount,
+    days,
+    coversFrom: day(from),
+    coversTo: day(to),
+  });
+
+  it('returns unused days of a monthly payment', () => {
+    // 750 000 = 30 kun, 10 kun yashab chiqdi: 20 kun x 25 000.
+    const r = refundableAmount([pay(750000, 30, '2026-11-01', '2026-12-01')], day('2026-11-11'));
+    expect(r).toEqual({ days: 20, amount: 500000 });
+  });
+
+  it('counts prepaid periods and subtracts earlier refunds', () => {
+    const payments = [pay(750000, 30, '2026-11-01', '2026-12-01'), pay(750000, 30, '2026-12-01', '2026-12-31')];
+    expect(refundableAmount(payments, day('2026-11-21'))).toEqual({ days: 40, amount: 1000000 });
+    const refunded = [...payments, { status: 'REFUND', amount: 400000, days: 0, coversFrom: null, coversTo: null }];
+    expect(refundableAmount(refunded, day('2026-11-21')).amount).toBe(600000);
+  });
+
+  it('returns nothing after the paid period ends', () => {
+    expect(refundableAmount([pay(750000, 30, '2026-11-01', '2026-12-01')], day('2026-12-05'))).toEqual({ days: 0, amount: 0 });
+  });
+
+  it('subtracts refunds from cash income', () => {
+    const rows = [
+      { status: 'PAID', amount: 900000, method: 'CASH' },
+      { status: 'REFUND', amount: 200000, method: 'CASH' },
+      { status: 'UNPAID', amount: 50000, method: 'CASH' },
+    ];
+    expect(netIncome(rows)).toBe(700000);
+    expect(cashCardTotals(rows.filter((r) => r.status !== 'UNPAID')).cash).toBe(700000);
   });
 });

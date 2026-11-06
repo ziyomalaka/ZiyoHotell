@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, paymentPeriod, PaymentMethod, periodInfo, revertPeriod, STAY_TYPES, type StayType } from '../common/billing';
+import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, INCOME_STATUSES, netIncome, paymentPeriod, PaymentMethod, periodInfo, refundableAmount, revertPeriod, signedAmount, STAY_TYPES, type StayType } from '../common/billing';
 import { normalizeMigrantPassportId, normalizePassportId } from '../common/passport';
 import { normalizePhone } from '../common/phone';
 
@@ -143,8 +143,9 @@ export class ReceptionService implements OnModuleInit {
 
   async findCustomerByPassportOrPhone(passportId?: string, phone?: string) {
     if (passportId) {
-      const id = passportId.trim().toUpperCase();
-      if (/^[A-Z]{2}\d{7}$/.test(id)) {
+      // Oddiy ID (AA1234567) ham, migrant pasporti ham (bo'sh joy/chiziqchasiz) qidiriladi.
+      const id = passportId.replace(/[\s-]+/g, '').toUpperCase();
+      if (id.length >= 3) {
         const byPassport = await this.prisma.customer.findUnique({
           where: { passportId: id },
           include: { occupancy: { include: { stay: { include: stayInclude } } } },
@@ -222,9 +223,11 @@ export class ReceptionService implements OnModuleInit {
           );
         }
 
-        const existing = await tx.customer.findUnique({ where: { passportId } });
-        if (existing && !existing.deletedAt) {
-          throw new AppError('Bu mijoz kiritilgan.', 409, 'CUSTOMER_ALREADY_EXISTS');
+        // Hozir yashayotgan mijozni ikkinchi marta joylashtirib bo‘lmaydi. Chiqib ketgan (yoki o‘chirilgan)
+        // mijoz qaytib kelsa — shu kundan yangi yashash ochiladi, eski to‘lovlar profilda ko‘rinmaydi.
+        const existing = await tx.customer.findUnique({ where: { passportId }, include: { occupancy: true } });
+        if (existing?.occupancy) {
+          throw new AppError('Bu mijoz hozir yotoqxonada yashayapti.', 409, 'CUSTOMER_ALREADY_EXISTS');
         }
         const details = {
           fullName: input.fullName.trim(),
@@ -237,7 +240,7 @@ export class ReceptionService implements OnModuleInit {
           notes: input.notes?.trim() || null,
           migrant,
         };
-        // O'chirilgan mijoz qaytib kelsa, eski yozuvi tiklanadi: tarixi va to'lovlari bir joyda qoladi.
+        // Qaytib kelgan mijozning yozuvi yangilanadi (o'chirilgan bo'lsa tiklanadi) va unga yangi yashash ochiladi.
         const customer = existing
           ? await tx.customer.update({ where: { id: existing.id }, data: { ...details, deletedAt: null } })
           : await tx.customer.create({ data: { ...details, createdById: userId } });
@@ -363,17 +366,97 @@ export class ReceptionService implements OnModuleInit {
     }
   }
 
-  async checkoutStay(input: { stayId: string; at?: string; note?: string }, userId: string) {
+  /** Chiqish kuni (Toshkent kalendar kuni). */
+  private checkoutDay(at?: string) {
+    return parseDate(at && /^\d{4}-\d{2}-\d{2}/.test(at) ? at.slice(0, 10) : todayISO());
+  }
+
+  /**
+   * Chiqarish oldidan: yashash muddati tugamagan bo‘lsa, foydalanilmagan kunlar va
+   * qaytarilishi mumkin bo‘lgan summa (qaytim). Frontend shunga qarab "qaytariladimi?" deb so‘raydi.
+   */
+  async checkoutPreview(stayId: string, at?: string) {
+    const stay = await this.prisma.stay.findUnique({
+      where: { id: stayId },
+      include: {
+        payments: {
+          where: { status: { in: ['PAID', 'REFUND'] } },
+          select: { status: true, amount: true, days: true, coversFrom: true, coversTo: true, paidAt: true },
+          orderBy: { paidAt: 'desc' },
+        },
+      },
+    });
+    if (!stay || stay.status !== 'ACTIVE') throw new AppError('Mijoz hozir yotoqxonada faol emas.');
+    const day = this.checkoutDay(at);
+    const info = periodInfo(stay, day);
+    const refund = refundableAmount(stay.payments, day);
+    const last = stay.payments.find((p) => p.status === 'PAID');
+    return {
+      checkoutDate: todayISO(day),
+      dueDate: info.dueDate,
+      remainingDays: Math.max(0, info.daysLeft ?? 0),
+      refundableDays: refund.days,
+      refundable: refund.amount,
+      lastPaidAt: last?.paidAt ?? null,
+      lastPaidAmount: last?.amount ?? null,
+    };
+  }
+
+  async checkoutStay(
+    input: { stayId: string; at?: string; note?: string; refund?: boolean; refundAmount?: number; refundMethod?: PaymentMethod },
+    userId: string,
+  ) {
     required({ stayId: input.stayId });
     return this.prisma.$transaction(async (tx) => {
+      // To‘lov qo‘shish bilan bir xil qulf: chiqarish paytida parallel to‘lov yozilmasin.
+      await tx.$queryRaw`SELECT id FROM "Stay" WHERE id = ${input.stayId} FOR UPDATE`;
       const stay = await tx.stay.findUnique({
         where: { id: input.stayId },
-        include: { occupancy: true, customer: true, room: true, bed: true },
+        include: {
+          occupancy: true,
+          customer: true,
+          room: true,
+          bed: true,
+          payments: {
+            where: { status: { in: ['PAID', 'REFUND'] } },
+            select: { status: true, amount: true, days: true, coversFrom: true, coversTo: true },
+          },
+        },
       });
       if (!stay || stay.status !== 'ACTIVE' || !stay.occupancy) {
         throw new AppError('Mijoz hozir yotoqxonada faol emas.');
       }
       const at = input.at ? new Date(input.at) : new Date();
+
+      // Muddat tugamagan bo‘lsa va xodim "qaytarilsin" desa — qaytim kassadan chiqim sifatida yoziladi.
+      // "Qaytarilmasin" desa hech narsa o‘zgarmaydi: to‘lov mijozdan olingan, hisobotda qoladi.
+      let refund: { amount: number; method: string } | null = null;
+      if (input.refund) {
+        const day = this.checkoutDay(input.at);
+        const computed = refundableAmount(stay.payments, day).amount;
+        const amount = Math.trunc(Number(input.refundAmount ?? computed));
+        const netPaid = stay.payments.reduce((acc, p) => acc + signedAmount(p), 0);
+        if (!(amount > 0)) throw new AppError('Qaytariladigan summa yo‘q.', 400, 'NOTHING_TO_REFUND');
+        if (amount > netPaid) {
+          throw new AppError('Qaytim mijoz to‘lagan summadan oshib ketdi.', 400, 'REFUND_TOO_LARGE');
+        }
+        const method = input.refundMethod === 'BANK_TRANSFER' ? 'BANK' : input.refundMethod || 'CASH';
+        await tx.payment.create({
+          data: {
+            customerId: stay.customerId,
+            stayId: stay.id,
+            type: stay.type,
+            period: 'Qaytim',
+            amount,
+            days: 0,
+            method,
+            status: 'REFUND',
+            paidAt: day,
+            createdById: userId,
+          },
+        });
+        refund = { amount, method };
+      }
       await tx.checkLog.create({
         data: {
           stayId: stay.id,
@@ -396,10 +479,10 @@ export class ReceptionService implements OnModuleInit {
           action: 'CHECK_OUT',
           entity: 'Stay',
           entityId: stay.id,
-          meta: JSON.stringify({ debt: stay.totalAmount - stay.paidAmount }),
+          meta: JSON.stringify({ debt: stay.totalAmount - stay.paidAmount, refund }),
         },
       });
-      return updated;
+      return { ...updated, refund };
     });
   }
 
@@ -773,9 +856,13 @@ export class ReceptionService implements OnModuleInit {
     });
     if (!customer) throw new AppError('Mijoz topilmadi.', 404, 'NOT_FOUND');
     const current = customer.occupancy?.stay;
+    // Chiqib ketgan mijozning to'lov tarixi profilda ko'rsatilmaydi (kassa hisobotlarida qoladi).
+    // Qaytib kelsa — faqat yangi yashashining to'lovlari ko'rinadi.
+    const payments = current ? customer.payments.filter((p) => p.stayId === current.id) : [];
     return {
       ...customer,
-      paid: customer.payments.filter((p) => p.status === 'PAID').reduce((acc, p) => acc + p.amount, 0),
+      payments,
+      paid: netIncome(payments),
       // Profil sahifasi uchun: joriy yashashning to'lov muddati va qolgan kunlari.
       current: current ? { ...current, ...periodInfo(current) } : null,
     };
@@ -929,21 +1016,22 @@ export class ReceptionService implements OnModuleInit {
   async incomeSummary() {
     const today = todayISO();
     const monthStart = today.slice(0, 8) + '01';
+    // Tushum = to'lovlar minus chiqishda qaytarilgan pul (qaytim).
     const [todayRows, monthRows] = await Promise.all([
       this.prisma.payment.findMany({
-        where: { status: 'PAID', paidAt: { gte: dayStart(today), lte: dayEnd(today) } },
-        select: { amount: true, method: true },
+        where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: dayStart(today), lte: dayEnd(today) } },
+        select: { amount: true, method: true, status: true },
       }),
       this.prisma.payment.findMany({
-        where: { status: 'PAID', paidAt: { gte: dayStart(monthStart), lte: dayEnd(today) } },
-        select: { amount: true, method: true },
+        where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: dayStart(monthStart), lte: dayEnd(today) } },
+        select: { amount: true, method: true, status: true },
       }),
     ]);
     const todaySplit = cashCardTotals(todayRows);
     const monthSplit = cashCardTotals(monthRows);
     return {
-      todayIncome: todayRows.reduce((acc, p) => acc + p.amount, 0),
-      monthIncome: monthRows.reduce((acc, p) => acc + p.amount, 0),
+      todayIncome: netIncome(todayRows),
+      monthIncome: netIncome(monthRows),
       todayCash: todaySplit.cash,
       todayCard: todaySplit.card,
       todayTerminal: todaySplit.terminal,

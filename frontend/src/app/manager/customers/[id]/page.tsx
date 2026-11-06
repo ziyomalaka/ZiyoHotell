@@ -10,6 +10,7 @@ import {
   floorLabel,
   formatDate,
   formatMoney,
+  paymentAmountLabel,
   payStatusLabel,
   stayTypeLabel,
 } from "@/lib/format";
@@ -77,7 +78,7 @@ export default function ManagerCustomerProfile() {
         <h2 className="font-semibold">To‘lov tarixi</h2>
         {c.payments.map((p) => (
           <p key={p.id} className="mt-2 text-sm">
-            {formatDate(p.paidAt)} · {formatMoney(p.amount)} · {p.period} · {payStatusLabel(p.status)}
+            {formatDate(p.paidAt)} · {paymentAmountLabel(p)} · {p.period} · {payStatusLabel(p.status)}
           </p>
         ))}
       </section>

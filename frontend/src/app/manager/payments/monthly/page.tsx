@@ -29,6 +29,8 @@ type Data = {
   terminal?: number;
   /** Migrantlardan tushgan summa. */
   migrant?: number;
+  /** Chiqishda qaytarilgan pul (tushumdan ayirilgan). */
+  refund?: number;
   paid: number;
   unpaid: number;
   partial: number;
@@ -85,6 +87,9 @@ export default function ManagerMonthlyPaymentsPage() {
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Shu oy tushumi</p>
           <strong className="text-base sm:text-2xl">{formatMoney(data.total)}</strong>
+          {data.refund ? (
+            <span className="mt-1 block text-[11px] text-muted">qaytim −{formatMoney(data.refund)}</span>
+          ) : null}
         </div>
         <div className="stat-quiet px-2 py-3 sm:px-4">
           <p className="leading-tight">Naqd</p>
@@ -126,8 +131,8 @@ export default function ManagerMonthlyPaymentsPage() {
             </tr>
           </thead>
           <tbody>
-            {data.stayRows.map((r) => (
-              <tr key={`${r.customer}-${r.room}-${r.bed}`}>
+            {data.stayRows.map((r, i) => (
+              <tr key={`${r.customer}-${r.room}-${r.bed}-${i}`}>
                 <td>{r.customer}</td>
                 <td>{floorLabel(r.floor)}</td>
                 <td>{roomBedLabel(r.room, r.bed)}</td>
@@ -144,8 +149,8 @@ export default function ManagerMonthlyPaymentsPage() {
         </table>
       </div>
       <div className="mt-5 space-y-3 lg:hidden">
-        {data.stayRows.map((r) => (
-          <details key={`${r.customer}-${r.room}-${r.bed}`} className="mgr-list-card">
+        {data.stayRows.map((r, i) => (
+          <details key={`${r.customer}-${r.room}-${r.bed}-${i}`} className="mgr-list-card">
             <summary className="min-h-11">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">

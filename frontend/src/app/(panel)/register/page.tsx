@@ -82,6 +82,7 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [idTaken, setIdTaken] = useState(false);
+  const [returning, setReturning] = useState(false);
   const today = useTodayISO();
   const migrant = form.stayType === "MIGRANT";
   const idValid = migrant ? isValidMigrantPassportId(form.passportId) : isValidPassportId(form.passportId);
@@ -99,19 +100,26 @@ export default function RegisterPage() {
     if (today) setForm((prev) => (prev.startDate ? prev : { ...prev, startDate: today }));
   }, [today]);
 
+  // Hozir yashayotgan mijozni qayta joylashtirib bo‘lmaydi. Chiqib ketgan mijoz qaytib kelsa —
+  // shu kundan yangi yashash ochiladi (eski to‘lovlari profilda ko‘rinmaydi).
   useEffect(() => {
     if (!idValid) {
       setIdTaken(false);
+      setReturning(false);
       return;
     }
     let cancelled = false;
     const timer = setTimeout(() => {
-      api<{ id?: string } | null>(`/api/v1/reception/customers/search?passport=${encodeURIComponent(form.passportId)}`)
+      api<{ id?: string; occupancy?: unknown } | null>(`/api/v1/reception/customers/search?passport=${encodeURIComponent(form.passportId)}`)
         .then((found) => {
-          if (!cancelled) setIdTaken(!!found?.id);
+          if (cancelled) return;
+          setIdTaken(!!found?.occupancy);
+          setReturning(!!found?.id && !found?.occupancy);
         })
         .catch(() => {
-          if (!cancelled) setIdTaken(false);
+          if (cancelled) return;
+          setIdTaken(false);
+          setReturning(false);
         });
     }, 250);
     return () => {
@@ -196,7 +204,7 @@ export default function RegisterPage() {
       return;
     }
     if (idTaken) {
-      setError("Bu mijoz kiritilgan.");
+      setError("Bu mijoz hozir yotoqxonada yashayapti.");
       return;
     }
     if (!isValidUzPhone(form.phone)) {
@@ -313,7 +321,10 @@ export default function RegisterPage() {
             ) : (
               <IdNumberInput value={form.passportId} onChange={(value) => patch("passportId", value)} />
             )}
-            {idTaken ? <p className="mt-1 text-xs text-danger">Bu mijoz kiritilgan.</p> : null}
+            {idTaken ? <p className="mt-1 text-xs text-danger">Bu mijoz hozir yotoqxonada yashayapti.</p> : null}
+            {returning ? (
+              <p className="mt-1 text-xs text-[#2d6a45]">Bu mijoz avval yashagan — kirish sanasidan yangi yashash ochiladi.</p>
+            ) : null}
             {migrant && !idTaken ? <p className="mt-1 text-xs text-muted">Migrant: pasport istalgan formatda.</p> : null}
           </FormField>
           <FormField label="Telefon">

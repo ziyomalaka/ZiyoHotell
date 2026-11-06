@@ -17,7 +17,13 @@ function payStatusLabel(status: string) {
   if (status === 'PARTIAL') return 'Qisman to‘lagan';
   if (status === 'UNPAID') return 'To‘lamagan';
   if (status === 'CANCELLED') return 'Bekor qilingan';
+  if (status === 'REFUND') return 'Qaytim';
   return status;
+}
+
+/** Summa: qaytim (REFUND) minus bilan. */
+function amountLabel(row: { status: string; amount: number }) {
+  return row.status === 'REFUND' ? `−${formatMoney(row.amount)}` : formatMoney(row.amount);
 }
 
 function methodLabel(method: string) {
@@ -144,6 +150,7 @@ export class ExcelService {
   private async dailyIncomeSheet(sheet: ExcelJS.Worksheet, day: string, floor?: number) {
     const data = await this.reports.paymentsReport(day, day, floor);
     const paid = data.rows.filter((r) => r.status === 'PAID');
+    const refunds = data.rows.filter((r) => r.status === 'REFUND');
     const sum = (rows: typeof paid) => rows.reduce((acc, r) => acc + r.amount, 0);
     const known = ['CASH', 'CARD', 'TERMINAL', 'MIXED'];
     sheet.addRow([`KUNLIK TUSHUM — ${formatDate(day)}`]);
@@ -155,6 +162,8 @@ export class ExcelService {
     }
     const other = paid.filter((r) => !known.includes(r.method));
     if (other.length) sheet.addRow(['Boshqa', other.length, formatMoney(sum(other))]);
+    // Chiqishda mijozga qaytarilgan pul tushumdan ayiriladi.
+    if (refunds.length) sheet.addRow(['Qaytim', refunds.length, `−${formatMoney(sum(refunds))}`]);
     sheet.addRow(['JAMI', paid.length, formatMoney(data.total)]);
     sheet.addRow([]);
     sheet.addRow(['Naqd (50/50 bilan)', formatMoney(data.cash)]);
@@ -168,9 +177,9 @@ export class ExcelService {
         r.customer.fullName,
         r.stay.room.floor,
         `${r.stay.room.number}/${r.stay.bed.number}`,
-        formatMoney(r.amount),
+        amountLabel(r),
         // To‘lanmagan qatorda usul hali tanlanmagan, shuning uchun ko‘rsatilmaydi.
-        r.status === 'PAID' ? methodLabel(r.method) : '—',
+        r.status === 'PAID' || r.status === 'REFUND' ? methodLabel(r.method) : '—',
         payStatusLabel(r.status),
         r.createdBy.fullName,
       ]),
@@ -396,9 +405,9 @@ export class ExcelService {
         r.customer.fullName,
         r.stay.room.floor,
         r.stay.room.number,
-        formatMoney(r.amount),
+        amountLabel(r),
         formatDate(r.paidAt),
-        r.status,
+        payStatusLabel(r.status),
       ]),
     );
     return this.file(wb, `Yotoqxona_Tolovlar${fx}_${day.slice(0, 7)}.xlsx`);
@@ -461,7 +470,7 @@ export class ExcelService {
           row.stay.bed.number,
           stayTypeLabel(row.type),
           row.period,
-          row.amount,
+          row.status === "REFUND" ? -row.amount : row.amount,
           formatDate(row.coversTo || checkoutDate(row.stay)),
           methodLabel(row.method),
           row.createdBy.fullName,

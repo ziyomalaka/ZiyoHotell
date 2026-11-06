@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { PAYMENT_METHODS, PaymentMethod, STAY_TYPES, type StayType } from '../common/billing';
 import {
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -201,6 +202,23 @@ export class CheckoutDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiPropertyOptional({ description: 'Muddat tugamagan bo‘lsa: to‘lov qaytariladimi (true) yoki yo‘q (false).' })
+  @IsOptional()
+  @IsBoolean()
+  refund?: boolean;
+
+  @ApiPropertyOptional({ description: 'Qaytim summasi. Berilmasa foydalanilmagan kunlardan hisoblanadi.' })
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1, { message: 'Qaytim summasi noto‘g‘ri.' })
+  @IsInt({ message: 'Qaytim summasi butun son bo‘lishi kerak.' })
+  refundAmount?: number;
+
+  @ApiPropertyOptional({ enum: PAYMENT_METHODS })
+  @IsOptional()
+  @IsIn([...PAYMENT_METHODS])
+  refundMethod?: PaymentMethod;
 }
 
 export class CreatePaymentDto {

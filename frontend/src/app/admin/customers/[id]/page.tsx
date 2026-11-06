@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { customerGenderLabel, dash, displayUzPhone, floorLabel, formatDate, formatMoney } from "@/lib/format";
+import { customerGenderLabel, dash, displayUzPhone, floorLabel, formatDate, formatMoney,
+  payStatusLabel,
+  paymentAmountLabel } from "@/lib/format";
 
 type Profile = {
   fullName: string;
@@ -60,13 +62,14 @@ export default function CustomerProfilePage() {
       </section>
       <section className="card p-5">
         <h2 className="font-semibold">To‘lovlar</h2>
-        {c.payments.map((p) => (
-          <p key={p.id} className="mt-2 text-sm">{formatDate(p.paidAt)} · {formatMoney(p.amount)} · {p.status}</p>
+        {!c.payments?.length ? <p className="mt-2 text-sm text-muted">Joriy yashash bo‘yicha to‘lov yo‘q.</p> : null}
+        {(c.payments ?? []).map((p) => (
+          <p key={p.id} className="mt-2 text-sm">{formatDate(p.paidAt)} · {paymentAmountLabel(p)} · {payStatusLabel(p.status)}</p>
         ))}
       </section>
       <section className="card p-5">
         <h2 className="font-semibold">Audit</h2>
-        {c.audits.map((a) => (
+        {(c.audits ?? []).map((a) => (
           <p key={a.id} className="mt-2 text-sm text-muted">{formatDate(a.createdAt)} · {a.user.fullName} · {a.action}</p>
         ))}
       </section>

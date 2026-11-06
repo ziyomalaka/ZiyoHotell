@@ -200,7 +200,18 @@ export function payStatusLabel(status: string) {
   if (status === "PAID") return "To‘ladi";
   if (status === "PARTIAL" || status === "UNPAID") return "To‘lamadi";
   if (status === "CANCELLED") return "Bekor qilingan";
+  if (status === "REFUND") return "Qaytim";
   return status;
+}
+
+/** To‘lov summasi: chiqishda qaytarilgan pul (qaytim) minus bilan ko‘rsatiladi. */
+export function paymentAmountLabel(row: { status?: string | null; amount: number }) {
+  return formatMoney(row.status === "REFUND" ? -row.amount : row.amount);
+}
+
+/** Kassa tushumi: to‘lovlar minus qaytimlar. */
+export function netIncome(rows: { status?: string | null; amount: number }[]) {
+  return rows.reduce((acc, r) => acc + (r.status === "PAID" ? r.amount : r.status === "REFUND" ? -r.amount : 0), 0);
 }
 
 export function greetingLabel(date = new Date()) {
