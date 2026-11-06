@@ -5,7 +5,6 @@ import { AppShell } from "./AppShell";
 const nav = [
   { href: "/nazorat", label: "Sektorlar va xonalar", short: "Xonalar", icon: "bed" },
   { href: "/nazorat/muddat", label: "To‘lov muddati", short: "Muddat", icon: "debt" },
-  { href: "/nazorat/tolovlar", label: "To‘lovlar", icon: "pay" },
 ];
 
 export function SupervisorShell({ children, user }: { children: React.ReactNode; user: SessionUser }) {
