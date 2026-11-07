@@ -4,7 +4,7 @@ export const ROLES = {
   RECEPTION: 'RECEPTION',
   MANAGER: 'MANAGER',
   BOSHLIQ: 'MANAGER',
-  /** Nazoratchi: sektor va xonalarni kuzatadi, to'lov qabul qiladi. */
+  /** Nazoratchi: sektor, xona va to'lov muddatlarini kuzatadi. To'lov qabul qilmaydi. */
   SUPERVISOR: 'SUPERVISOR',
   NAZORATCHI: 'SUPERVISOR',
 } as const;
@@ -48,7 +48,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   MANAGER: ['customers.view', 'payments.view', 'reports.view', 'reports.export'],
   BOSHLIQ: ['customers.view', 'payments.view', 'reports.view', 'reports.export'],
-  SUPERVISOR: ['customers.view', 'payments.view', 'payments.create', 'reports.view', 'reports.export'],
+  SUPERVISOR: ['customers.view', 'payments.view', 'reports.view', 'reports.export'],
 };
 
 export function homePath(role: string) {

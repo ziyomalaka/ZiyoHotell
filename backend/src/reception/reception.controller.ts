@@ -152,6 +152,8 @@ export class ReceptionController {
 
   @Post('payments')
   @HttpCode(201)
+  // Nazoratchi faqat kuzatadi: to'lovni qabulxona (yoki admin) qabul qiladi.
+  @Roles(ROLES.RECEPTION, ROLES.SYSTEM_ADMIN)
   @Permissions('payments.create')
   @ApiOperation({ summary: 'To‘lov kiritish' })
   createPayment(

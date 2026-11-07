@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { AddPaymentModal, type PayStay } from "@/components/AddPaymentModal";
 import { EmptyState } from "@/components/EmptyState";
 import { SectorFilter } from "@/components/SectorFilter";
 import {
@@ -52,7 +51,6 @@ export default function SupervisorRoomsPage() {
   const [gender, setGender] = useState("");
   const [q, setQ] = useState("");
   const [onlyDue, setOnlyDue] = useState(false);
-  const [pay, setPay] = useState<PayStay | null>(null);
   const [error, setError] = useState("");
 
   function load() {
@@ -168,26 +166,8 @@ export default function SupervisorRoomsPage() {
                               <span className="font-medium text-navy">
                                 {bed.number}-o‘rin{occ ? ` · ${occ.customer.fullName}` : ""}
                               </span>
-                              {occ ? (
-                                <button
-                                  type="button"
-                                  className="shrink-0 text-sm font-semibold text-royal"
-                                  onClick={() =>
-                                    setPay({
-                                      id: occ.stay.id,
-                                      type: occ.stay.type,
-                                      monthlyPrice: occ.stay.monthlyPrice,
-                                      paidDays: occ.stay.paidDays,
-                                      startDate: occ.stay.startDate,
-                                      customerName: occ.customer.fullName,
-                                    })
-                                  }
-                                >
-                                  To‘lov
-                                </button>
-                              ) : (
-                                <span className="text-xs text-muted">bo‘sh</span>
-                              )}
+                              {/* Nazoratchi faqat kuzatadi — to‘lovni qabulxona qabul qiladi. */}
+                              {occ ? null : <span className="text-xs text-muted">bo‘sh</span>}
                             </div>
                             {occ ? (
                               <p className={`mt-0.5 text-xs ${tone ? tone.text : "text-muted"}`}>
@@ -216,17 +196,6 @@ export default function SupervisorRoomsPage() {
         ))}
       </div>
       {!groups.length ? <EmptyState className="mt-4" text="Tanlangan filtrga mos xona yo‘q." /> : null}
-
-      {pay ? (
-        <AddPaymentModal
-          stay={pay}
-          onClose={() => setPay(null)}
-          onSaved={() => {
-            setPay(null);
-            load();
-          }}
-        />
-      ) : null}
     </div>
   );
 }
