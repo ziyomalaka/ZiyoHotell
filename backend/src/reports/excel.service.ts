@@ -357,8 +357,9 @@ export class ExcelService {
       return this.file(wb, `Yotoqxona_Xodimlar_${day.slice(0, 7)}.xlsx`);
     }
     if (type === 'debt') {
+      // Qarzdorlik faqat hozir yashayotganlar bo'yicha (chiqib ketganlar hisobotga kirmaydi).
       const data = await this.prisma.stay.findMany({
-        where: floor ? { room: { sector: { number: floor } } } : {},
+        where: { status: 'ACTIVE', ...(floor ? { room: { sector: { number: floor } } } : {}) },
         include: { customer: true, room: true, bed: true },
         orderBy: [{ room: { sector: { number: 'asc' } } }, { room: { floor: 'asc' } }, { room: { number: 'asc' } }],
       });

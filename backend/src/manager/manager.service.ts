@@ -13,7 +13,7 @@ import {
   todayISO,
 } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
-import { cashCardTotals, checkoutDate, INCOME_STATUSES, netIncome } from '../common/billing';
+import { cashCardTotals, checkoutDate, INCOME_STATUSES, LIVE_STAY_WHERE, livePaymentWhere, netIncome } from '../common/billing';
 import { sectorBreakdown } from '../common/sector';
 import { ReportsService } from '../reports/reports.service';
 
@@ -132,11 +132,15 @@ export class ManagerService {
     return Object.keys(paidAt).length ? paidAt : undefined;
   }
 
-  /** Kassa yozuvlari: to'lovlar va chiqishda qaytarilgan pul (REFUND — summalarda ayiriladi). */
-  private incomeWhere(from?: Date, to?: Date) {
+  /**
+   * Kassa yozuvlari: to'lovlar va qaytim (REFUND — summalarda ayiriladi).
+   * Faqat hozir yashayotganlarniki: mijoz chiqib ketsa, uning to'lovlari hisobotdan chiqadi.
+   */
+  private incomeWhere(from?: Date, to?: Date, sector?: number | null) {
     return {
       status: { in: [...INCOME_STATUSES] },
       ...(from || to ? { paidAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+      ...livePaymentWhere(sector),
     };
   }
 
@@ -184,10 +188,10 @@ export class ManagerService {
       this.prisma.occupancy.count(),
       this.incomeSum(dayStart(today), dayEnd(today)),
       this.incomeSum(dayStart(monthStart), dayEnd(today)),
-      this.prisma.stay.findMany({ select: { totalAmount: true, paidAmount: true, customerId: true } }),
+      this.prisma.stay.findMany({ where: LIVE_STAY_WHERE, select: { totalAmount: true, paidAmount: true, customerId: true } }),
       this.prisma.room.findMany({ include: { sector: true, beds: { include: { occupancy: true } } } }),
       this.prisma.payment.findMany({
-        where: { status: { not: 'CANCELLED' } },
+        where: { status: { not: 'CANCELLED' }, ...livePaymentWhere() },
         include: { customer: true },
         orderBy: { paidAt: 'desc' },
         take: 5,
@@ -243,7 +247,7 @@ export class ManagerService {
       });
       monthChart.push({ day: String(d), value: netIncome(inc.map((g) => ({ status: g.status, amount: g._sum.amount || 0 }))) });
     }
-    const topDebtorsRaw = await this.prisma.stay.findMany({ include: { customer: true } });
+    const topDebtorsRaw = await this.prisma.stay.findMany({ where: LIVE_STAY_WHERE, include: { customer: true } });
     const byCustomer = new Map<string, { fullName: string; debt: number }>();
     for (const s of topDebtorsRaw) {
       const d = stayDebt(s.totalAmount, s.paidAmount);
@@ -411,7 +415,7 @@ export class ManagerService {
     if (opts.status) where.status = opts.status;
     if (opts.method) where.method = opts.method;
     const floor = this.level(opts.floor);
-    if (floor) where.stay = { room: { sector: { number: floor } } };
+    where.stay = livePaymentWhere(floor).stay;
     const paidAt = this.paidAtFromRange(opts.range || '', opts.from, opts.to);
     if (paidAt) where.paidAt = paidAt;
     const [total, rows, todayInc, monthInc, allInc, stays] = await Promise.all([
@@ -421,7 +425,7 @@ export class ManagerService {
       this.incomeSum(dayStart(monthStartISO()), dayEnd(todayISO())),
       this.incomeSum(),
       this.prisma.stay.findMany({
-        where: floor ? { room: { sector: { number: floor } } } : {},
+        where: { ...LIVE_STAY_WHERE, ...(floor ? { room: { sector: { number: floor } } } : {}) },
         select: { totalAmount: true, paidAmount: true, customerId: true },
       }),
     ]);
@@ -458,12 +462,11 @@ export class ManagerService {
 
   async dailyPayments(date = todayISO(), floorNumber?: number) {
     const floor = this.level(floorNumber);
-    const floorWhere = floor ? { stay: { room: { sector: { number: floor } } } } : {};
-    const where = { ...this.incomeWhere(dayStart(date), dayEnd(date)), ...floorWhere };
+    const where = this.incomeWhere(dayStart(date), dayEnd(date), floor);
     const [rows, unpaid] = await Promise.all([
       this.prisma.payment.findMany({ where, include: paymentInclude, orderBy: { paidAt: 'asc' } }),
       this.prisma.payment.count({
-        where: { status: 'UNPAID', paidAt: { gte: dayStart(date), lte: dayEnd(date) }, ...floorWhere },
+        where: { status: 'UNPAID', paidAt: { gte: dayStart(date), lte: dayEnd(date) }, ...livePaymentWhere(floor) },
       }),
     ]);
     // Qaytim (REFUND) summalardan ayiriladi; "to'lagan" soniga faqat to'lovlar kiradi.
@@ -491,14 +494,13 @@ export class ManagerService {
 
   async monthlyPayments(year: number, month: number, floorNumber?: number) {
     const floor = this.level(floorNumber);
-    const floorWhere = floor ? { stay: { room: { sector: { number: floor } } } } : {};
     const last = daysInMonth(year, month);
     const from = isoDay(year, month, 1);
     const to = isoDay(year, month, last);
     const today = todayISO();
     const end = to > today ? today : to;
     const rows = await this.prisma.payment.findMany({
-      where: { ...this.incomeWhere(dayStart(from), dayEnd(end)), ...floorWhere },
+      where: this.incomeWhere(dayStart(from), dayEnd(end), floor),
       include: paymentInclude,
       orderBy: { paidAt: 'desc' },
     });
@@ -509,14 +511,11 @@ export class ManagerService {
       const value = netIncome(rows.filter((p) => todayISO(p.paidAt) === day));
       chart.push({ day: String(d), value });
     }
+    // Oylik jadvalda faqat hozir yashayotganlar: chiqib ketganlar hisobotga qo'shilmaydi.
     const stays = await this.prisma.stay.findMany({
       where: {
+        ...LIVE_STAY_WHERE,
         ...(floor ? { room: { sector: { number: floor } } } : {}),
-        OR: [
-          { startDate: { gte: dayStart(from), lte: dayEnd(to) } },
-          { status: 'ACTIVE' },
-          { payments: { some: { paidAt: { gte: dayStart(from), lte: dayEnd(end) }, status: 'PAID' } } },
-        ],
       },
       include: { customer: true, room: true, bed: true, payments: { where: { status: 'PAID' }, orderBy: { paidAt: 'desc' } } },
     });
@@ -558,8 +557,9 @@ export class ManagerService {
   async debts(opts: { tab?: string; q?: string; type?: string; age?: string; floor?: number; skip: number; pageSize: number }) {
     const today = todayISO();
     const floor = this.level(opts.floor);
+    // Qarzdorlik faqat hozir yashayotganlar bo'yicha.
     const stays = await this.prisma.stay.findMany({
-      where: floor ? { room: { sector: { number: floor } } } : {},
+      where: { ...LIVE_STAY_WHERE, ...(floor ? { room: { sector: { number: floor } } } : {}) },
       include: { customer: true, room: true, bed: true, payments: { where: { status: { not: 'CANCELLED' } }, orderBy: { paidAt: 'asc' } } },
     });
     let rows = stays

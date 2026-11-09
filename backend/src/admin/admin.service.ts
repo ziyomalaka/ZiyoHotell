@@ -10,7 +10,7 @@ import { AppError, required } from '../common/errors';
 import { AuthService } from '../auth/auth.service';
 import { dayEnd, dayStart, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { capacityMonthlyPrice, checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE, INCOME_STATUSES, netIncome } from '../common/billing';
+import { capacityMonthlyPrice, checkoutDate, DEFAULT_DAILY_PRICE, DEFAULT_MONTHLY_PRICE, INCOME_STATUSES, LIVE_STAY_WHERE, livePaymentWhere, netIncome } from '../common/billing';
 import { DEFAULT_ROLE_PERMISSIONS, normalizeRole } from '../common/roles';
 
 const execFileAsync = promisify(execFile);
@@ -59,7 +59,8 @@ export class AdminService {
     const groups = await this.prisma.payment.groupBy({
       by: ['status'],
       _sum: { amount: true },
-      where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: from, ...(to ? { lte: to } : {}) } },
+      // Faqat hozir yashayotganlarniki: chiqib ketgan mijozning to'lovi tushumga kirmaydi.
+      where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: from, ...(to ? { lte: to } : {}) }, ...livePaymentWhere() },
     });
     return netIncome(groups.map((g) => ({ status: g.status, amount: g._sum.amount || 0 })));
   }
@@ -79,7 +80,7 @@ export class AdminService {
         this.prisma.checkLog.count({ where: { type: 'CHECK_OUT', at: { gte: dayStart(today), lte: dayEnd(today) } } }),
         this.incomeBetween(dayStart(today), dayEnd(today)),
         this.incomeBetween(dayStart(monthStart)),
-        this.prisma.stay.findMany({ select: { totalAmount: true, paidAmount: true } }),
+        this.prisma.stay.findMany({ where: LIVE_STAY_WHERE, select: { totalAmount: true, paidAmount: true } }),
       ]);
     const debt = stays.reduce((acc, s) => acc + Math.max(0, s.totalAmount - s.paidAmount), 0);
     const recent = await this.prisma.auditLog.findMany({
@@ -106,7 +107,7 @@ export class AdminService {
     const payGroups = await this.prisma.payment.groupBy({
       by: ['status'],
       _sum: { amount: true },
-      where: { status: { not: 'CANCELLED' } },
+      where: { status: { not: 'CANCELLED' }, ...livePaymentWhere() },
     });
     return {
       rooms,
@@ -929,7 +930,7 @@ export class AdminService {
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
     const payFloor = this.level(opts.floor);
-    if (payFloor) where.stay = { room: { sector: { number: payFloor } } };
+    where.stay = livePaymentWhere(payFloor).stay;
     const paidAt: { gte?: Date; lte?: Date } = {};
     if (opts.range === 'today') {
       paidAt.gte = dayStart(today);
@@ -959,7 +960,7 @@ export class AdminService {
         skip: opts.skip,
         take: opts.pageSize,
       }),
-      this.prisma.stay.findMany({ select: { totalAmount: true, paidAmount: true } }),
+      this.prisma.stay.findMany({ where: LIVE_STAY_WHERE, select: { totalAmount: true, paidAmount: true } }),
     ]);
     return {
       total,
@@ -1014,8 +1015,9 @@ export class AdminService {
 
   async debtReport(floorNumber?: number) {
     const floor = this.level(floorNumber);
+    // Qarzdorlik faqat hozir yashayotganlar bo'yicha.
     const stays = await this.prisma.stay.findMany({
-      where: floor ? { room: { sector: { number: floor } } } : {},
+      where: { ...LIVE_STAY_WHERE, ...(floor ? { room: { sector: { number: floor } } } : {}) },
       include: { customer: true, room: true, bed: true },
       orderBy: [{ room: { sector: { number: 'asc' } } }, { room: { floor: 'asc' } }, { room: { number: 'asc' } }],
     });

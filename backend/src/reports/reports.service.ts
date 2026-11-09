@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UZ_MONTHS, addDays, dayEnd, dayStart, todayISO } from '../common/datetime';
 import { GENDERS, genderLabel, roomGender } from '../common/gender';
-import { cashCardTotals, INCOME_STATUSES, methodSplit, netIncome, periodInfo, signedAmount } from '../common/billing';
+import { cashCardTotals, INCOME_STATUSES, LIVE_STAY_WHERE, livePaymentWhere, methodSplit, netIncome, periodInfo, signedAmount } from '../common/billing';
 import { sectorBreakdown } from '../common/sector';
 
 @Injectable()
@@ -39,13 +39,15 @@ export class ReportsService {
     const active = level
       ? await this.prisma.occupancy.count({ where: { bed: { room: { sector: { number: level } } } } })
       : await this.prisma.occupancy.count();
+    // Chiqib ketganlar hisobot jadvaliga (summasi bilan) qo'shilmaydi; kirgan/chiqqanlar soni esa harakat sifatida qoladi.
+    const shown = status ? stays : stays.filter((s) => s.status === LIVE_STAY_WHERE.status);
     return {
       floor: level,
-      total: stays.length,
+      total: shown.length,
       arrived: stays.length,
       left: stays.filter((s) => s.status === 'COMPLETED').length,
       living: status === 'ACTIVE' ? stays.length : active,
-      rows: stays.map((s) => ({ ...s, ...periodInfo(s) })),
+      rows: shown.map((s) => ({ ...s, ...periodInfo(s) })),
     };
   }
 
@@ -115,7 +117,8 @@ export class ReportsService {
     const payments = await this.prisma.payment.findMany({
       where: {
         ...(paidAt ? { paidAt } : {}),
-        ...(level ? { stay: { room: { sector: { number: level } } } } : {}),
+        // Faqat hozir yashayotganlarning to'lovlari — chiqib ketganlarniki hisobotga qo'shilmaydi.
+        ...livePaymentWhere(level),
         NOT: { status: 'CANCELLED' },
       },
       include: { customer: true, stay: { include: { room: true, bed: true } }, createdBy: { select: { id: true, fullName: true } } },
@@ -125,7 +128,7 @@ export class ReportsService {
     const income = payments.filter((p) => (INCOME_STATUSES as readonly string[]).includes(p.status));
     const sum = (type?: string) => netIncome(income.filter((p) => (type ? p.type === type : true)));
     const unpaidDebt = await this.prisma.stay.findMany({
-      where: level ? { room: { sector: { number: level } } } : {},
+      where: { ...LIVE_STAY_WHERE, ...(level ? { room: { sector: { number: level } } } : {}) },
       select: { totalAmount: true, paidAmount: true, status: true },
     });
     const unpaidStays = unpaidDebt.filter((s) => s.paidAmount < s.totalAmount);
@@ -253,7 +256,8 @@ export class ReportsService {
         where: {
           paidAt: { gte: since },
           NOT: { status: 'CANCELLED' },
-          ...(level ? { stay: { room: { sector: { number: level } } } } : {}),
+          // Kirim-chiqim sonlari harakat sifatida qoladi; tushumga faqat yashayotganlarning to'lovi kiradi.
+          ...livePaymentWhere(level),
         },
         select: { amount: true, paidAt: true, method: true, status: true },
       }),

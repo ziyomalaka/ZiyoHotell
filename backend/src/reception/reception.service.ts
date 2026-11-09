@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError, required } from '../common/errors';
 import { addDays, dayEnd, dayStart, parseDate, todayISO } from '../common/datetime';
 import { genderWord, roomGender } from '../common/gender';
-import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, INCOME_STATUSES, netIncome, paymentPeriod, PaymentMethod, periodInfo, refundableAmount, revertPeriod, signedAmount, STAY_TYPES, type StayType } from '../common/billing';
+import { cashCardTotals, checkoutDate, DAILY_STAY_PRICE, daysForAmount, INCOME_STATUSES, livePaymentWhere, netIncome, paymentPeriod, PaymentMethod, periodInfo, refundableAmount, revertPeriod, signedAmount, STAY_TYPES, type StayType } from '../common/billing';
 import { normalizeMigrantPassportId, normalizePassportId } from '../common/passport';
 import { normalizePhone } from '../common/phone';
 
@@ -992,7 +992,8 @@ export class ReceptionService implements OnModuleInit {
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
     const floor = this.floorFilter(opts.floor);
-    if (floor) where.stay = { room: { sector: { number: floor } } };
+    // Faqat hozir yashayotganlarning to'lovlari: chiqib ketgan mijozning to'lovi ro'yxatda ham, tushumda ham yo'q.
+    where.stay = livePaymentWhere(floor).stay;
     const paidAt: { gte?: Date; lte?: Date } = {};
     if (opts.range === 'today') {
       paidAt.gte = dayStart(today);
@@ -1044,14 +1045,14 @@ export class ReceptionService implements OnModuleInit {
   async incomeSummary() {
     const today = todayISO();
     const monthStart = today.slice(0, 8) + '01';
-    // Tushum = to'lovlar minus chiqishda qaytarilgan pul (qaytim).
+    // Tushum = hozir yashayotganlarning to'lovlari minus qaytim. Chiqib ketganlarniki hisobga olinmaydi.
     const [todayRows, monthRows] = await Promise.all([
       this.prisma.payment.findMany({
-        where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: dayStart(today), lte: dayEnd(today) } },
+        where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: dayStart(today), lte: dayEnd(today) }, ...livePaymentWhere() },
         select: { amount: true, method: true, status: true },
       }),
       this.prisma.payment.findMany({
-        where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: dayStart(monthStart), lte: dayEnd(today) } },
+        where: { status: { in: [...INCOME_STATUSES] }, paidAt: { gte: dayStart(monthStart), lte: dayEnd(today) }, ...livePaymentWhere() },
         select: { amount: true, method: true, status: true },
       }),
     ]);

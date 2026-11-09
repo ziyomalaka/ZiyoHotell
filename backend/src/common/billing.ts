@@ -70,6 +70,18 @@ export function methodSplit(method: string | null | undefined, amount: number) {
  */
 export const INCOME_STATUSES = ['PAID', 'REFUND'] as const;
 
+/**
+ * Hisobotlar faqat hozir yashayotgan mijozlarning to'lovlarini hisoblaydi: mijoz chiqib ketsa,
+ * uning yashashiga tegishli to'lovlar (va qaytimi) hisobot, tushum va qarzdorlikdan chiqadi.
+ * Ma'lumot bazada qoladi (yashash tarixi), faqat hisobotga qo'shilmaydi.
+ */
+export function livePaymentWhere(sectorNumber?: number | null) {
+  return { stay: { status: 'ACTIVE', ...(sectorNumber ? { room: { sector: { number: sectorNumber } } } : {}) } };
+}
+
+/** Qarzdorlik va yashash hisobotlari uchun: faqat hozir yashayotganlar. */
+export const LIVE_STAY_WHERE = { status: 'ACTIVE' } as const;
+
 /** Kassa uchun ishorali summa: qaytim manfiy. */
 export function signedAmount(row: { status?: string | null; amount: number }) {
   return row.status === 'REFUND' ? -row.amount : row.amount;
